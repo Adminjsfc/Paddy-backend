@@ -1,0 +1,11 @@
+import * as controller from "../controllers/dm-setup.controller.js";
+import { Router } from 'express';
+export const dmSetupRoutes = Router();
+dmSetupRoutes.get('/paddy/options', controller.listPaddyOptions);
+dmSetupRoutes.post('/paddy/facilities', controller.createPaddyFacility);
+dmSetupRoutes.post('/paddy/assignments', controller.assignPaddySource);
+dmSetupRoutes.get('/options', controller.getSetupOptions);
+dmSetupRoutes.post('/assignments', controller.assignReceivingStore);
+dmSetupRoutes.post('/orders', controller.createCmrOrder);
+dmSetupRoutes.post('/test-rice', controller.addTestRice);
+dmSetupRoutes.post('/vehicles', controller.registerMillerVehicle);

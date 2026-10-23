@@ -1,0 +1,23 @@
+[Unit]
+Description=SFC CMR normalized MQTT GPS consumer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/sfc-cmr-service
+EnvironmentFile=/opt/sfc-cmr-service/.env
+ExecStart=/usr/bin/node /opt/sfc-cmr-service/src/mqtt-worker.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

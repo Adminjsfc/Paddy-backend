@@ -1,0 +1,27 @@
+-- Preserve existing imported records and source IDs.
+CREATE TABLE IF NOT EXISTS tbl_store_location_master (
+ id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ api_id VARCHAR(100) NULL,
+ store_type INT NULL COMMENT '1=> FCI, 2=> Depot,3=> FPS',
+ store_id VARCHAR(100) NULL,
+ store_name VARCHAR(200) NULL,
+ district_id INT NULL,
+ rgi_block_code INT NULL,
+ lat DECIMAL(10,8) NULL,
+ lng DECIMAL(10,8) NULL,
+ c_by INT NULL,
+ c_date DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+ d_by INT NULL,
+ d_date DATETIME NULL,
+ status INT NOT NULL DEFAULT 1,
+ radius VARCHAR(45) NULL DEFAULT '0.2',
+ capacity VARCHAR(100) NULL,
+ dealer_name VARCHAR(200) NULL,
+ License_no VARCHAR(200) NULL,
+ fast_tag INT NULL DEFAULT 2 COMMENT '1=> Yes, 2=> No',
+ weighbridge INT NULL DEFAULT 2 COMMENT '1=> Yes, 2=> No',
+ KEY store_type (store_type,district_id),
+ KEY api_id (api_id),
+ KEY idx_store_district_status (district_id,status),
+ KEY idx_store_api_type_status (api_id,store_type,status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

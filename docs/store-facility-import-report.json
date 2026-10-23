@@ -1,0 +1,3215 @@
+{
+  "mode": "apply",
+  "capacity_unit": "MT",
+  "radius_unit": "KM",
+  "total": 315,
+  "summary": {
+    "created": 143,
+    "skipped": 172
+  },
+  "results": [
+    {
+      "store_id": 38,
+      "store_code": "BKR01",
+      "name": "BERMO GODOWN",
+      "result": "created",
+      "facility_id": 6,
+      "code": "BKR01",
+      "warnings": []
+    },
+    {
+      "store_id": 39,
+      "store_code": "BKR09",
+      "name": "NAWADIH GODOWN",
+      "result": "created",
+      "facility_id": 7,
+      "code": "BKR09",
+      "warnings": []
+    },
+    {
+      "store_id": 40,
+      "store_code": "BKR10",
+      "name": "PETARWAR GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 41,
+      "store_code": "BKR05",
+      "name": "CHAS BAZAR SAMITY",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 42,
+      "store_code": "BKR02",
+      "name": "B S CITY",
+      "result": "created",
+      "facility_id": 8,
+      "code": "BKR02",
+      "warnings": []
+    },
+    {
+      "store_id": 43,
+      "store_code": "BKR03",
+      "name": "CHANDANKIYARI GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 44,
+      "store_code": "BKR04",
+      "name": "CHANDRAPURA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 45,
+      "store_code": "BKR06",
+      "name": "GOMIA GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 46,
+      "store_code": "BKR07",
+      "name": "JAINAMORE SFC JARIDIH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 47,
+      "store_code": "BKR08",
+      "name": "KASMAR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 48,
+      "store_code": "CTR01",
+      "name": "SFC CHATRA",
+      "result": "created",
+      "facility_id": 9,
+      "code": "CTR01",
+      "warnings": []
+    },
+    {
+      "store_id": 49,
+      "store_code": "CTR02",
+      "name": "SFC ITKHORI",
+      "result": "created",
+      "facility_id": 10,
+      "code": "CTR02",
+      "warnings": []
+    },
+    {
+      "store_id": 50,
+      "store_code": "CTR03",
+      "name": "SFC KANHACHATTI",
+      "result": "created",
+      "facility_id": 11,
+      "code": "CTR03",
+      "warnings": []
+    },
+    {
+      "store_id": 51,
+      "store_code": "CTR04",
+      "name": "SFC GIDHOUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 52,
+      "store_code": "CTR08",
+      "name": "SFC PATHALGADA",
+      "result": "created",
+      "facility_id": 12,
+      "code": "CTR08",
+      "warnings": []
+    },
+    {
+      "store_id": 53,
+      "store_code": "CTR05",
+      "name": "SFC TANDWA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 54,
+      "store_code": "CTR06",
+      "name": "SFC SIMARIA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 56,
+      "store_code": "CTR07",
+      "name": "KUNDA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 57,
+      "store_code": "CTR10",
+      "name": "SFC LAWALONG",
+      "result": "created",
+      "facility_id": 13,
+      "code": "CTR10",
+      "warnings": []
+    },
+    {
+      "store_id": 58,
+      "store_code": "CTR11",
+      "name": "SFC SHALIGRAM RAMNARAYANPUR ALIAS HUNTERGANJ",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 59,
+      "store_code": "DGR01",
+      "name": "BAZAR SAMI TI DEOGHAR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 60,
+      "store_code": "DGR02",
+      "name": "DEVIPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 61,
+      "store_code": "DGR03",
+      "name": "MOHANPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 62,
+      "store_code": "DGR04",
+      "name": "SARWA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 63,
+      "store_code": "DGR05",
+      "name": "Madhupur",
+      "result": "created",
+      "facility_id": 14,
+      "code": "DGR05",
+      "warnings": []
+    },
+    {
+      "store_id": 64,
+      "store_code": "DGR06",
+      "name": "MARGOMUNDA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 65,
+      "store_code": "DGR07",
+      "name": "KAROWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 66,
+      "store_code": "DGR08",
+      "name": "SARATH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 67,
+      "store_code": "DGR09",
+      "name": "PALOJOROI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 68,
+      "store_code": "DMK08",
+      "name": "GOPIKANDER",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 69,
+      "store_code": "DMK02",
+      "name": "MASALIYA",
+      "result": "created",
+      "facility_id": 15,
+      "code": "DMK02",
+      "warnings": []
+    },
+    {
+      "store_id": 70,
+      "store_code": "DMK03",
+      "name": "JAMA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 71,
+      "store_code": "DMK10",
+      "name": "SIKARIPARA",
+      "result": "created",
+      "facility_id": 16,
+      "code": "DMK10",
+      "warnings": []
+    },
+    {
+      "store_id": 72,
+      "store_code": "DMK01",
+      "name": "DUMKA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 73,
+      "store_code": "DMK09",
+      "name": "RANISHWAR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 74,
+      "store_code": "DMK04",
+      "name": "RAMGARH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 75,
+      "store_code": "DMK07",
+      "name": "KATHIKUND",
+      "result": "created",
+      "facility_id": 17,
+      "code": "DMK07",
+      "warnings": []
+    },
+    {
+      "store_id": 76,
+      "store_code": "DMK05",
+      "name": "JARMUNDI",
+      "result": "created",
+      "facility_id": 18,
+      "code": "DMK05",
+      "warnings": []
+    },
+    {
+      "store_id": 77,
+      "store_code": "DMK06",
+      "name": "SARAIYAHAT",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 78,
+      "store_code": "DNB01",
+      "name": "JSFC GODOWN DHANSAR DHANBAD",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 79,
+      "store_code": "DNB02",
+      "name": "KANDRA",
+      "result": "created",
+      "facility_id": 19,
+      "code": "DNB02",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 80,
+      "store_code": "DNB03",
+      "name": "JSFC GODOWN GOVINDPUR BLOCK",
+      "result": "created",
+      "facility_id": 20,
+      "code": "DNB03",
+      "warnings": []
+    },
+    {
+      "store_id": 81,
+      "store_code": "DNB04",
+      "name": "JSFC GODOWN NIRSA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 82,
+      "store_code": "DNB05",
+      "name": "JSFC GODOWN BALIAPUR BLOCK",
+      "result": "created",
+      "facility_id": 21,
+      "code": "DNB05",
+      "warnings": []
+    },
+    {
+      "store_id": 83,
+      "store_code": "DNB06",
+      "name": "SINDRI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 84,
+      "store_code": "DNB07",
+      "name": "JSFC GODOWN BAGHMARA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 85,
+      "store_code": "DNB08",
+      "name": "JSFC GODOWN TUNDI BLOCK",
+      "result": "created",
+      "facility_id": 22,
+      "code": "DNB08",
+      "warnings": []
+    },
+    {
+      "store_id": 86,
+      "store_code": "DNB09",
+      "name": "JSFC GODOWN TOPCHANCHI",
+      "result": "created",
+      "facility_id": 23,
+      "code": "DNB09",
+      "warnings": []
+    },
+    {
+      "store_id": 87,
+      "store_code": "DNB10",
+      "name": "MAITHON",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 88,
+      "store_code": "ESM01",
+      "name": "BURMA MINES OXYGEN",
+      "result": "created",
+      "facility_id": 24,
+      "code": "ESM01",
+      "warnings": []
+    },
+    {
+      "store_id": 89,
+      "store_code": "ESM02",
+      "name": "SAKCHI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 90,
+      "store_code": "ESM03",
+      "name": "JAMSHEDPUR BLOCK PARISAR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 91,
+      "store_code": "ESM04",
+      "name": "PATAMDA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 92,
+      "store_code": "ESM05",
+      "name": "POTKA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 93,
+      "store_code": "ESM06",
+      "name": "BAHARAGORA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 94,
+      "store_code": "ESM07",
+      "name": "CHAKULIA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 95,
+      "store_code": "ESM08",
+      "name": "DHALBHUMGARH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 96,
+      "store_code": "ESM09",
+      "name": "GHATSHILA",
+      "result": "created",
+      "facility_id": 25,
+      "code": "ESM09",
+      "warnings": []
+    },
+    {
+      "store_id": 97,
+      "store_code": "ESM10",
+      "name": "MUSABANI",
+      "result": "created",
+      "facility_id": 26,
+      "code": "ESM10",
+      "warnings": []
+    },
+    {
+      "store_id": 98,
+      "store_code": "ESM11",
+      "name": "DUMARIA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 99,
+      "store_code": "GDA01",
+      "name": "JSFC GODWN GODDA",
+      "result": "created",
+      "facility_id": 27,
+      "code": "GDA01",
+      "warnings": []
+    },
+    {
+      "store_id": 100,
+      "store_code": "GDA02",
+      "name": "SFC PORAIYAHAT",
+      "result": "created",
+      "facility_id": 28,
+      "code": "GDA02",
+      "warnings": []
+    },
+    {
+      "store_id": 101,
+      "store_code": "GDA03",
+      "name": "STATE FOOD COOPERATION GODWN SUNDERPAHARI",
+      "result": "created",
+      "facility_id": 29,
+      "code": "GDA03",
+      "warnings": []
+    },
+    {
+      "store_id": 102,
+      "store_code": "GDA04",
+      "name": "STATE FOOD COOPERATION GODWN BASANTRY",
+      "result": "created",
+      "facility_id": 30,
+      "code": "GDA04",
+      "warnings": []
+    },
+    {
+      "store_id": 103,
+      "store_code": "GDA05",
+      "name": "JSFC GODWN PATHERGAMA",
+      "result": "created",
+      "facility_id": 31,
+      "code": "GDA05",
+      "warnings": []
+    },
+    {
+      "store_id": 104,
+      "store_code": "GDA09",
+      "name": "JSFC GODWN BOARIJORE",
+      "result": "created",
+      "facility_id": 32,
+      "code": "GDA09",
+      "warnings": []
+    },
+    {
+      "store_id": 105,
+      "store_code": "GDA06",
+      "name": "SFC GODWN MAHAGAMA",
+      "result": "created",
+      "facility_id": 33,
+      "code": "GDA06",
+      "warnings": []
+    },
+    {
+      "store_id": 106,
+      "store_code": "GDA07",
+      "name": "JSFC GODWN MEHARMA",
+      "result": "created",
+      "facility_id": 34,
+      "code": "GDA07",
+      "warnings": []
+    },
+    {
+      "store_id": 107,
+      "store_code": "GDA08",
+      "name": "JSFC GODWN THAKURGANGTI",
+      "result": "created",
+      "facility_id": 35,
+      "code": "GDA08",
+      "warnings": []
+    },
+    {
+      "store_id": 108,
+      "store_code": "GML01",
+      "name": "GUMLA DEPOT",
+      "result": "created",
+      "facility_id": 36,
+      "code": "GML01",
+      "warnings": []
+    },
+    {
+      "store_id": 109,
+      "store_code": "GML04",
+      "name": "SFC CHAINPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 110,
+      "store_code": "GML02",
+      "name": "SFC DUMRI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 111,
+      "store_code": "GML03",
+      "name": "SFC BHARNO",
+      "result": "created",
+      "facility_id": 37,
+      "code": "GML03",
+      "warnings": []
+    },
+    {
+      "store_id": 112,
+      "store_code": "GML05",
+      "name": "SFC SISAI",
+      "result": "created",
+      "facility_id": 38,
+      "code": "GML05",
+      "warnings": []
+    },
+    {
+      "store_id": 113,
+      "store_code": "GML06",
+      "name": "SFC BISHUNPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 114,
+      "store_code": "GML07",
+      "name": "SFC GHAGHRA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 115,
+      "store_code": "GML08",
+      "name": "SFC RAIDIH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 116,
+      "store_code": "GML09",
+      "name": "SFC BASIA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 117,
+      "store_code": "GML10",
+      "name": "SFC KAMDARA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 118,
+      "store_code": "GML11",
+      "name": "SFC PALKOT",
+      "result": "created",
+      "facility_id": 39,
+      "code": "GML11",
+      "warnings": []
+    },
+    {
+      "store_id": 119,
+      "store_code": "GRD01",
+      "name": "GIRIDIH SADAR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 120,
+      "store_code": "GRD07",
+      "name": "DEORI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 121,
+      "store_code": "GRD06",
+      "name": "JAMUA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 122,
+      "store_code": "GRD12",
+      "name": "BIRNI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 123,
+      "store_code": "GRD11",
+      "name": "BAGODAR",
+      "result": "created",
+      "facility_id": 40,
+      "code": "GRD11",
+      "warnings": []
+    },
+    {
+      "store_id": 124,
+      "store_code": "GRD10",
+      "name": "GANDEY",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 125,
+      "store_code": "GRD02",
+      "name": "DHANWAR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 126,
+      "store_code": "GRD09",
+      "name": "TISRI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 127,
+      "store_code": "GRD03",
+      "name": "DUMRI",
+      "result": "created",
+      "facility_id": 41,
+      "code": "GRD03",
+      "warnings": []
+    },
+    {
+      "store_id": 128,
+      "store_code": "GRD04",
+      "name": "SURIYA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 130,
+      "store_code": "GRD08",
+      "name": "GAWAN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 131,
+      "store_code": "GRD13",
+      "name": "PIRTAND",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 132,
+      "store_code": "GRW01",
+      "name": "SFC GODOWN BHAWNATHPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 133,
+      "store_code": "GRW02",
+      "name": "SFC GODOWN GARHWA",
+      "result": "created",
+      "facility_id": 42,
+      "code": "GRW02",
+      "warnings": []
+    },
+    {
+      "store_id": 134,
+      "store_code": "GRW03",
+      "name": "SFC GODOWN DHURKI",
+      "result": "created",
+      "facility_id": 43,
+      "code": "GRW03",
+      "warnings": []
+    },
+    {
+      "store_id": 135,
+      "store_code": "GRW04",
+      "name": "SFC GODOWN NAGARUNTARI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 136,
+      "store_code": "GRW05",
+      "name": "MERAL",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 137,
+      "store_code": "GRW06",
+      "name": "SFC RANKA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 138,
+      "store_code": "GRW07",
+      "name": "BHANDARIA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 139,
+      "store_code": "GRW08",
+      "name": "MANJHION",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 140,
+      "store_code": "GRW09",
+      "name": "KANDI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 141,
+      "store_code": "GRW10",
+      "name": "RAMUNA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 142,
+      "store_code": "HZB01",
+      "name": "BAZAR SAMITI-1",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 143,
+      "store_code": "HZB08",
+      "name": "BAZAR SAMITI-2",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 144,
+      "store_code": "HZB02",
+      "name": "CHAUPARAN",
+      "result": "created",
+      "facility_id": 44,
+      "code": "HZB02",
+      "warnings": []
+    },
+    {
+      "store_id": 145,
+      "store_code": "HZB03",
+      "name": "ICHAK",
+      "result": "created",
+      "facility_id": 45,
+      "code": "HZB03",
+      "warnings": []
+    },
+    {
+      "store_id": 146,
+      "store_code": "HZB04",
+      "name": "PADMA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 147,
+      "store_code": "HZB05",
+      "name": "BARHI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 148,
+      "store_code": "HZB06",
+      "name": "KEREDARI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 149,
+      "store_code": "HZB07",
+      "name": "BISHNUGARH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 150,
+      "store_code": "HZB11",
+      "name": "BARKAGAON",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 151,
+      "store_code": "HZB09",
+      "name": "BARKATHA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 152,
+      "store_code": "HZB10",
+      "name": "CHALKUSHA",
+      "result": "created",
+      "facility_id": 46,
+      "code": "HZB10",
+      "warnings": []
+    },
+    {
+      "store_id": 153,
+      "store_code": "HZB12",
+      "name": "TATIJHARIYA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 154,
+      "store_code": "HZB13",
+      "name": "KATKAMSANDI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 155,
+      "store_code": "JMT01",
+      "name": "STATE FOOD CORPORATION GODAM NARAYANPUR",
+      "result": "created",
+      "facility_id": 47,
+      "code": "JMT01",
+      "warnings": []
+    },
+    {
+      "store_id": 156,
+      "store_code": "JMT04",
+      "name": "STATE FOOD CORPORATION GODAM NALA",
+      "result": "created",
+      "facility_id": 48,
+      "code": "JMT04",
+      "warnings": []
+    },
+    {
+      "store_id": 157,
+      "store_code": "JMT02",
+      "name": "STATE FOOD CORPORATION GODAM JAMTARA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 158,
+      "store_code": "JMT05",
+      "name": "STATE FOOD CORPORATION GODAM FATEHPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 159,
+      "store_code": "JMT03",
+      "name": "STATE FOOD CORPORTATION GODAM KUNDHIT",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 160,
+      "store_code": "JMT06",
+      "name": "STATE FOOD CORPORATION GODAM KARMATANR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 161,
+      "store_code": "KHT01",
+      "name": "ARKI",
+      "result": "created",
+      "facility_id": 49,
+      "code": "KHT01",
+      "warnings": []
+    },
+    {
+      "store_id": 162,
+      "store_code": "KHT04",
+      "name": "MURHU",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 163,
+      "store_code": "KHT03",
+      "name": "KHUNTI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 164,
+      "store_code": "KHT02",
+      "name": "KARRA",
+      "result": "created",
+      "facility_id": 50,
+      "code": "KHT02",
+      "warnings": []
+    },
+    {
+      "store_id": 165,
+      "store_code": "KHT05",
+      "name": "TORPA",
+      "result": "created",
+      "facility_id": 51,
+      "code": "KHT05",
+      "warnings": []
+    },
+    {
+      "store_id": 166,
+      "store_code": "KOD01",
+      "name": "CHANDWARA DEPOT",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 167,
+      "store_code": "KOD02",
+      "name": "DOMCHANCH DEPOT",
+      "result": "created",
+      "facility_id": 52,
+      "code": "KOD02",
+      "warnings": []
+    },
+    {
+      "store_id": 168,
+      "store_code": "KOD05",
+      "name": "MARKACHO GODOWN",
+      "result": "created",
+      "facility_id": 53,
+      "code": "KOD05",
+      "warnings": []
+    },
+    {
+      "store_id": 169,
+      "store_code": "KOD03",
+      "name": "JAINAGAR DEPOT",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 170,
+      "store_code": "KOD04",
+      "name": "KODERMA DEPOT",
+      "result": "created",
+      "facility_id": 54,
+      "code": "KOD04",
+      "warnings": []
+    },
+    {
+      "store_id": 171,
+      "store_code": "KOD06",
+      "name": "SATGAWAN DEPOT",
+      "result": "created",
+      "facility_id": 55,
+      "code": "KOD06",
+      "warnings": []
+    },
+    {
+      "store_id": 172,
+      "store_code": "LRD01",
+      "name": "LOHARDAGA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 173,
+      "store_code": "LRD02",
+      "name": "SENHA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 174,
+      "store_code": "LRD03",
+      "name": "BHANDRA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 175,
+      "store_code": "LRD05",
+      "name": "KISKO",
+      "result": "created",
+      "facility_id": 56,
+      "code": "LRD05",
+      "warnings": []
+    },
+    {
+      "store_id": 176,
+      "store_code": "LRD04",
+      "name": "KURU",
+      "result": "created",
+      "facility_id": 57,
+      "code": "LRD04",
+      "warnings": []
+    },
+    {
+      "store_id": 177,
+      "store_code": "LTR04",
+      "name": "MANIKA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 178,
+      "store_code": "LTR01",
+      "name": "SDC LATEHAR",
+      "result": "created",
+      "facility_id": 58,
+      "code": "LTR01",
+      "warnings": []
+    },
+    {
+      "store_id": 179,
+      "store_code": "LTR05",
+      "name": "BARWADIH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 180,
+      "store_code": "LTR03",
+      "name": "BALUMATH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 181,
+      "store_code": "LTR02",
+      "name": "CHANDWA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 182,
+      "store_code": "LTR06",
+      "name": "GARU",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 183,
+      "store_code": "LTR07",
+      "name": "MAHUANDARN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 184,
+      "store_code": "PKR01",
+      "name": "Hiranpur",
+      "result": "created",
+      "facility_id": 59,
+      "code": "PKR01",
+      "warnings": []
+    },
+    {
+      "store_id": 185,
+      "store_code": "PKR02",
+      "name": "Maheshpur",
+      "result": "created",
+      "facility_id": 60,
+      "code": "PKR02",
+      "warnings": []
+    },
+    {
+      "store_id": 186,
+      "store_code": "PKR03",
+      "name": "PAKURIA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 187,
+      "store_code": "PKR04",
+      "name": "PAKUR",
+      "result": "created",
+      "facility_id": 61,
+      "code": "PKR04",
+      "warnings": []
+    },
+    {
+      "store_id": 188,
+      "store_code": "PKR05",
+      "name": "Amrapara",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 189,
+      "store_code": "PKR06",
+      "name": "Littipara",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 190,
+      "store_code": "PLM05",
+      "name": "TARHASI",
+      "result": "created",
+      "facility_id": 62,
+      "code": "PLM05",
+      "warnings": []
+    },
+    {
+      "store_id": 191,
+      "store_code": "PLM01",
+      "name": "PATAN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 192,
+      "store_code": "PLM06",
+      "name": "PANDWA",
+      "result": "created",
+      "facility_id": 63,
+      "code": "PLM06",
+      "warnings": []
+    },
+    {
+      "store_id": 193,
+      "store_code": "PLM03",
+      "name": "MANATU",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 194,
+      "store_code": "PLM10",
+      "name": "BAIRIYA MEDININAGAR",
+      "result": "created",
+      "facility_id": 64,
+      "code": "PLM10",
+      "warnings": []
+    },
+    {
+      "store_id": 195,
+      "store_code": "PLM02",
+      "name": "CHAINPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 196,
+      "store_code": "PLM04",
+      "name": "PANKI",
+      "result": "created",
+      "facility_id": 65,
+      "code": "PLM04",
+      "warnings": []
+    },
+    {
+      "store_id": 197,
+      "store_code": "PLM12",
+      "name": "CHHATARPUR",
+      "result": "created",
+      "facility_id": 66,
+      "code": "PLM12",
+      "warnings": []
+    },
+    {
+      "store_id": 198,
+      "store_code": "PLM11",
+      "name": "BISHRAMPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 199,
+      "store_code": "PLM07",
+      "name": "PANDU",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 200,
+      "store_code": "PLM15",
+      "name": "HUSSAINABAD",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 201,
+      "store_code": "PLM14",
+      "name": "MOHAMMADGANJ",
+      "result": "created",
+      "facility_id": 67,
+      "code": "PLM14",
+      "warnings": []
+    },
+    {
+      "store_id": 202,
+      "store_code": "PLM08",
+      "name": "CHIYANKI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 203,
+      "store_code": "PLM09",
+      "name": "LESLIGANJ SFC",
+      "result": "created",
+      "facility_id": 68,
+      "code": "PLM09",
+      "warnings": []
+    },
+    {
+      "store_id": 204,
+      "store_code": "PLM13",
+      "name": "HARIHARGANJ",
+      "result": "created",
+      "facility_id": 69,
+      "code": "PLM13",
+      "warnings": []
+    },
+    {
+      "store_id": 206,
+      "store_code": "RMG02",
+      "name": "JSFC PATRATU",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 207,
+      "store_code": "RMG03",
+      "name": "JSFC Godown Marar Ramgarh",
+      "result": "created",
+      "facility_id": 70,
+      "code": "RMG03",
+      "warnings": []
+    },
+    {
+      "store_id": 208,
+      "store_code": "RMG04",
+      "name": "JSFC MANDU",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 209,
+      "store_code": "RMG05",
+      "name": "SFC CHITARPUR",
+      "result": "created",
+      "facility_id": 71,
+      "code": "RMG05",
+      "warnings": []
+    },
+    {
+      "store_id": 210,
+      "store_code": "RNC01",
+      "name": "KADRU I",
+      "result": "created",
+      "facility_id": 72,
+      "code": "RNC01",
+      "warnings": []
+    },
+    {
+      "store_id": 211,
+      "store_code": "RNC02",
+      "name": "KADRU II",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 212,
+      "store_code": "RNC14",
+      "name": "SFC GODOWN NAGRI",
+      "result": "created",
+      "facility_id": 73,
+      "code": "RNC14",
+      "warnings": []
+    },
+    {
+      "store_id": 213,
+      "store_code": "RNC03",
+      "name": "SFC GODOWN ORMANJHI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 214,
+      "store_code": "RNC04",
+      "name": "SFC GODOWN ANGARA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 215,
+      "store_code": "RNC05",
+      "name": "SFC GODOWN BERO",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 216,
+      "store_code": "RNC06",
+      "name": "SFC GODOWN BUNDU",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 217,
+      "store_code": "RNC10",
+      "name": "SFC GODOWN KANKE",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 218,
+      "store_code": "RNC07",
+      "name": "SFC GODOWN BURMU",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 219,
+      "store_code": "RNC08",
+      "name": "SFC GODOWN CHANHO",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 220,
+      "store_code": "RNC13",
+      "name": "SFC GODOWN MANDAR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 221,
+      "store_code": "RNC09",
+      "name": "SFC GODOWN ITKI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 222,
+      "store_code": "RNC11",
+      "name": "SFC GODOWN KHELARI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 223,
+      "store_code": "RNC12",
+      "name": "SFC GODOWN LAPUNG",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 224,
+      "store_code": "RNC15",
+      "name": "SFC GODOWN NAMKUM",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 225,
+      "store_code": "RNC16",
+      "name": "SFC GODOWN RATU",
+      "result": "created",
+      "facility_id": 74,
+      "code": "RNC16",
+      "warnings": []
+    },
+    {
+      "store_id": 226,
+      "store_code": "RNC17",
+      "name": "SFC GODOWN SILLI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 227,
+      "store_code": "RNC18",
+      "name": "SFC GODOWN SONAHATU",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 228,
+      "store_code": "RNC19",
+      "name": "SFC GODOWN TAMAR",
+      "result": "created",
+      "facility_id": 75,
+      "code": "RNC19",
+      "warnings": []
+    },
+    {
+      "store_id": 229,
+      "store_code": "SBG01",
+      "name": "SAHIBGANJ BLOCK GODOWN",
+      "result": "created",
+      "facility_id": 76,
+      "code": "SBG01",
+      "warnings": []
+    },
+    {
+      "store_id": 230,
+      "store_code": "SBG06",
+      "name": "RAJMAHAL GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 231,
+      "store_code": "SBG02",
+      "name": "BORIO GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 232,
+      "store_code": "SBG04",
+      "name": "TALJHARI GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 233,
+      "store_code": "SBG03",
+      "name": "BARHAIT GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 234,
+      "store_code": "SBG05",
+      "name": "UDHWA GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 235,
+      "store_code": "SBG08",
+      "name": "PATHNA GODOWN",
+      "result": "created",
+      "facility_id": 77,
+      "code": "SBG08",
+      "warnings": []
+    },
+    {
+      "store_id": 236,
+      "store_code": "SBG07",
+      "name": "BARHARWA GODOWN",
+      "result": "created",
+      "facility_id": 78,
+      "code": "SBG07",
+      "warnings": []
+    },
+    {
+      "store_id": 237,
+      "store_code": "SBG09",
+      "name": "MANDRO GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 238,
+      "store_code": "SKW01",
+      "name": "JSF CSC GAMHARIA",
+      "result": "created",
+      "facility_id": 79,
+      "code": "SKW01",
+      "warnings": []
+    },
+    {
+      "store_id": 239,
+      "store_code": "SKW02",
+      "name": "JSF CSC SERAIKELA",
+      "result": "created",
+      "facility_id": 80,
+      "code": "SKW02",
+      "warnings": []
+    },
+    {
+      "store_id": 240,
+      "store_code": "SKW03",
+      "name": "JSF CSC KHARSAWAN",
+      "result": "created",
+      "facility_id": 81,
+      "code": "SKW03",
+      "warnings": []
+    },
+    {
+      "store_id": 241,
+      "store_code": "SKW04",
+      "name": "JSF CSC KUCHAI",
+      "result": "created",
+      "facility_id": 82,
+      "code": "SKW04",
+      "warnings": []
+    },
+    {
+      "store_id": 242,
+      "store_code": "SKW05",
+      "name": "JSF CSC RAJNAGAR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 243,
+      "store_code": "SKW06",
+      "name": "JSF CSC CHANDIL",
+      "result": "created",
+      "facility_id": 83,
+      "code": "SKW06",
+      "warnings": []
+    },
+    {
+      "store_id": 244,
+      "store_code": "SKW07",
+      "name": "JSF CSC NIMDIH",
+      "result": "created",
+      "facility_id": 84,
+      "code": "SKW07",
+      "warnings": []
+    },
+    {
+      "store_id": 245,
+      "store_code": "SKW08",
+      "name": "JSF CSC ICHAGARH",
+      "result": "created",
+      "facility_id": 85,
+      "code": "SKW08",
+      "warnings": []
+    },
+    {
+      "store_id": 246,
+      "store_code": "SMD01",
+      "name": "SFC SIMDEGA",
+      "result": "created",
+      "facility_id": 86,
+      "code": "SMD01",
+      "warnings": []
+    },
+    {
+      "store_id": 247,
+      "store_code": "SMD03",
+      "name": "SFC THETHAITANGER",
+      "result": "created",
+      "facility_id": 87,
+      "code": "SMD03",
+      "warnings": []
+    },
+    {
+      "store_id": 248,
+      "store_code": "SMD05",
+      "name": "SFC KOLEBIRA",
+      "result": "created",
+      "facility_id": 88,
+      "code": "SMD05",
+      "warnings": []
+    },
+    {
+      "store_id": 249,
+      "store_code": "SMD02",
+      "name": "SFC JALDEGA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 250,
+      "store_code": "SMD04",
+      "name": "SFC BANO",
+      "result": "created",
+      "facility_id": 89,
+      "code": "SMD04",
+      "warnings": []
+    },
+    {
+      "store_id": 251,
+      "store_code": "SMD06",
+      "name": "SFC KURDEG",
+      "result": "created",
+      "facility_id": 90,
+      "code": "SMD06",
+      "warnings": []
+    },
+    {
+      "store_id": 252,
+      "store_code": "WSM01",
+      "name": "chaibasa",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 253,
+      "store_code": "WSM04",
+      "name": "TONTO",
+      "result": "created",
+      "facility_id": 91,
+      "code": "WSM04",
+      "warnings": []
+    },
+    {
+      "store_id": 254,
+      "store_code": "WSM02",
+      "name": "KHUNTPANI SFC GODOWN",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 255,
+      "store_code": "WSM03",
+      "name": "JHINKPANI",
+      "result": "created",
+      "facility_id": 92,
+      "code": "WSM03",
+      "warnings": []
+    },
+    {
+      "store_id": 257,
+      "store_code": "WSM06",
+      "name": "NOAMUNDI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 259,
+      "store_code": "WSM09",
+      "name": "KUMARDUNGI",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 260,
+      "store_code": "WSM08",
+      "name": "JAGANNATHPUR",
+      "result": "created",
+      "facility_id": 93,
+      "code": "WSM08",
+      "warnings": []
+    },
+    {
+      "store_id": 261,
+      "store_code": "WSM11",
+      "name": "SONUA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 262,
+      "store_code": "WSM10",
+      "name": "CHAKRADHARPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 263,
+      "store_code": "WSM12",
+      "name": "GOELKERA",
+      "result": "created",
+      "facility_id": 94,
+      "code": "WSM12",
+      "warnings": []
+    },
+    {
+      "store_id": 264,
+      "store_code": "WSM13",
+      "name": "MANOHARPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 265,
+      "store_code": "WSM14",
+      "name": "BANDGAON",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 268,
+      "store_code": "SMD07",
+      "name": "WS Store 7",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 269,
+      "store_code": "SKW09",
+      "name": "JSF CSC KUKRU",
+      "result": "created",
+      "facility_id": 95,
+      "code": "SKW09",
+      "warnings": []
+    },
+    {
+      "store_id": 270,
+      "store_code": "WSM15",
+      "name": "WS store 2",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 271,
+      "store_code": "WSM16",
+      "name": "WS Store 1",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 16182,
+      "store_code": "1353000073",
+      "name": "FPS15911",
+      "result": "created",
+      "facility_id": 96,
+      "code": "1353000073",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24204,
+      "store_code": "HZB14",
+      "name": "CHURCHU",
+      "result": "created",
+      "facility_id": 97,
+      "code": "HZB14",
+      "warnings": []
+    },
+    {
+      "store_id": 24205,
+      "store_code": "ED14001",
+      "name": "SWC GARHWA",
+      "result": "created",
+      "facility_id": 98,
+      "code": "ED14001",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24206,
+      "store_code": "ED14008",
+      "name": "PWS LATEHAR",
+      "result": "created",
+      "facility_id": 99,
+      "code": "ED14008",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24207,
+      "store_code": "ED14006",
+      "name": "PEG JAPLA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24208,
+      "store_code": "ED14002",
+      "name": "PEG Latehar",
+      "result": "created",
+      "facility_id": 100,
+      "code": "ED14002",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24209,
+      "store_code": "ED14007",
+      "name": "PEG REHLA",
+      "result": "created",
+      "facility_id": 101,
+      "code": "ED14007",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24210,
+      "store_code": "ED14003",
+      "name": "FSD DALTONGANJ",
+      "result": "created",
+      "facility_id": 102,
+      "code": "ED14003",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24211,
+      "store_code": "ED14009",
+      "name": "PEG LATEHAR NEW",
+      "result": "created",
+      "facility_id": 103,
+      "code": "ED14009",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24212,
+      "store_code": "ED15015",
+      "name": "FSD DUMKA",
+      "result": "created",
+      "facility_id": 104,
+      "code": "ED15015",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24213,
+      "store_code": "ED15004",
+      "name": "PEG JAMTARA",
+      "result": "created",
+      "facility_id": 105,
+      "code": "ED15004",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24215,
+      "store_code": "ED15007",
+      "name": "SWC GODDA",
+      "result": "created",
+      "facility_id": 106,
+      "code": "ED15007",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24216,
+      "store_code": "ED15010",
+      "name": "PEG RANESHWAR",
+      "result": "created",
+      "facility_id": 107,
+      "code": "ED15010",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24217,
+      "store_code": "ED15011",
+      "name": "PEG GODOWN PAKUR",
+      "result": "created",
+      "facility_id": 108,
+      "code": "ED15011",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24218,
+      "store_code": "ED12006",
+      "name": "SWC SAHIBGANJ",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24219,
+      "store_code": "ED15012",
+      "name": "FSD PODIYAHAT",
+      "result": "created",
+      "facility_id": 109,
+      "code": "ED15012",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24220,
+      "store_code": "ED15001",
+      "name": "FSD JASIDIH",
+      "result": "created",
+      "facility_id": 110,
+      "code": "ED15001",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24222,
+      "store_code": "ED12011",
+      "name": "RAMGARH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24223,
+      "store_code": "ED12026",
+      "name": "PEG GIRIDIH II",
+      "result": "created",
+      "facility_id": 111,
+      "code": "ED12026",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24224,
+      "store_code": "ED12003",
+      "name": "KODERMA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24225,
+      "store_code": "ED12028",
+      "name": "PWS CHATRA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24226,
+      "store_code": "ED12027",
+      "name": "PWS HAZARIBAGH",
+      "result": "created",
+      "facility_id": 112,
+      "code": "ED12027",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24227,
+      "store_code": "ED12025",
+      "name": "PEG SURYA II",
+      "result": "created",
+      "facility_id": 113,
+      "code": "ED12025",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24228,
+      "store_code": "ED12024",
+      "name": "PEG DHANBAD II",
+      "result": "created",
+      "facility_id": 114,
+      "code": "ED12024",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24229,
+      "store_code": "ED12016",
+      "name": "PEG BOKARO",
+      "result": "created",
+      "facility_id": 115,
+      "code": "ED12016",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24230,
+      "store_code": "ED12015",
+      "name": "PWS DHANBAD",
+      "result": "created",
+      "facility_id": 116,
+      "code": "ED12015",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24231,
+      "store_code": "ED12009",
+      "name": "CHATRA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24232,
+      "store_code": "ED12008",
+      "name": "BOKARO",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24233,
+      "store_code": "ED12001",
+      "name": "DHANBAD",
+      "result": "created",
+      "facility_id": 117,
+      "code": "ED12001",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24235,
+      "store_code": "ED12010",
+      "name": "GIRIDIH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24236,
+      "store_code": "ED12033",
+      "name": "FSD ITKHORI",
+      "result": "created",
+      "facility_id": 118,
+      "code": "ED12033",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24237,
+      "store_code": "ED13023",
+      "name": "SWC SARAIKELA",
+      "result": "created",
+      "facility_id": 119,
+      "code": "ED13023",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24238,
+      "store_code": "ED13027",
+      "name": "PEG II GUMLA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24239,
+      "store_code": "ED13016",
+      "name": "PEG NAGRI",
+      "result": "created",
+      "facility_id": 120,
+      "code": "ED13016_STORE_24239",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24240,
+      "store_code": "ED13009",
+      "name": "SIMDEGA",
+      "result": "created",
+      "facility_id": 121,
+      "code": "ED13009",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24241,
+      "store_code": "ED13030",
+      "name": "PEG LOHARDAGA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24242,
+      "store_code": "ED13024",
+      "name": "PEG GUMLA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24243,
+      "store_code": "ED13026",
+      "name": "PEG CHANDIL",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24244,
+      "store_code": "ED13022",
+      "name": "PEG NAGRI II",
+      "result": "created",
+      "facility_id": 122,
+      "code": "ED13022",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24245,
+      "store_code": "ED13004",
+      "name": "RANCHI",
+      "result": "created",
+      "facility_id": 123,
+      "code": "ED13004",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24246,
+      "store_code": "ED13003",
+      "name": "JAMSHEDPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24247,
+      "store_code": "ED13001",
+      "name": "FSD GUMLA",
+      "result": "created",
+      "facility_id": 124,
+      "code": "ED13001",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24248,
+      "store_code": "ED13029",
+      "name": "CWC CHAIBASA",
+      "result": "created",
+      "facility_id": 125,
+      "code": "ED13029",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24249,
+      "store_code": "ED13010",
+      "name": "JAMSHEDPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 24250,
+      "store_code": "GRW11",
+      "name": "JSFC SAGMA",
+      "result": "created",
+      "facility_id": 126,
+      "code": "GRW11",
+      "warnings": []
+    },
+    {
+      "store_id": 24251,
+      "store_code": "GRW12",
+      "name": "JSFC KHARAUNDHI",
+      "result": "created",
+      "facility_id": 127,
+      "code": "GRW12",
+      "warnings": []
+    },
+    {
+      "store_id": 24252,
+      "store_code": "GRW13",
+      "name": "JSFC KETAR",
+      "result": "created",
+      "facility_id": 128,
+      "code": "GRW13",
+      "warnings": []
+    },
+    {
+      "store_id": 24253,
+      "store_code": "ESM12",
+      "name": "BORAM",
+      "result": "created",
+      "facility_id": 129,
+      "code": "ESM12",
+      "warnings": []
+    },
+    {
+      "store_id": 24254,
+      "store_code": "ESM13",
+      "name": "Gurabanda",
+      "result": "created",
+      "facility_id": 130,
+      "code": "ESM13",
+      "warnings": []
+    },
+    {
+      "store_id": 24255,
+      "store_code": "LTR08",
+      "name": "JSFC HERHANJ",
+      "result": "created",
+      "facility_id": 131,
+      "code": "LTR08",
+      "warnings": []
+    },
+    {
+      "store_id": 24256,
+      "store_code": null,
+      "name": "Mines Rescue Station",
+      "result": "skipped",
+      "problems": [
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 24257,
+      "store_code": null,
+      "name": "CMR BHANDARAN KENDRA URMI",
+      "result": "skipped",
+      "problems": [
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": []
+    },
+    {
+      "store_id": 24258,
+      "store_code": "WSM05",
+      "name": "TANTNAGAR",
+      "result": "created",
+      "facility_id": 132,
+      "code": "WSM05",
+      "warnings": []
+    },
+    {
+      "store_id": 26306,
+      "store_code": "ED13002",
+      "name": "DALTONGANJ",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26307,
+      "store_code": "ED13005",
+      "name": "TATISILWAI",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26308,
+      "store_code": "ED13006",
+      "name": "GARHWA",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26309,
+      "store_code": "ED13008",
+      "name": "LATEHAR",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26310,
+      "store_code": "ED13011",
+      "name": "HATIA",
+      "result": "skipped",
+      "problems": [
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26311,
+      "store_code": "ED13013",
+      "name": "APMC SIMDEGA",
+      "result": "skipped",
+      "problems": [
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26312,
+      "store_code": "ED13014",
+      "name": "PEG CHAKULIA",
+      "result": "created",
+      "facility_id": 133,
+      "code": "ED13014",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26313,
+      "store_code": "ED12002",
+      "name": "JASIDIH",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26314,
+      "store_code": "ED12004",
+      "name": "SURIYA",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26315,
+      "store_code": "ED12007",
+      "name": "DUMKA",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26316,
+      "store_code": "ED12012",
+      "name": "PEG RAMGARH",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26317,
+      "store_code": "ED12013",
+      "name": "PEG JAMTARA",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26319,
+      "store_code": "ED13017",
+      "name": "CWC Gamharia",
+      "result": "created",
+      "facility_id": 134,
+      "code": "ED13017_STORE_26319",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26320,
+      "store_code": "ED12014",
+      "name": "PEG Madhupur",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26321,
+      "store_code": "ED14004",
+      "name": "Peg Daltonganj",
+      "result": "created",
+      "facility_id": 135,
+      "code": "ED14004",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26322,
+      "store_code": "ED14005",
+      "name": "SWC DALTONGANJ",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26323,
+      "store_code": "ED15002",
+      "name": "SWC PAKUR",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26324,
+      "store_code": "ED15005",
+      "name": "PEG MADHUPUR",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26325,
+      "store_code": "ED15006",
+      "name": "PEG SAHEBGANJ  PHASE-I",
+      "result": "created",
+      "facility_id": 136,
+      "code": "ED15006",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26326,
+      "store_code": "ED15008",
+      "name": "PEG SAHEBGANJ PHASE-II",
+      "result": "created",
+      "facility_id": 137,
+      "code": "ED15008",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26327,
+      "store_code": "ED13016",
+      "name": "PEG DUGNI",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26328,
+      "store_code": "ED13017",
+      "name": "CWC PATAHATU",
+      "result": "created",
+      "facility_id": 138,
+      "code": "ED13017_STORE_26328",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26329,
+      "store_code": "ED13018",
+      "name": "PEG KHUNTI",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26330,
+      "store_code": "ED13019",
+      "name": "PEG PANDRASALI",
+      "result": "skipped",
+      "problems": [
+        "District is not present in the local district master",
+        "Coordinates missing or invalid",
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26331,
+      "store_code": "ED12017",
+      "name": "PWS Bahadurpur",
+      "result": "skipped",
+      "problems": [
+        "Capacity missing or invalid"
+      ],
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26333,
+      "store_code": "303",
+      "name": "EGARKUND",
+      "result": "created",
+      "facility_id": 139,
+      "code": "303",
+      "warnings": []
+    },
+    {
+      "store_id": 26334,
+      "store_code": "ED12009",
+      "name": "SFC PRATAPPUR",
+      "result": "created",
+      "facility_id": 140,
+      "code": "ED12009_STORE_26334",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26335,
+      "store_code": "RMG01",
+      "name": "JSFC Godown Gola",
+      "result": "created",
+      "facility_id": 141,
+      "code": "RMG01",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26336,
+      "store_code": "WS196",
+      "name": "MANJHARI",
+      "result": "created",
+      "facility_id": 142,
+      "code": "WS196",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26337,
+      "store_code": "WS265",
+      "name": "Majhgaon",
+      "result": "created",
+      "facility_id": 143,
+      "code": "WS265",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26338,
+      "store_code": "ED12005",
+      "name": "CWC HAZARIBAGH",
+      "result": "created",
+      "facility_id": 144,
+      "code": "ED12005",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26339,
+      "store_code": "ED12032",
+      "name": "CWC GIRIDIH",
+      "result": "created",
+      "facility_id": 145,
+      "code": "ED12032",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26340,
+      "store_code": "GRD05",
+      "name": "BENGABAD",
+      "result": "created",
+      "facility_id": 146,
+      "code": "GRD05_STORE_26340",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26341,
+      "store_code": "GRD05",
+      "name": "BENGABAD",
+      "result": "created",
+      "facility_id": 147,
+      "code": "GRD05_STORE_26341",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    },
+    {
+      "store_id": 26356,
+      "store_code": "DNB11",
+      "name": "Kandra Godown",
+      "result": "created",
+      "facility_id": 148,
+      "code": "DNB11",
+      "warnings": [
+        "Block is missing or ambiguous; block_id left NULL"
+      ]
+    }
+  ]
+}

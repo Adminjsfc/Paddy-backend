@@ -1,0 +1,30 @@
+CREATE TABLE schemes (
+ id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ code VARCHAR(80) NOT NULL UNIQUE,
+ scheme_name VARCHAR(150) NOT NULL,
+ description VARCHAR(500) NULL,
+ active BOOLEAN NOT NULL DEFAULT TRUE,
+ created_by INT UNSIGNED NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_by INT UNSIGNED NULL,
+ updated_at DATETIME NULL,
+ FOREIGN KEY (created_by) REFERENCES users(id),
+ FOREIGN KEY (updated_by) REFERENCES users(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE commodities (
+ id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ code VARCHAR(80) NOT NULL UNIQUE,
+ commodity_name VARCHAR(150) NOT NULL,
+ description VARCHAR(500) NULL,
+ active BOOLEAN NOT NULL DEFAULT TRUE,
+ created_by INT UNSIGNED NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_by INT UNSIGNED NULL,
+ updated_at DATETIME NULL,
+ FOREIGN KEY (created_by) REFERENCES users(id),
+ FOREIGN KEY (updated_by) REFERENCES users(id)
+) ENGINE=InnoDB;
+
+INSERT INTO schemes (code,scheme_name) VALUES ('SCMR','SCMR'),('CCMR','CCMR');
+INSERT INTO commodities (code,commodity_name) VALUES ('RICE','Rice'),('PADDY','Paddy');

@@ -1,0 +1,10 @@
+import * as controller from "../controllers/modules.controller.js";
+import { Router } from 'express';
+import { roles } from "../middlewares/auth.js";
+export const moduleRoutes = Router();
+moduleRoutes.get('/auth/modules', controller.listAssignedModules);
+moduleRoutes.get('/module-permissions', roles('ADMIN'), controller.listModulePermissions);
+moduleRoutes.patch('/module-permissions', roles('ADMIN'), controller.updateModulePermissions);
+moduleRoutes.get('/profile', controller.getProfile);
+moduleRoutes.patch('/profile', controller.updateProfile);
+moduleRoutes.get('/miller-master-options', roles('MILLER', 'ADMIN'), controller.listMillerMasterOptions);

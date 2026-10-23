@@ -1,0 +1,338 @@
+MySQL: 8.0.46-0ubuntu0.24.04.3
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> sfc-cmr-service@1.0.0 db:migrate
+> node --env-file-if-exists=.env scripts/migrate.js
+
+.env not found. Continuing without it.
+Applied: 001_initial.sql
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> sfc-cmr-service@1.0.0 test:all
+> npm test && npm run test:integration
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> sfc-cmr-service@1.0.0 test
+> node --test test/unit.test.js
+
+✔ 100 QTL paddy yields 68 QTL rice at configurable 68% (0.946965ms)
+✔ Exact decimal quantity conversions and invalid precision (0.339731ms)
+✔ Canonical payload hash ignores JSON key order but detects changed quantities (0.464799ms)
+✔ Passwords use salted scrypt and verify safely (170.306503ms)
+✔ Miller and transporter ownership enforcement (0.49828ms)
+✔ GPS remains DISPATCHED inside source, starts outside, arrives in destination (0.395245ms)
+✔ First offline destination packet can record departure and arrival (0.154492ms)
+✔ Duplicate, old, pre-dispatch and terminal GPS cannot roll back trip (0.114973ms)
+✔ Distance calculation and strict timestamp/GPS validation (7.678726ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 412.934822
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> sfc-cmr-service@1.0.0 test:integration
+> node --env-file-if-exists=.env.test --test --test-concurrency=1 test/integration.test.js
+
+.env.test not found. Continuing without it.
+.env.test not found. Continuing without it.
+✔ Create masters, users and scoped transport registrations (609.091787ms)
+✔ Push procurement once under concurrent retries; reject changed payloads (42.461729ms)
+✔ Reject invalid API key and atomically roll back partly invalid push batches (33.639324ms)
+✔ Reserve paddy, reject over-allocation and protect cross-miller data (109.986715ms)
+✔ Process sorted historical GPS, ignore duplicate and older packets, verify arrival (53.996587ms)
+✔ Accept paddy and freeze 68% rice obligation despite later configuration change (28.238971ms)
+✔ Milling consumes available paddy, produces 6800 kg rice, and cannot double consume (20.972176ms)
+✔ Import CMR orders for both SFC and FCI, reserve rice and release on cancellation (54.287701ms)
+✔ CMR receipt requires SFC role and arrival or explicit operator override; shortage reopens balance (36.403798ms)
+✔ Concurrent competing reservations cannot overspend stock; cancellation restores reservations (33.715107ms)
+✔ Capacity, future GPS, ownership, reports and stock-ledger invariants (53.68255ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1394.54198
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> sfc-cmr-service@1.0.0 admin:create
+> node --env-file-if-exists=.env scripts/create-admin.js
+
+.env not found. Continuing without it.
+Administrator created (id 5). Remove ADMIN_PASSWORD from .env.
+(node:251) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+newman
+
+SFC Paddy Procurement and CMR — Complete Workflow
+
+❏ 01 — Login and initialize a new demonstration run
+↳ 01 Login administrator
+  POST http://127.0.0.1:3015/api/v1/auth/login [200 OK, 1.46kB, 71ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 02 Current user
+  GET http://127.0.0.1:3015/api/v1/auth/me [200 OK, 1.18kB, 5ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+❏ 02 — Farmer, LAMPS/PACS, miller, SFC and FCI registration
+↳ 03 Register season
+  POST http://127.0.0.1:3015/api/v1/seasons [201 Created, 1.28kB, 20ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 04 Register farmer
+  POST http://127.0.0.1:3015/api/v1/farmers [201 Created, 1.27kB, 9ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 05 Register PACS
+  POST http://127.0.0.1:3015/api/v1/facilities [201 Created, 1.51kB, 12ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 06 Register LAMPS
+  POST http://127.0.0.1:3015/api/v1/facilities [201 Created, 1.51kB, 9ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 07 Register MILLER
+  POST http://127.0.0.1:3015/api/v1/facilities [201 Created, 1.52kB, 8ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 08 Register SFC
+  POST http://127.0.0.1:3015/api/v1/facilities [201 Created, 1.51kB, 8ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 09 Register FCI
+  POST http://127.0.0.1:3015/api/v1/facilities [201 Created, 1.51kB, 7ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 10 Tag PACS to miller
+  POST http://127.0.0.1:3015/api/v1/route-tags [201 Created, 1.19kB, 9ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 11 Tag LAMPS to miller
+  POST http://127.0.0.1:3015/api/v1/route-tags [201 Created, 1.19kB, 6ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 12 Tag Miller to SFC
+  POST http://127.0.0.1:3015/api/v1/route-tags [201 Created, 1.19kB, 9ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 13 Tag Miller to FCI
+  POST http://127.0.0.1:3015/api/v1/route-tags [201 Created, 1.19kB, 11ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+❏ 03 — Miller login, transporter, vehicle and GPS registration
+↳ 14 Create miller user
+  POST http://127.0.0.1:3015/api/v1/users [201 Created, 1.27kB, 45ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 15 Login miller
+  POST http://127.0.0.1:3015/api/v1/auth/login [200 OK, 1.49kB, 47ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 16 Miller adds transporter
+  POST http://127.0.0.1:3015/api/v1/transporters [201 Created, 1.32kB, 5ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 17 Miller adds vehicle
+  POST http://127.0.0.1:3015/api/v1/vehicles [201 Created, 1.27kB, 9ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 18 Register GPS device
+  POST http://127.0.0.1:3015/api/v1/gps-devices [201 Created, 1.25kB, 6ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+❏ 04 — e-uparjan pushes and paddy lifting
+↳ 19 Push 100 QTL farmer procurement
+  POST http://127.0.0.1:3015/api/v1/integrations/euparjan/procurements [201 Created, 1.2kB, 14ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 20 Available procurement lots
+  GET http://127.0.0.1:3015/api/v1/procurements/available-lots?facility_id=6&season_id=2 [200 OK, 1.21kB, 6ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 21 Allocate 100 QTL paddy
+  POST http://127.0.0.1:3015/api/v1/shipments [201 Created, 1.24kB, 11ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 22 Dispatch paddy
+  POST http://127.0.0.1:3015/api/v1/shipments/8/dispatch [201 Created, 1.16kB, 10ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 23 GPS source departure and miller arrival
+  POST http://127.0.0.1:3015/api/v1/gps/packets [200 OK, 1.46kB, 15ms]
+  ✓  HTTP success
+  ✓  Successful response
+  ✓  Arrived at miller
+
+↳ 24 Miller accepts paddy
+  POST http://127.0.0.1:3015/api/v1/shipments/8/deliver [201 Created, 1.23kB, 9ms]
+  ✓  HTTP success
+  ✓  Successful response
+  ✓  68 QTL rice obligation
+
+❏ 05 — Milling, CMR order, rice lifting and SFC acceptance
+↳ 25 Record milling batch
+  POST http://127.0.0.1:3015/api/v1/milling-batches [201 Created, 1.24kB, 11ms]
+  ✓  HTTP success
+  ✓  Successful response
+  ✓  68 QTL rice produced
+
+↳ 26 Push miller CMR order for SFC
+  POST http://127.0.0.1:3015/api/v1/integrations/euparjan/cmr-orders [201 Created, 1.2kB, 8ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 27 Allocate rice against order
+  POST http://127.0.0.1:3015/api/v1/shipments [201 Created, 1.24kB, 10ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 28 Dispatch rice
+  POST http://127.0.0.1:3015/api/v1/shipments/9/dispatch [201 Created, 1.16kB, 9ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 29 GPS source departure and SFC arrival
+  POST http://127.0.0.1:3015/api/v1/gps/packets [200 OK, 1.46kB, 19ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 30 SFC accepts rice
+  POST http://127.0.0.1:3015/api/v1/shipments/9/deliver [201 Created, 1.22kB, 10ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+❏ 06 — Reports, tracking and FCI order example
+↳ 31 Miller reconciliation
+  GET http://127.0.0.1:3015/api/v1/reports/millers/8/reconciliation?season_id=2 [200 OK, 2.19kB, 7ms]
+  ✓  HTTP success
+  ✓  Successful response
+  ✓  Obligation fully delivered
+
+↳ 32 Rice trip and GPS events
+  GET http://127.0.0.1:3015/api/v1/shipments/9 [200 OK, 3.79kB, 4ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 33 Live vehicle position
+  GET http://127.0.0.1:3015/api/v1/vehicles/3/location [200 OK, 1.24kB, 4ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 34 Vehicle GPS history
+  GET http://127.0.0.1:3015/api/v1/vehicles/3/history?from=2026-10-09T09:36:02.328Z&to=2026-10-09T12:36:03.328Z [200 OK, 2.6kB, 5ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 35 Facility stock balances
+  GET http://127.0.0.1:3015/api/v1/reports/stocks?season_id=2 [200 OK, 1.92kB, 4ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 36 Dashboard
+  GET http://127.0.0.1:3015/api/v1/reports/dashboard?season_id=2 [200 OK, 1.35kB, 4ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 37 Stock ledger
+  GET http://127.0.0.1:3015/api/v1/reports/ledger?season_id=2 [200 OK, 2.85kB, 4ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 38 Audit trail
+  GET http://127.0.0.1:3015/api/v1/reports/audit [200 OK, 9.64kB, 4ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 39 CMR orders
+  GET http://127.0.0.1:3015/api/v1/cmr-orders?season_id=2 [200 OK, 1.58kB, 5ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 40 Farmers and procurement
+  GET http://127.0.0.1:3015/api/v1/procurements?season_id=2 [200 OK, 1.55kB, 4ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 41 List milling batches
+  GET http://127.0.0.1:3015/api/v1/milling-batches?season_id=2 [200 OK, 1.33kB, 4ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 42 Push central pool FCI order
+  POST http://127.0.0.1:3015/api/v1/integrations/euparjan/cmr-orders [201 Created, 1.2kB, 6ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 43 List FCI facilities
+  GET http://127.0.0.1:3015/api/v1/facilities?kind=FCI [200 OK, 1.86kB, 3ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 44 Update future miller recovery ratio
+  PATCH http://127.0.0.1:3015/api/v1/facilities/8 [201 Created, 1.2kB, 6ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 45 Update vehicle driver
+  PATCH http://127.0.0.1:3015/api/v1/vehicles/3 [201 Created, 1.21kB, 5ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 46 Amend unused FCI order
+  PATCH http://127.0.0.1:3015/api/v1/cmr-orders/4 [201 Created, 1.22kB, 4ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+↳ 47 Cancel unused FCI order
+  POST http://127.0.0.1:3015/api/v1/cmr-orders/4/cancel [201 Created, 1.22kB, 6ms]
+  ✓  HTTP success
+  ✓  Successful response
+
+┌─────────────────────────┬──────────────────┬──────────────────┐
+│                         │         executed │           failed │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│              iterations │                1 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│                requests │               47 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│            test-scripts │               47 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│      prerequest-scripts │                1 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│              assertions │               98 │                0 │
+├─────────────────────────┴──────────────────┴──────────────────┤
+│ total run duration: 1158ms                                    │
+├───────────────────────────────────────────────────────────────┤
+│ total data received: 27.81kB (approx)                         │
+├───────────────────────────────────────────────────────────────┤
+│ average response time: 10ms [min: 3ms, max: 71ms, s.d.: 12ms] │
+└───────────────────────────────────────────────────────────────┘

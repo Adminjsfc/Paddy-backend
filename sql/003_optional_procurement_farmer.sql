@@ -1,0 +1,1 @@
+ALTER TABLE procurement MODIFY farmer_id INT UNSIGNED NULL;

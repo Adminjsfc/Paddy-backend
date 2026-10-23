@@ -1,0 +1,10 @@
+import * as controller from "../controllers/shipments.controller.js";
+import { Router } from 'express';
+import { roles } from "../middlewares/auth.js";
+export const shipmentRoutes = Router();
+shipmentRoutes.post('/shipments', roles('ADMIN', 'OPERATOR', 'MILLER', 'PACS', 'LAMPS'), controller.create);
+shipmentRoutes.post('/shipments/:id/dispatch', roles('ADMIN', 'OPERATOR', 'MILLER', 'TRANSPORTER', 'PACS', 'LAMPS'), controller.dispatchShipment);
+shipmentRoutes.post('/shipments/:id/deliver', roles('ADMIN', 'OPERATOR', 'MILLER'), controller.completeDelivery);
+shipmentRoutes.post('/shipments/:id/cancel', roles('ADMIN', 'OPERATOR', 'MILLER'), controller.cancelShipment);
+shipmentRoutes.get('/shipments', controller.listShipments);
+shipmentRoutes.get('/shipments/:id', controller.getShipment);

@@ -1,0 +1,33 @@
+{
+  "name": "sfc-cmr-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone SFC paddy procurement, milling, CMR and GPS transport API",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
+    "db:import-stores": "node --env-file-if-exists=.env scripts/import-store-facilities.js",
+    "db:seed-cmr-test": "node --env-file-if-exists=.env scripts/seed-cmr-test.js",
+    "admin:create": "node --env-file-if-exists=.env scripts/create-admin.js",
+    "test": "node --test test/unit.test.js test/location-prerequisites.test.js test/cookie-auth.test.js test/core-dm.test.js test/modules.test.js test/cmr-submissions.test.js test/store-facility-import.test.js test/cmr-receiving.test.js test/architecture.test.js test/paddy-orders.test.js test/seasons.test.js test/paddy-dashboard.test.js test/common-lifting.test.js",
+    "test:integration": "node --env-file-if-exists=.env.test --test --test-concurrency=1 test/integration.test.js",
+    "test:shipment-migration": "node --env-file-if-exists=.env scripts/validate-shipment-master-migration.js",
+    "test:all": "npm test && npm run test:integration",
+    "gps:mqtt": "node --env-file-if-exists=.env src/mqtt-worker.js",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "mqtt": "^5.14.1",
+    "mysql2": "^3.15.3",
+    "zod": "^4.1.12"
+  }
+}
