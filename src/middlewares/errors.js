@@ -74,7 +74,12 @@ export function errorHandler(err, req, res, next) {
     console.error(JSON.stringify({
       event: 'REQUEST_ERROR',
       request_id: req.requestId,
-      code: err.code || err.name
+      code: err.code || err.name,
+      method: req.method,
+      path: (req.originalUrl || req.url || '').split('?')[0],
+      message: err.code === 'ER_BAD_FIELD_ERROR'
+        ? (err.sqlMessage || err.message)
+        : undefined
     }));
     if (code !== 'TRANSACTION_BUSY' && code !== 'INTEGRATION_DISABLED') message = 'Service error; check server logs with the request ID.';
   }

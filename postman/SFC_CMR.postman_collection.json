@@ -8731,6 +8731,20 @@
           ]
         }
       ]
+    },
+    {
+      "name": "PACS LAMPS Paddy summary",
+      "item": [
+        {
+          "name": "Source Paddy targets and mapped miller lifting",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/paddy/lifting-summary?season_id={{season_id}}&page=1&limit=20",
+            "description": "Use PACS/LAMPS login. Shared source target and pending; row lifted_g is per miller. See docs/API.md."
+          }
+        }
+      ]
     }
   ],
   "variable": [

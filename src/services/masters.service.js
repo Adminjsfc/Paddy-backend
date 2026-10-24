@@ -11,6 +11,7 @@ export async function createMaster(connection, type, d, user) {
       ...d
     };
   if (type === 'imeis') {
+    if (user.role === 'CORE_DM') ensure(user.district_ids.includes(Number(d.district_id)), 'District is outside your DM assignment', 'DISTRICT_FORBIDDEN', 403);
     await ensureLocation(connection, d.district_id, d.block_id);
     data.mapping_status = null;
     data.status_updated_at = null;
@@ -30,6 +31,10 @@ export async function createMaster(connection, type, d, user) {
     await repository.createMasterFindFacilities(connection, d);
   }
   if (type === 'vehicles') {
+    if (user.role === 'CORE_DM') {
+      ensure(!d.transporter_id, 'Use direct Miller registration', 'VALIDATION', 400);
+      await repository.requireCoreDMMiller(connection, d.miller_id, user.district_ids);
+    }
     data.mapping_status = null;
     data.status_updated_at = null;
     if (d.transporter_id) {
@@ -38,7 +43,7 @@ export async function createMaster(connection, type, d, user) {
       data.miller_id = t.miller_id;
     } else data.transporter_id = null;
     await repository.createMasterFindFacilities2(connection, data);
-    vehicleAccess(user, {
+    vehicleAccess(user.role === 'CORE_DM' ? { ...user, role: 'OPERATOR' } : user, {
       transporter_id: data.transporter_id,
       miller_id: data.miller_id
     });
@@ -81,6 +86,14 @@ export async function createMaster(connection, type, d, user) {
   };
 }
 export function visibility(type, u) {
+  if (type === 'vehicles' && u.role === 'CORE_DM') {
+    ensure(u.district_ids?.length, 'DM has no assigned districts', 'DISTRICT_SCOPE_REQUIRED', 403);
+    return { sql: " AND x.miller_id IN (SELECT id FROM facilities WHERE kind='MILLER' AND active=1 AND district_id IN (" + u.district_ids.map(() => '?').join(',') + '))', args: u.district_ids };
+  }
+  if (type === 'imeis' && u.role === 'CORE_DM') {
+    ensure(u.district_ids?.length, 'DM has no assigned districts', 'DISTRICT_SCOPE_REQUIRED', 403);
+    return { sql: ' AND x.district_id IN (' + u.district_ids.map(() => '?').join(',') + ')', args: u.district_ids };
+  }
   if (['ADMIN', 'OPERATOR'].includes(u.role) || ['seasons', 'schemes', 'commodities'].includes(type)) return {
     sql: '',
     args: []
@@ -361,6 +374,7 @@ export async function updateMasterProfile(connection, data, context, schema, typ
   const v = visibility(type, context.user),
     table = type.replaceAll('-', '_');
   const record = await repository.updateMasterProfileFindX(connection, table, v, context);
+  if (type === 'imeis' && context.user.role === 'CORE_DM' && data.district_id !== undefined) ensure(context.user.district_ids.includes(Number(data.district_id)), 'District is outside your DM assignment', 'DISTRICT_FORBIDDEN', 403);
   const update = {
     ...data
   };

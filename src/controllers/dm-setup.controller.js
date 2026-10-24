@@ -15,12 +15,14 @@ export const getSetupOptions = async (req, res) => {
 };
 export const assignReceivingStore = mutation(z.object({
   ...millerSeason,
-  store_id: id
+  store_id: id.optional(),
+  store_location_id: id.optional()
 }).strict(), (connection, data, req) => service.assignReceivingStore(connection, data, requestContext(req)));
 export const createCmrOrder = mutation(z.object({
   scheme_code: code,
   ...millerSeason,
-  destination_id: id,
+  destination_id: id.optional(),
+  store_location_id: id.optional(),
   order_no: z.string().trim().min(1).max(100),
   rice_quantity: quantity,
   due_date: dateOnly
@@ -31,10 +33,12 @@ export const addTestRice = mutation(z.object({
   reference: z.string().trim().min(1).max(110),
   quantity
 }).strict(), (connection, data, req) => service.addTestRice(connection, data, requestContext(req)));
-export const registerMillerVehicle = mutation(z.object({
+export const registerMillerVehicle = mutation(z.union([
+z.object({ miller_id: id, vehicle_id: id, imei_id: id }).strict(),
+z.object({
   miller_id: id,
   vehicle_type_id: id,
   registration_no: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{5,20}$/),
   capacity: quantity,
   imei_id: id
-}).strict(), (connection, data, req) => service.registerMillerVehicle(connection, data, requestContext(req)));
+}).strict()]), (connection, data, req) => service.registerMillerVehicle(connection, data, requestContext(req)));
