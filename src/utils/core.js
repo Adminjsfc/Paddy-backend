@@ -114,6 +114,7 @@ export function pageParams(q) {
   };
 }
 export function scopedWhere(user, alias = 's') {
+  if (user.role === 'DRIVER') return {sql:` AND ${alias}.driver_user_id=?`,params:[user.id]};
   if(['PACS','LAMPS'].includes(user.role)) {
     ensure(user.facility_id,'PACS/LAMPS facility is required','FORBIDDEN',403);
     return {sql:` AND ${alias}.leg='PADDY' AND ${alias}.source_id=?`,params:[user.facility_id]};

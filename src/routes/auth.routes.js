@@ -1,7 +1,10 @@
 import { roles, auth } from "../middlewares/auth.js";
 import * as controller from "../controllers/auth.controller.js";
 import { rateLimit } from 'express-rate-limit';
+import * as drivers from '../controllers/drivers.controller.js';
 export function authRoutes(app) {
+  app.post('/api/v1/drivers', auth, roles('PACS','LAMPS','MILLER'), drivers.create);
+  app.get('/api/v1/drivers', auth, roles('PACS','LAMPS','MILLER'), drivers.list);
   app.post(['/api/v1/auth/login', '/api/v1/multilogin'], rateLimit({
     windowMs: 15 * 60000,
     limit: 20,

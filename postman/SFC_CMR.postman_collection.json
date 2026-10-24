@@ -8731,6 +8731,250 @@
           ]
         }
       ]
+    },
+    {
+      "name": "16 - Driver creation and mobile login",
+      "description": "Run 01 through 06. Use a PACS/LAMPS/Miller owner account. New driver credentials are stored in collection variables. Requires database migration 041_driver_accounts.sql.",
+      "item": [
+        {
+          "name": "01 Login owner - PACS / LAMPS / Miller",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "device",
+                "value": "mobile"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/login",
+            "description": "Set the email/password of an existing PACS, LAMPS or MILLER account. Existing email login is unchanged. Saves driver_owner_token separately from other role tokens.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{driver_owner_email}}\",\n  \"password\": \"{{driver_owner_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const response=pm.response.json();",
+                  "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));",
+                  "if(response.ok){pm.collectionVariables.set('driver_owner_token',response.data.token);pm.test('Owner may create drivers',()=>pm.expect(response.data.user.role).to.be.oneOf(['PACS','LAMPS','MILLER']));}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Create driver under logged-in owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "device",
+                "value": "mobile"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_owner_token}}"
+              }
+            ],
+            "url": "{{base_url}}/drivers",
+            "description": "Requires migration 041 and 042. Owner is determined from the logged-in PACS/LAMPS/Miller. A new driver receives a generated password saved as driver_password; existing driver credentials remain unchanged. Idempotency-Key is automatically regenerated when the resolved body or owner token changes and retained for retries with the same body. To intentionally repeat a completed operation, clear driver_create_key.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{driver_name}}\",\n  \"phone\": \"{{driver_phone}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const resolvedBody = pm.variables.replaceIn(pm.request.body.raw);",
+                  "const parsedBody = JSON.parse(resolvedBody);",
+                  "const canonicalBody = JSON.stringify(parsedBody, Object.keys(parsedBody).sort());",
+                  "const fingerprint = require('crypto-js').SHA256(pm.variables.replaceIn('{{base_url}}|{{driver_owner_token}}|') + canonicalBody).toString();",
+                  "if (!pm.collectionVariables.get('driver_create_key') || pm.collectionVariables.get('driver_create_fingerprint') !== fingerprint) {",
+                  "  pm.collectionVariables.set('driver_create_key', pm.variables.replaceIn('driver-{{$guid}}'));",
+                  "  pm.collectionVariables.set('driver_create_fingerprint', fingerprint);",
+                  "}",
+                  "pm.request.headers.upsert({key:'Idempotency-Key',value:pm.collectionVariables.get('driver_create_key')});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const response=pm.response.json();",
+                  "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));",
+                  "if(response.ok){pm.collectionVariables.set('driver_user_id',response.data.id);if(response.data.initial_password)pm.collectionVariables.set('driver_password',response.data.initial_password);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 List owner drivers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "device",
+                "value": "mobile"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_owner_token}}"
+              }
+            ],
+            "url": "{{base_url}}/drivers",
+            "description": "Lists only drivers associated with the logged-in owner facility."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const response=pm.response.json();",
+                  "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Driver login with mobile and password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "device",
+                "value": "mobile"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/login",
+            "description": "Uses the password saved by Create driver, or the existing driver password you set. Stores driver_token without overwriting the owner token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{driver_phone}}\",\n  \"password\": \"{{driver_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const response=pm.response.json();",
+                  "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));",
+                  "if(response.ok){pm.collectionVariables.set('driver_token',response.data.token);pm.test('Driver account',()=>pm.expect(response.data.user.role).to.eql('DRIVER'));}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Driver current profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "device",
+                "value": "mobile"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/me",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const response=pm.response.json();",
+                  "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));",
+                  "if(response.ok)pm.test('Driver profile',()=>pm.expect(response.data.role).to.eql('DRIVER'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Driver assigned shipments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "device",
+                "value": "mobile"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              }
+            ],
+            "url": "{{base_url}}/shipments",
+            "description": "Returns only shipments assigned to this driver. Empty data is valid until a shipment is created/dispatched with this contact."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const response=pm.response.json();",
+                  "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -9044,6 +9288,38 @@
       "value": "0",
       "type": "string",
       "description": "Trip filter: 0 not started, 1 started, 2 completed at destination."
+    },
+    {
+      "key": "driver_owner_email",
+      "value": ""
+    },
+    {
+      "key": "driver_owner_password",
+      "value": ""
+    },
+    {
+      "key": "driver_owner_token",
+      "value": ""
+    },
+    {
+      "key": "driver_password",
+      "value": ""
+    },
+    {
+      "key": "driver_token",
+      "value": ""
+    },
+    {
+      "key": "driver_user_id",
+      "value": ""
+    },
+    {
+      "key": "driver_create_key",
+      "value": ""
+    },
+    {
+      "key": "driver_create_fingerprint",
+      "value": ""
     }
   ],
   "event": [

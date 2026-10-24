@@ -102,7 +102,7 @@ export async function dispatchShipmentUpdateProcurement(connection, l) {
   return rows(connection, 'UPDATE procurement SET available_g=available_g-?,reserved_g=reserved_g-? WHERE id=?', [l.quantity_g, l.quantity_g, l.procurement_id]);
 }
 export async function dispatchShipmentUpdateShipments(connection, data, s) {
-  return rows(connection, "UPDATE shipments SET status='DISPATCHED',dispatched_at=?,dispatch_receipt=?,driver_name=?,driver_phone=?,expected_completion_at=? WHERE id=?", [data.dispatched_at, data.receipt_no, data.driver_name, data.driver_phone, data.expected_completion_at, s.id]);
+  return rows(connection, "UPDATE shipments SET status='DISPATCHED',dispatched_at=?,dispatch_receipt=?,driver_name=?,driver_phone=?,expected_completion_at=?,driver_user_id=? WHERE id=?", [data.dispatched_at, data.receipt_no, data.driver_name, data.driver_phone, data.expected_completion_at, data.driver_user_id, s.id]);
 }
 export async function cancelShipmentListShipmentLots(connection, s) {
   return rows(connection, 'SELECT * FROM shipment_lots WHERE shipment_id=? ORDER BY procurement_id', [s.id]);

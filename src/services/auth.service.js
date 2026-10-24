@@ -21,7 +21,7 @@ export async function login(context) {
   const d = S.login.parse(context.body);
   const u = await repository.loginFindUsers(d);
   const valid = await verifyPassword(d.password, u?.password_hash || dummyHash);
-  ensure(valid && u?.active, 'Invalid email or password', 'UNAUTHORIZED', 401);
+  ensure(valid && u?.active, 'Invalid email/phone or password', 'UNAUTHORIZED', 401);
   const raw = token(),
     refresh = token();
   const refreshExpires = new Date(Date.now() + duration('REFRESH_SESSION_DAYS', 7) * 86400000);

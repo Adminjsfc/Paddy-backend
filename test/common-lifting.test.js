@@ -1,6 +1,6 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createShipment} from '../src/services/shipments.service.js';
+import {createShipment,dispatchShipment} from '../src/services/shipments.service.js';
 import {migrateCommonLifting,removeLegacyLiftingTable} from '../scripts/common-lifting-migration.js';
 import {shipment} from '../src/validators/schemas.js';
 import {procurementBatch} from '../src/validators/schemas.js';
@@ -96,6 +96,41 @@ test('PACS cannot create CMR or lift another facility stock',async()=>{
  const connection={execute:async()=>{throw new Error('Unexpected query');}};
  for(const [data,user] of [[{...body(),leg:'CMR'},{role:'PACS',facility_id:153}],[body(),{role:'LAMPS',facility_id:149}],[body(),{role:'PACS'}]])
   await assert.rejects(createShipment(connection,data,{user}),e=>e.status===403);
+});
+
+test('Shipment auto-creates and links driver accounts using the original creator scope',async()=>{
+ for(const user of [{id:1,role:'PACS',facility_id:153},{id:2,role:'LAMPS',facility_id:153},{id:3,role:'MILLER',miller_id:3}]){
+  const {connection,queries}=database();
+  const execute=connection.execute;
+  connection.execute=async(sql,args)=>sql.includes('FROM users WHERE phone=')?[[]]:execute(sql,args);
+  const result=await createShipment(connection,{...body(),driver_name:'Trip Driver',driver_phone:'9999999999'},{user});
+  assert.equal(result.driver_account.created,true);
+  assert.equal(result.driver_user_id,20);
+  const saved=queries.find(q=>q.sql.startsWith('INSERT INTO shipments '));
+  const fields=saved.sql.match(/\(([^)]+)\)/)[1].split(',');
+  assert.equal(saved.args[fields.indexOf('driver_user_id')],20);
+  const owner=queries.find(q=>q.sql.startsWith('INSERT INTO driver_owners'));
+  assert.deepEqual(owner.args,[20,user.facility_id??user.miller_id,user.id]);
+ }
+});
+
+test('Dispatch links an existing driver using saved shipment contact without issuing a new password',async()=>{
+ const {connection,queries}=database();
+ const execute=connection.execute;
+ connection.execute=async(sql,args)=>{
+  if(sql.includes('FROM users WHERE phone='))return [[{id:55,name:'Saved Driver',phone:'9999999999',role:'DRIVER',active:1}]];
+  if(sql.includes('SELECT s.*'))return [[{id:20,leg:'PADDY',status:'PLANNED',miller_id:3,source_id:153,season_id:2,vehicle_id:4,quantity_g:1000000,scheme_code:'SCMR',driver_name:'Saved Driver',driver_phone:'9999999999'}]];
+  if(sql.startsWith('SELECT active FROM facilities'))return [[{active:1}]];
+  if(sql.includes('FROM shipment_lots'))return [[]];
+  if(sql.startsWith('SELECT * FROM stocks'))return [[{id:1,status:1,on_hand_g:2000000,reserved_g:1000000}]];
+  return execute(sql,args);
+ };
+ const result=await dispatchShipment(connection,{dispatched_at:new Date('2026-01-01T10:00:00Z'),receipt_no:'R-1'},{user:{id:1,role:'PACS',facility_id:153},params:{id:20}});
+ assert.equal(result.driver_user_id,55);
+ assert.equal(result.driver_account.created,false);
+ assert(!Object.hasOwn(result.driver_account,'initial_password'));
+ const update=queries.find(q=>q.sql.startsWith("UPDATE shipments SET status='DISPATCHED'"));
+ assert.equal(update.args.at(-2),55);
 });
 test('Paddy still requires an active mapping, unreserved stock and procurement lots',async()=>{
  for(const [options,code] of [[{mapped:false},'PADDY_MAPPING_NOT_FOUND'],[{stock:500000},'INSUFFICIENT_STOCK'],[{lots:500000},'INSUFFICIENT_LOTS']]){

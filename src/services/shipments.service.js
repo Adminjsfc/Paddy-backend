@@ -6,6 +6,7 @@ import { lockFacilities } from "../repositories/facilities.repository.js";
 import { event } from "../repositories/events.repository.js";
 import { ensure, grams, millerAccess, vehicleAccess, recoveryGrams, pageParams, scopedWhere } from "../utils/core.js";
 import { activeSeason } from "./procurement.service.js";
+import {ensureDriver} from './drivers.service.js';
 export async function ownedShipment(connection, context, lock = true) {
   const scope = scopedWhere(context.user);
   return repository.ownedShipmentFindShipments(connection, scope, lock, context);
@@ -18,6 +19,7 @@ export async function transport(connection, vehicleId, user) {
   return v;
 }
 export async function createShipment(connection, data, context, submission = {}) {
+  const driverOwnerId = ['PACS','LAMPS'].includes(context.user.role) ? context.user.facility_id : data.miller_id;
   if (['PACS','LAMPS'].includes(context.user.role)) {
     ensure(data.leg==='PADDY','leg must be PADDY for PACS/LAMPS.','FORBIDDEN',403);
     ensure(context.user.facility_id,'facility_id: missing on the logged-in PACS/LAMPS account.','FORBIDDEN',403);
@@ -50,6 +52,10 @@ export async function createShipment(connection, data, context, submission = {})
   } else ensure(data.order_id === null, 'Paddy shipment cannot reference a CMR order', 'VALIDATION', 400);
   const recovery = data.leg === 'PADDY' ? miller.recovery_percent ?? season.recovery_percent : null;
   const flowType = data.leg === 'PADDY' ? 'PACS_LAMPS_TO_MILLER' : 'MILLER_TO_GODOWN';
+  const driverName = submission.driver_name ?? data.driver_name;
+  const driverPhone = submission.driver_phone ?? data.driver_phone;
+  const driver = driverName && driverPhone ? await ensureDriver(connection, {name:driverName,phone:driverPhone}, context, driverOwnerId) : null;
+  submission = {...submission,driver_user_id:driver?.id ?? null};
   const id = await repository.createShipmentInsertShipments(connection, data, flowType, source, dest, v, qty, recovery, submission, masters);
   await stock(connection, source.id, data.season_id, data.leg === 'PADDY' ? 'PADDY' : 'RICE', 0, qty, 'RESERVE', id, data.scheme_code, context.user);
   if (data.leg === 'PADDY') {
@@ -97,6 +103,8 @@ export async function createShipment(connection, data, context, submission = {})
   return {
     id,
     shipment_no: data.shipment_no,
+    driver_user_id: driver?.id ?? null,
+    driver_account: driver,
     ...masters,
     vehicle_type_id: v.vehicle_type_id ?? null,
     status: 'PLANNED',
@@ -173,6 +181,9 @@ export async function dispatchShipment(connection, data, context) {
   }
   await stock(connection, s.source_id, s.season_id, s.leg === 'PADDY' ? 'PADDY' : 'RICE', -s.quantity_g, -s.quantity_g, 'DISPATCH', s.id, s.scheme_code, context.user);
   for (const l of lots) await repository.dispatchShipmentUpdateProcurement(connection, l);
+  const ownerId = ['PACS','LAMPS'].includes(context.user.role) ? context.user.facility_id : s.miller_id;
+  const driver = await ensureDriver(connection, {name:data.driver_name,phone:data.driver_phone}, context, ownerId);
+  data.driver_user_id = driver.id;
   await repository.dispatchShipmentUpdateShipments(connection, data, s);
   await event(connection, s.id, 'DISPATCHED', data.dispatched_at, {
     receipt_no: data.receipt_no,
@@ -184,6 +195,8 @@ export async function dispatchShipment(connection, data, context) {
   return {
     id: s.id,
     status: 'DISPATCHED',
+    driver_user_id:driver.id,
+    driver_account:driver,
     trip_status: s.trip_status,
     trip_started_at: s.trip_started_at,
     trip_completed_at: s.trip_completed_at,

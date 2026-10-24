@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {withDriverContact} from './driver-contact.js';
 import { id, code, name, phone, percent, quantity, dateOnly, pastTimestamp, timestamp } from "../utils/core.js";
 const nullable = v => v.nullable().default(null);
 export const schemeMaster = z.object({
@@ -128,7 +129,7 @@ export const milling = z.object({
   milled_at: pastTimestamp,
   remarks: nullable(z.string().max(500))
 }).strict();
-export const shipment = z.object({
+export const shipment = withDriverContact(z.object({
   scheme_code: code,
   shipment_no: z.string().min(1).max(100),
   leg: z.enum(['PADDY', 'CMR']),
@@ -149,14 +150,14 @@ export const shipment = z.object({
   remarks: nullable(z.string().max(500))
 }).strict().refine(value=>(value.driver_name===null)===(value.driver_phone===null),{
   message:'driver_name and driver_phone must be supplied together',path:['driver_phone']
-});
-export const dispatch = z.object({
+}));
+export const dispatch = withDriverContact(z.object({
   dispatched_at: pastTimestamp,
   expected_completion_at: timestamp.nullable().optional(),
   receipt_no: z.string().min(1).max(100),
   driver_name: name.optional(),
   driver_phone: phone.optional()
-}).strict();
+}).strict());
 export const delivery = z.object({
   delivered_at: pastTimestamp,
   accepted_quantity: quantity,
@@ -190,8 +191,14 @@ export const user = z.object({
   facility_id: nullable(id)
 }).strict();
 export const login = z.object({
-  email: z.email().max(190).transform(v => v.toLowerCase()),
+  email: z.union([z.email().max(190), phone]).transform(v => v.toLowerCase()).optional(),
+  phone: phone.optional(),
   password: z.string().max(128)
+}).strict().refine(value => Boolean(value.email) !== Boolean(value.phone), 'Provide email or phone');
+export const driver = z.object({
+  name,
+  phone,
+  password: z.string().min(12).max(128).optional()
 }).strict();
 export const passwordChange = z.object({
   current_password: z.string().max(128),

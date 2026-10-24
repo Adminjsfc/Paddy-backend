@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import {withDriverContact} from './driver-contact.js';
 import { id, quantity, dateOnly, name, phone, timestamp } from "../utils/core.js";
-export const cmrSubmissionSchema = z.object({
+export const cmrSubmissionSchema = withDriverContact(z.object({
   season_id: id,
   order_id: id,
   destination_id: id,
@@ -20,4 +21,4 @@ export const cmrSubmissionSchema = z.object({
   driver_name: name,
   driver_phone: phone,
   remarks: z.string().max(500).nullable().default(null)
-}).strict();
+}).strict());

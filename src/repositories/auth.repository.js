@@ -2,7 +2,10 @@ import { pool } from "../config/database.js";
 import { one, rows, insert } from "../repositories/database.js";
 import { hash } from "../utils/core.js";
 export async function loginFindUsers(data) {
-  return one(pool, 'SELECT * FROM users WHERE email=?', [data.email], false);
+  const identifier = data.phone ?? data.email;
+  return identifier.includes('@')
+    ? one(pool, 'SELECT * FROM users WHERE email=?', [identifier], false)
+    : one(pool, "SELECT * FROM users WHERE phone=? AND role='DRIVER'", [identifier], false);
 }
 export async function loginInsertSessions(raw, u, expires, refresh, refreshExpires) {
   return insert(pool, 'sessions', {

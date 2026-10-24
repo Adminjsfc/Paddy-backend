@@ -15,6 +15,10 @@ export function allowedModule(permission, method) {
   return Boolean(permission && Number(permission.can_view) === 1 && Number(permission[action]) === 1);
 }
 export async function moduleGuard(context, res, next) {
+  if (context.user.role === 'DRIVER') {
+    ensure(context.method === 'GET' && /^\/shipments(?:\/\d+)?$/.test(context.path), 'Drivers can only view their assigned shipments', 'FORBIDDEN', 403);
+    return next();
+  }
   if (context.user.role !== 'MILLER') return next();
   const key = moduleForRequest(context);
   if (!key) return next();
