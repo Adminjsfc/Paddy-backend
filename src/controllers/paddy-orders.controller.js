@@ -8,3 +8,4 @@ export const liftingFacility=async(req,res)=>respond(res,await service.liftingFa
 export const liftingVehicles=async(req,res)=>respond(res,await service.liftingVehicles(requestContext(req)));
 
 export const liftingMillers=async(req,res)=>respond(res,await service.liftingMillers(requestContext(req)));
+export const sourceLiftingSummary=async(req,res)=>respond(res,await service.sourceLiftingSummary(requestContext(req)));

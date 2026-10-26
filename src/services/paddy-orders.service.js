@@ -17,6 +17,15 @@ function liftingSource(user) {
   ensure(['PACS','LAMPS'].includes(user.role)&&user.facility_id,'PACS/LAMPS facility is required','FORBIDDEN',403);
   return user.facility_id;
 }
+export async function sourceLiftingSummary(context) {
+  const sourceId=liftingSource(context.user);
+  const seasonId=id.parse(Number(context.query.season_id));
+  const pagination=pageParams(context.query);
+  const scheme=context.query.scheme_code?code.parse(context.query.scheme_code):null;
+  const result=await repository.sourceLiftingSummary(sourceId,seasonId,pagination,scheme);
+  return {body:{ok:true,data:result.data,totals:result.totals,quantity_scope:'SOURCE_SEASON_SCHEME',
+    pagination:{page:pagination.page,limit:pagination.limit,total:result.total}}};
+}
 export async function liftingMillers(context) {
   const sourceId=liftingSource(context.user),seasonId=id.parse(Number(context.query.season_id));
   return {body:{ok:true,data:await repository.mappedMillers(sourceId,seasonId)}};

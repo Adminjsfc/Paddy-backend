@@ -127,3 +127,7 @@ export async function updateMasterProfileFindVehicleTypes(connection, data) {
 export async function updateMasterProfileUpdateSET(connection, table, update, record) {
   return rows(connection, `UPDATE ${table} SET ${Object.keys(update).map(k => `${k}=?`).join(',')} WHERE id=?`, [...Object.values(update), record.id]);
 }
+
+export function requireCoreDMMiller(connection, millerId, districtIds) {
+  return one(connection, "SELECT id FROM facilities WHERE id=? AND kind='MILLER' AND active=1 AND district_id IN (" + districtIds.map(() => '?').join(',') + ') FOR UPDATE', [millerId, ...districtIds], true, { status: 403, code: 'DISTRICT_FORBIDDEN', message: 'Miller is outside your assigned districts or inactive' });
+}

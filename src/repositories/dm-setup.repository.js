@@ -38,7 +38,7 @@ export async function getSetupOptionsListFacilities(marks, ids) {
   return rows(pool, `SELECT id,code,name,district_id FROM facilities WHERE kind='MILLER' AND active=1 AND district_id IN (${marks}) ORDER BY name`, ids);
 }
 export async function getSetupOptionsListFacilities2(marks, ids) {
-  return rows(pool, `SELECT id,code,name,kind,district_id,core_store_id FROM facilities WHERE kind IN ('FCI','SFC_GODOWN') AND active=1 AND district_id IN (${marks}) ORDER BY name`, ids);
+  return rows(pool, `SELECT id,store_id code,store_name name,CASE WHEN store_type=1 THEN 'FCI' ELSE 'SFC_GODOWN' END kind,district_id,id core_store_id FROM tbl_store_location_master WHERE store_type IN (1,2) AND status=1 AND district_id IN (${marks}) ORDER BY store_name,id`, ids);
 }
 export async function getSetupOptionsListSeasons() {
   return rows(pool, 'SELECT id,name,code FROM seasons WHERE active=1 ORDER BY start_date DESC,id DESC');
@@ -53,7 +53,7 @@ export async function getSetupOptionsListStocks(marks, ids) {
   return rows(pool, `SELECT s.*,sc.code scheme_code,co.code commodity,f.name miller_name FROM stocks s JOIN schemes sc ON sc.id=s.scheme_id JOIN commodities co ON co.id=s.commodity_id JOIN facilities f ON f.id=s.facility_id WHERE f.kind='MILLER' AND f.district_id IN (${marks}) AND co.code='RICE'`, ids);
 }
 export async function getSetupOptionsListGpsDevices(marks, ids) {
-  return rows(pool, `SELECT v.id,v.registration_no,v.miller_id,v.capacity_g,m.name miller_name,EXISTS(SELECT 1 FROM gps_devices d WHERE d.vehicle_id=v.id AND d.active=1) gps_active FROM vehicles v JOIN facilities m ON m.id=v.miller_id WHERE m.district_id IN (${marks}) ORDER BY v.id DESC LIMIT 200`, ids);
+  return rows(pool, `SELECT v.id,v.registration_no,v.miller_id,v.capacity_g,m.name miller_name,(SELECT i.imei FROM gps_devices linked_device JOIN imeis i ON i.id=linked_device.imei_id WHERE linked_device.vehicle_id=v.id AND linked_device.active=1 ORDER BY linked_device.id DESC LIMIT 1) imei,EXISTS(SELECT 1 FROM gps_devices d WHERE d.vehicle_id=v.id AND d.active=1) gps_active FROM vehicles v JOIN facilities m ON m.id=v.miller_id WHERE m.district_id IN (${marks}) ORDER BY v.id DESC LIMIT 200`, ids);
 }
 export async function getSetupOptionsListVehicleTypes() {
   return rows(pool, 'SELECT id,name FROM vehicle_types WHERE active=1 ORDER BY name');
@@ -96,4 +96,24 @@ export async function addTestRiceInsertTestStockEntries(connection, data, amount
     season_id: data.season_id,
     quantity_g: amount
   });
+}
+
+export function lockSelectedDepot(connection, storeId) {
+  return one(connection, 'SELECT * FROM tbl_store_location_master WHERE id=? AND status=1 AND store_type IN (1,2) FOR UPDATE', [storeId]);
+}
+export function findDepotFacility(connection, storeId) {
+  return one(connection, 'SELECT * FROM facilities WHERE core_store_id=? FOR UPDATE', [storeId], false);
+}
+export async function depotLocationMasters(connection) {
+  return {
+    districts: new Map((await rows(connection, 'SELECT id,district_name FROM tbl_district_master')).map(row => [Number(row.id), row])),
+    blocks: await rows(connection, 'SELECT id,district_id,rgi_block_code,block_name FROM tbl_block_master')
+  };
+}
+export function insertDepotFacility(connection, data) {
+  return insert(connection, 'facilities', data);
+}
+
+export function findSelectedMillerVehicle(connection, vehicleId, millerId) {
+  return one(connection, 'SELECT id FROM vehicles WHERE id=? AND miller_id=? AND active=1 FOR UPDATE', [vehicleId, millerId], true, {status: 400, code: 'INVALID_VEHICLE', message: 'Select an active vehicle belonging to the selected Miller'});
 }

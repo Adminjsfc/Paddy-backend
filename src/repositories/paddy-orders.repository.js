@@ -1,6 +1,39 @@
 import {pool} from '../config/database.js';
 import {one,rows} from './database.js';
 
+// Source balances are shared by all mapped millers; aggregate them before joining mappings.
+export async function sourceLiftingSummary(sourceId,seasonId,{limit,offset},schemeCode=null) {
+  const args=[sourceId,seasonId,...(schemeCode?[schemeCode]:[])];
+  const balances=`SELECT p.facility_id source_id,p.season_id,p.scheme_id,SUM(p.quantity_g) target_g
+    FROM procurement p JOIN schemes sc ON sc.id=p.scheme_id
+    JOIN commodities co ON co.id=p.commodity_id
+    WHERE p.facility_id=? AND p.season_id=? AND co.code='PADDY'${schemeCode?' AND sc.code=?':''}
+    GROUP BY p.facility_id,p.season_id,p.scheme_id`;
+  const lifted=`SELECT source_id,season_id,scheme_id,destination_id,SUM(quantity_g) lifted_g
+    FROM shipments WHERE leg='PADDY' AND status IN ('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED')
+    GROUP BY source_id,season_id,scheme_id,destination_id`;
+  const sourceBalances=`SELECT b.*,COALESCE(l.lifted_g,0) source_lifted_g,
+    b.target_g-COALESCE(l.lifted_g,0) pending_g FROM (${balances}) b
+    LEFT JOIN (SELECT source_id,season_id,scheme_id,SUM(lifted_g) lifted_g FROM (${lifted}) lifted
+      GROUP BY source_id,season_id,scheme_id) l
+      ON l.source_id=b.source_id AND l.season_id=b.season_id AND l.scheme_id=b.scheme_id`;
+  const totals=await one(pool,`SELECT COALESCE(SUM(target_g),0) target_g,
+    COALESCE(SUM(source_lifted_g),0) lifted_g,COALESCE(SUM(pending_g),0) pending_g FROM (${sourceBalances}) balances`,args);
+  const base=`FROM (${sourceBalances}) b
+    JOIN facilities src ON src.id=b.source_id JOIN schemes sc ON sc.id=b.scheme_id
+    JOIN (SELECT DISTINCT source_id,destination_id,season_id FROM route_tags WHERE active=1) r
+      ON r.source_id=b.source_id AND r.season_id=b.season_id
+    JOIN facilities m ON m.id=r.destination_id AND m.kind='MILLER' AND m.active=1
+    LEFT JOIN (${lifted}) l ON l.source_id=b.source_id AND l.season_id=b.season_id
+      AND l.scheme_id=b.scheme_id AND l.destination_id=m.id`;
+  const count=await one(pool,`SELECT COUNT(*) total ${base}`,args);
+  const data=await rows(pool,`SELECT b.*,src.name source_name,src.code source_code,
+    m.id miller_id,m.name miller_name,m.address miller_address,sc.code scheme_code,
+    COALESCE(l.lifted_g,0) lifted_g ${base}
+    ORDER BY m.name,m.id,sc.code LIMIT ${limit} OFFSET ${offset}`,args);
+  return {data,totals,total:count.total};
+}
+
 export async function listMappedSources(millerId,seasonId,{limit,offset},schemeCode=null) {
   const args=[millerId,...(seasonId?[seasonId]:[]),...(schemeCode?[schemeCode]:[])];
   const base=`SELECT f.id source_id,f.code,f.kind,f.name source_name,f.address,

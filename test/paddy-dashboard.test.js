@@ -1,6 +1,42 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import {pool} from '../src/config/database.js';
+import {sourceLiftingSummary} from '../src/services/paddy-orders.service.js';
+
+test('Source Paddy summary scopes all queries and separates shared totals from miller rows',async()=>{
+  const original=pool.execute,calls=[];
+  pool.execute=async(sql,args)=>{
+    calls.push({sql,args});
+    if(sql.startsWith('SELECT COALESCE(SUM(target_g)')) return [[{target_g:1000000,lifted_g:300000,pending_g:700000}]];
+    if(sql.startsWith('SELECT COUNT(*)')) return [[{total:2}]];
+    return [[{miller_id:3,target_g:1000000,pending_g:700000,lifted_g:200000},
+      {miller_id:4,target_g:1000000,pending_g:700000,lifted_g:100000}]];
+  };
+  try {
+    for(const role of ['PACS','LAMPS']) {
+      calls.length=0;
+      const {body}=await sourceLiftingSummary({user:{role,facility_id:153},query:{season_id:'2',source_id:'999',scheme_code:'SCMR'}});
+      assert.equal(body.totals.target_g,1000000);
+      assert.equal(body.pagination.total,2);
+      assert.equal(body.data.length,2);
+      assert.equal(body.quantity_scope,'SOURCE_SEASON_SCHEME');
+      for(const {sql,args} of calls) {
+        assert.deepEqual(args,[153,2,'SCMR']);
+        assert.equal((sql.match(/\?/g)||[]).length,args.length);
+        assert.match(sql,/co.code='PADDY'/);
+        assert.match(sql,/status IN \('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED'\)/);
+      }
+      assert.doesNotMatch(calls[0].sql,/JOIN facilities m/);
+      assert.match(calls[2].sql,/m.address miller_address/);
+    }
+    calls.length=0;
+    for(const user of [{role:'MILLER',miller_id:3},{role:'ADMIN'},{role:'PACS'}])
+      await assert.rejects(sourceLiftingSummary({user,query:{season_id:'2'}}),e=>e.status===403);
+    for(const query of [{},{season_id:'bad'},{season_id:'2',limit:201}])
+      await assert.rejects(sourceLiftingSummary({user:{role:'PACS',facility_id:153},query}));
+    assert.equal(calls.length,0);
+  } finally {pool.execute=original;}
+});
 import {dashboardVehicles} from '../src/repositories/reports.repository.js';
 import {liftingMillers,liftingVehicles} from '../src/services/paddy-orders.service.js';
 import {listMappedSources} from '../src/repositories/paddy-orders.repository.js';

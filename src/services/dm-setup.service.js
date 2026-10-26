@@ -1,3 +1,4 @@
+import { storeFacilityData } from '../utils/store-facility.js';
 import {requireStockMasters} from '../repositories/stock-masters.repository.js';
 import * as repository from "../repositories/dm-setup.repository.js";
 import crypto from 'node:crypto';
@@ -94,9 +95,32 @@ export async function getSetupOptions(context) {
     ...effects
   };
 }
+export async function resolveDMDepot(connection, data, context, legacyField) {
+  ensure(Boolean(data.store_location_id) !== Boolean(data[legacyField]), 'Provide either store_location_id or ' + legacyField, 'VALIDATION', 400);
+  if (!data.store_location_id) return scopedDMFacility(connection, context.user, data[legacyField], 'STORE');
+  const store = await repository.lockSelectedDepot(connection, data.store_location_id);
+  ensure(context.user.district_ids.includes(Number(store.district_id)), 'Store is outside your DM districts', 'DISTRICT_FORBIDDEN', 403);
+  const existing = await repository.findDepotFacility(connection, store.id);
+  if (existing) {
+    ensure(existing.active && Number(existing.district_id) === Number(store.district_id) && existing.kind === (Number(store.store_type) === 1 ? 'FCI' : 'SFC_GODOWN'), 'Store facility link is inactive or inconsistent', 'INVALID_STORE', 400);
+    return existing;
+  }
+  const { districts, blocks: blockRows } = await repository.depotLocationMasters(connection);
+  const blocks = new Map();
+  for (const block of blockRows) {
+    const key = block.district_id + ':' + block.rgi_block_code;
+    blocks.set(key, [...(blocks.get(key) || []), block]);
+  }
+  const normalized = storeFacilityData(store, { districts, blocks, code: 'CORE-STORE-' + store.id, capacityUnit: 'MT', radiusUnit: 'KM' });
+  ensure(!normalized.problems.length, 'Store requires valid facility details: ' + normalized.problems.join('; '), 'INVALID_STORE_DETAILS', 400);
+  const facility = { ...normalized.data, created_by_core_user_id: context.user.core_user_id ?? null, created_by_user_type: context.user.core_user_type ?? null };
+  return { ...facility, id: await repository.insertDepotFacility(connection, facility) };
+}
 export async function assignReceivingStore(connection, data, context) {
   await scopedDMFacility(connection, context.user, data.miller_id, 'MILLER');
-  await scopedDMFacility(connection, context.user, data.store_id, 'STORE');
+  const depot = await resolveDMDepot(connection, data, context, 'store_id');
+  data = { ...data, store_id: depot.id };
+  delete data.store_location_id;
   await repository.assignReceivingStoreFindSeasons(connection, data);
   await repository.assignReceivingStoreExecuteMillerStoreAssignments(connection, data);
   return data;
@@ -104,7 +128,9 @@ export async function assignReceivingStore(connection, data, context) {
 export async function createCmrOrder(connection, data, context) {
   await requireStockMasters(connection,data.scheme_code,'RICE');
   await scopedDMFacility(connection, context.user, data.miller_id, 'MILLER');
-  await scopedDMFacility(connection, context.user, data.destination_id, 'STORE');
+  const depot = await resolveDMDepot(connection, data, context, 'destination_id');
+  data = { ...data, destination_id: depot.id };
+  delete data.store_location_id;
   await repository.createCmrOrderFindSeasons(connection, data);
   await repository.createCmrOrderFindMillerStoreAssignments(connection, data);
   ensure(data.due_date >= new Date(Date.now() + 19800000).toISOString().slice(0, 10), 'Due date is in the past', 'VALIDATION', 400);
@@ -133,7 +159,9 @@ export async function registerMillerVehicle(connection, data, context) {
     ...context.user,
     role: 'OPERATOR'
   };
-  const vehicle = await createMaster(connection, 'vehicles', S.vehicle.parse({
+  const vehicle = data.vehicle_id
+    ? await repository.findSelectedMillerVehicle(connection, data.vehicle_id, miller.id)
+    : await createMaster(connection, 'vehicles', S.vehicle.parse({
     miller_id: data.miller_id,
     vehicle_type_id: data.vehicle_type_id,
     registration_no: data.registration_no,
