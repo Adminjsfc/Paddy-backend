@@ -46,7 +46,7 @@ export async function receiveCMR(connection, data, context) {
   ensure(['DISPATCHED', 'IN_TRANSIT', 'ARRIVED'].includes(shipment.status), 'Only shipped CMR awaiting receipt can be reviewed', 'INVALID_STATUS', 409);
   ensure(!(await repository.receiveCMRFindCmrReceipts(connection, shipment)), 'This shipment has already been reviewed', 'ALREADY_REVIEWED', 409);
   ensure(shipment.status === 'ARRIVED' || data.gps_override_reason, 'GPS arrival is missing; provide an arrival override reason', 'GPS_ARRIVAL_REQUIRED', 409);
-  ensure(data.received_at >= new Date(shipment.arrived_at || shipment.departed_at || shipment.dispatched_at), 'Receipt precedes transport events', 'VALIDATION', 400);
+  ensure(data.received_at >= new Date(shipment.trip_completed_at || shipment.trip_started_at || shipment.dispatched_at), 'Receipt precedes transport events', 'VALIDATION', 400);
   const calc = receivingCalculation(data);
   ensure(calc.net_g <= shipment.quantity_g, 'Net rice weight exceeds dispatched quantity', 'OVER_RECEIPT', 400);
   ensure(calc.net_g === shipment.quantity_g || data.remarks.length > 0, 'Remarks are required for a shortage', 'VALIDATION', 400);

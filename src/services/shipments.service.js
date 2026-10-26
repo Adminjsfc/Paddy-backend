@@ -128,7 +128,7 @@ export async function deliverShipment(connection, data, context, s) {
   ensure(accepted <= s.quantity_g, 'Accepted quantity exceeds dispatched quantity');
   const shortage = s.quantity_g - accepted;
   ensure(shortage === 0 || data.remarks, 'Remarks are required when there is a shortage', 'VALIDATION', 400);
-  ensure(data.delivered_at >= new Date(s.arrived_at || s.departed_at || s.dispatched_at), 'Delivery timestamp precedes transport events');
+  ensure(data.delivered_at >= new Date(s.trip_completed_at || s.trip_started_at || s.dispatched_at), 'Delivery timestamp precedes transport events');
   await lockFacilities(connection, [s.destination_id]);
   await stock(connection, s.destination_id, s.season_id, s.leg === 'PADDY' ? 'PADDY' : 'RICE', accepted, 0, 'DELIVERY', s.id, s.scheme_code, context.user);
   const obligation = s.leg === 'PADDY' ? recoveryGrams(accepted, s.recovery_percent) : null;
@@ -153,8 +153,8 @@ export async function deliverShipment(connection, data, context, s) {
     id: s.id,
     status: 'DELIVERED',
     trip_status: 2,
-    trip_started_at: s.trip_started_at || s.departed_at || null,
-    trip_completed_at: s.trip_completed_at || s.arrived_at || data.delivered_at,
+    trip_started_at: s.trip_started_at || null,
+    trip_completed_at: s.trip_completed_at || data.delivered_at,
     accepted_g: accepted,
     shortage_g: shortage,
     expected_rice_g: obligation

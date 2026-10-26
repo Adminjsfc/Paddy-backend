@@ -43,7 +43,7 @@ export async function listShipmentsCountRecords(base, args) {
   return one(pool, `SELECT COUNT(*) total ${base}`, args);
 }
 export async function listShipmentsListRecords(base, limit, offset, args) {
-  return rows(pool, `SELECT s.id,s.shipment_no,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.quantity_g,s.accepted_g,s.shortage_g,s.stenciling_code,s.total_bags,s.dispatched_at,s.arrived_at,s.submitted_on,
+  return rows(pool, `SELECT s.id,s.shipment_no,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.quantity_g,s.accepted_g,s.shortage_g,s.stenciling_code,s.total_bags,s.dispatched_at,s.submitted_on,
     s.scheme_id,s.commodity_id,sc.code scheme_type,sc.code scheme_code,co.code commodity_code,se.name season_name,f.name destination_name,m.name miller_name,m.address source_address,v.registration_no,r.id receipt_id,r.decision,r.net_g,r.received_at ${base}
     ORDER BY s.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }

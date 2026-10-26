@@ -24,8 +24,8 @@ export async function ingestPacketInsertGpsPackets(connection, data, p, result) 
 export async function ingestPacketUpdateGpsDevices(connection, p, data) {
   return rows(connection, 'UPDATE gps_devices SET last_gps_at=?,latitude=?,longitude=?,speed_kph=? WHERE id=?', [p.gps_at, p.latitude, p.longitude, p.speed_kph, data.id]);
 }
-export async function ingestPacketUpdateShipments(connection, change, departed, arrived, p, s) {
-  return rows(connection, 'UPDATE shipments SET status=?,source_geofence=?,destination_geofence=?,departed_at=?,arrived_at=?,last_gps_at=?,trip_status=?,trip_started_at=?,trip_completed_at=? WHERE id=?', [change.status, change.source, change.destination, departed, arrived, p.gps_at, change.trip_status, change.trip_started_at, change.trip_completed_at, s.id]);
+export async function ingestPacketUpdateShipments(connection, change, p, s) {
+  return rows(connection, 'UPDATE shipments SET status=?,source_geofence=?,destination_geofence=?,last_gps_at=?,trip_status=?,trip_started_at=?,trip_completed_at=? WHERE id=?', [change.status, change.source, change.destination, p.gps_at, change.trip_status, change.trip_started_at, change.trip_completed_at, s.id]);
 }
 export async function getVehicleLocationFindVehicles(context) {
   return one(pool, 'SELECT v.*,COALESCE(v.miller_id,t.miller_id) miller_id FROM vehicles v LEFT JOIN transporters t ON t.id=v.transporter_id WHERE v.id=?', [context.params.id]);

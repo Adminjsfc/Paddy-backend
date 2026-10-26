@@ -87,7 +87,7 @@ export async function deliverShipmentUpdateCmrOrders(connection, delivered, comm
   return rows(connection, 'UPDATE cmr_orders SET delivered_g=?,committed_g=?,status=? WHERE id=?', [delivered, committed, delivered === o.rice_quantity_g ? 'FULFILLED' : 'OPEN', o.id]);
 }
 export async function deliverShipmentUpdateShipments(connection, accepted, shortage, obligation, data, s) {
-  return rows(connection, "UPDATE shipments SET status='DELIVERED',accepted_g=?,shortage_g=?,expected_rice_g=?,delivered_at=?,delivery_receipt=?,remarks=?,trip_status=2,trip_started_at=COALESCE(trip_started_at,departed_at),trip_completed_at=COALESCE(trip_completed_at,arrived_at,?) WHERE id=?", [accepted, shortage, obligation, data.delivered_at, data.receipt_no, data.remarks, data.delivered_at, s.id]);
+  return rows(connection, "UPDATE shipments SET status='DELIVERED',accepted_g=?,shortage_g=?,expected_rice_g=?,delivered_at=?,delivery_receipt=?,remarks=?,trip_status=2,trip_completed_at=COALESCE(trip_completed_at,?) WHERE id=?", [accepted, shortage, obligation, data.delivered_at, data.receipt_no, data.remarks, data.delivered_at, s.id]);
 }
 export async function dispatchShipmentFindFacilities(connection, s) {
   return one(connection, 'SELECT active FROM facilities WHERE id=?', [s.source_id]);

@@ -22,9 +22,7 @@ export async function ingestPacket(connection, p, binding = null) {
   await repository.ingestPacketInsertGpsPackets(connection, d, p, result);
   if (!d.last_gps_at || p.gps_at > new Date(d.last_gps_at)) await repository.ingestPacketUpdateGpsDevices(connection, p, d);
   if (change) {
-    const departed = change.events.includes('DEPARTED') ? p.gps_at : s.departed_at,
-      arrived = change.events.includes('ARRIVED') ? p.gps_at : s.arrived_at;
-    await repository.ingestPacketUpdateShipments(connection, change, departed, arrived, p, s);
+    await repository.ingestPacketUpdateShipments(connection, change, p, s);
     for (const type of change.events) await event(connection, s.id, type, p.gps_at, {
       latitude: p.latitude,
       longitude: p.longitude,

@@ -97,8 +97,8 @@ export function gpsTransition(s, p) {
   return {
     status,
     trip_status: Math.max(s.trip_status || 0, status==='ARRIVED'?2:status==='IN_TRANSIT'?1:0),
-    trip_started_at: s.trip_started_at || s.departed_at || (events.includes('DEPARTED') ? p.gps_at : null),
-    trip_completed_at: s.trip_completed_at || s.arrived_at || (events.includes('ARRIVED') ? p.gps_at : null),
+    trip_started_at: s.trip_started_at || (events.includes('DEPARTED') ? p.gps_at : null),
+    trip_completed_at: s.trip_completed_at || (events.includes('ARRIVED') ? p.gps_at : null),
     source,
     destination,
     events

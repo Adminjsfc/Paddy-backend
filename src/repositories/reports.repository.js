@@ -12,7 +12,7 @@ export async function dashboardVehicles(millerId,seasonId,{limit,offset}) {
     SUM(d.id IS NOT NULL AND d.active=1) gps_enabled,SUM(s.id IS NOT NULL) assigned_trips ${base}`,args);
   const data=await rows(pool,`SELECT v.id,v.registration_no,v.capacity_g,v.active,vt.name vehicle_type,
     i.imei,i.provider,d.active gps_active,d.last_gps_at,d.latitude,d.longitude,d.speed_kph,
-    s.id shipment_id,s.shipment_no,s.leg,s.status shipment_status,s.departed_at,s.arrived_at,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,
+    s.id shipment_id,s.shipment_no,s.leg,s.status shipment_status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,
     source.name source_name,destination.name destination_name ${base}
     ORDER BY v.active DESC,v.registration_no LIMIT ${limit} OFFSET ${offset}`,args);
   return {data,totals};

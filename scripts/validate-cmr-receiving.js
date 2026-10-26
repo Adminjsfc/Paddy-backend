@@ -105,7 +105,7 @@ try {
       user: actor
     });
     await stock(c, miller.id, season.id, 'RICE', -100000, -100000, 'DISPATCH', s.id, 'SCMR');
-    await rows(c, "UPDATE shipments SET status='ARRIVED',dispatched_at=?,arrived_at=? WHERE id=?", [new Date(Date.now() - 30000), new Date(Date.now() - 10000), s.id]);
+    await rows(c, "UPDATE shipments SET status='ARRIVED',dispatched_at=?,trip_completed_at=? WHERE id=?", [new Date(Date.now() - 30000), new Date(Date.now() - 10000), s.id]);
     return s.id;
   };
   const body = decision => receivingSchema.parse({

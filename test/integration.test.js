@@ -354,7 +354,7 @@ test('Process sorted historical GPS, ignore duplicate and older packets, verify 
   assert.equal(s.data.trip_status,2);
   assert.equal(new Date(s.data.trip_started_at).getTime(),Math.floor(new Date(outside.gps_at).getTime()/1000)*1000);
   assert.equal(new Date(s.data.trip_completed_at).getTime(),Math.floor(new Date(destination.gps_at).getTime()/1000)*1000);
-  assert.equal(s.data.trip_started_at,s.data.departed_at);assert.equal(s.data.trip_completed_at,s.data.arrived_at);
+  assert.ok(s.data.trip_started_at);assert.ok(s.data.trip_completed_at);assert.equal('departed_at' in s.data,false);assert.equal('arrived_at' in s.data,false);
   const completed=await request('GET','/shipments?trip_status=2');assert(completed.data.some(row=>row.id===ids.paddy));
   const pending=await request('GET','/shipments?trip_status=0');assert(!pending.data.some(row=>row.id===ids.paddy));
   await request('GET','/shipments?trip_status=3',undefined,{status:400});
