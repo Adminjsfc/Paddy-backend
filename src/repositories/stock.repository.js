@@ -8,7 +8,7 @@ export function ensureBalance(connection, facilityId, seasonId, masters, audit) 
   return rows(connection, 'INSERT INTO stocks(facility_id,season_id,scheme_id,commodity_id,created_by,created_by_actor) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)', [facilityId, seasonId, masters.scheme_id,masters.commodity_id,audit.userId,audit.actor]);
 }
 export function lockBalance(connection, facilityId, seasonId, masters) {
-  return one(connection, 'SELECT * FROM stocks WHERE facility_id=? AND season_id=? AND scheme_id=? AND commodity_id=? FOR UPDATE', [facilityId, seasonId, masters.scheme_id,masters.commodity_id]);
+  return one(connection, 'SELECT id,on_hand_g,reserved_g,status FROM stocks WHERE facility_id=? AND season_id=? AND scheme_id=? AND commodity_id=? FOR UPDATE', [facilityId, seasonId, masters.scheme_id,masters.commodity_id]);
 }
 export function findCapacity(connection, facilityId) {
   return one(connection, 'SELECT capacity_g FROM facilities WHERE id=?', [facilityId]);

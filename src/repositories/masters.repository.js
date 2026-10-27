@@ -1,3 +1,4 @@
+import {masterColumns} from './master-columns.js';
 import { pool } from "../config/database.js";
 import { rows, one, insert } from "../repositories/database.js";
 export async function findActiveImei(connection, id) {
@@ -25,7 +26,7 @@ export async function createMasterFindFacilities(connection, data) {
   return one(connection, "SELECT id FROM facilities WHERE id=? AND kind='MILLER' AND active=1", [data.miller_id]);
 }
 export async function createMasterFindTransporters(connection, data) {
-  return one(connection, 'SELECT * FROM transporters WHERE id=? AND active=1', [data.transporter_id]);
+  return one(connection, 'SELECT id,miller_id,code,name,contact_name,phone,address,district_id,block_id,active,created_by,created_at,updated_by,updated_at FROM transporters WHERE id=? AND active=1', [data.transporter_id]);
 }
 export async function createMasterFindFacilities2(connection, data) {
   return one(connection, "SELECT id FROM facilities WHERE id=? AND kind='MILLER' AND active=1", [data.miller_id]);
@@ -34,13 +35,13 @@ export async function createMasterFindVehicleTypes(connection, data) {
   return one(connection, 'SELECT id FROM vehicle_types WHERE id=? AND active=1', [data.vehicle_type_id]);
 }
 export async function createMasterFindVehicles(connection, data) {
-  return one(connection, 'SELECT v.*,COALESCE(v.miller_id,t.miller_id) miller_id FROM vehicles v LEFT JOIN transporters t ON t.id=v.transporter_id WHERE v.id=? AND v.active=1 AND (v.transporter_id IS NULL OR t.active=1)', [data.vehicle_id]);
+  return one(connection, 'SELECT v.id,v.transporter_id,v.vehicle_type_id,v.registration_no,v.capacity_g,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at,COALESCE(v.miller_id,t.miller_id) miller_id FROM vehicles v LEFT JOIN transporters t ON t.id=v.transporter_id WHERE v.id=? AND v.active=1 AND (v.transporter_id IS NULL OR t.active=1)', [data.vehicle_id]);
 }
 export async function createMasterFindFacilities3(connection, data) {
-  return one(connection, 'SELECT * FROM facilities WHERE id=? AND active=1', [data.source_id]);
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.source_id]);
 }
 export async function createMasterFindFacilities4(connection, data) {
-  return one(connection, 'SELECT * FROM facilities WHERE id=? AND active=1', [data.destination_id]);
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.destination_id]);
 }
 export async function createMasterFindSeasons(connection, data) {
   return one(connection, 'SELECT id FROM seasons WHERE id=? AND active=1', [data.season_id]);
@@ -67,23 +68,23 @@ export async function listLocationOptionsListTblBlockMaster(districtId) {
   return rows(pool, 'SELECT id,district_id,block_name,rgi_block_code FROM tbl_block_master WHERE district_id=? ORDER BY block_name,id', [districtId]);
 }
 export async function listMasterRecordsCountRecords(base, args) {
-  return one(pool, `SELECT COUNT(*) AS total ${base}`, args);
+  return one(pool, `SELECT COUNT(x.id) AS total ${base}`, args);
 }
 export async function listMasterRecordsListRecords(base, limit, offset, args) {
-  return rows(pool, `SELECT x.*,se.code season_code,se.name season_name,source.code source_code,source.name source_name,source.kind source_kind,source.district_id source_district_id,source_district.district_name source_district,destination.code destination_code,destination.name destination_name,destination.kind destination_kind,destination.district_id destination_district_id,destination_district.district_name destination_district,creator.name created_by_name,creator.email created_by_email,unassigner.name unassigned_by_name,unassigner.email unassigned_by_email ${base} ORDER BY x.active DESC,x.created_at DESC,x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT x.id,x.season_id,x.source_id,x.destination_id,x.active,x.created_by,x.created_at,x.unassigned_by,x.unassigned_at,se.code season_code,se.name season_name,source.code source_code,source.name source_name,source.kind source_kind,source.district_id source_district_id,source_district.district_name source_district,destination.code destination_code,destination.name destination_name,destination.kind destination_kind,destination.district_id destination_district_id,destination_district.district_name destination_district,creator.name created_by_name,creator.email created_by_email,unassigner.name unassigned_by_name,unassigner.email unassigned_by_email ${base} ORDER BY x.active DESC,x.created_at DESC,x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function listMasterRecordsCountX(table, sql, args) {
-  return one(pool, `SELECT COUNT(*) AS total FROM ${table} x WHERE 1=1${sql}`, args);
+  return one(pool, `SELECT COUNT(x.id) AS total FROM ${table} x WHERE 1=1${sql}`, args);
 }
 export async function listMasterRecordsListX(table, sql, limit, offset, args) {
-  if (table === 'gps_devices') return rows(pool, `SELECT x.*,i.imei,i.provider FROM gps_devices x JOIN imeis i ON i.id=x.imei_id WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
-  return rows(pool, `SELECT x.* FROM ${table} x WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  if (table === 'gps_devices') return rows(pool, `SELECT x.id,x.vehicle_id,x.imei_id,x.district_id,x.block_id,x.model,x.sim_no,x.active,x.created_by,x.created_at,x.updated_by,x.updated_at,x.last_gps_at,x.latitude,x.longitude,x.speed_kph,i.imei,i.provider FROM gps_devices x JOIN imeis i ON i.id=x.imei_id WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT ${masterColumns(table)} FROM ${table} x WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function getMasterRecordFindX(table, v, context) {
-  return one(pool, `SELECT x.* FROM ${table} x WHERE x.id=?${v.sql}`, [context.params.id, ...v.args]);
+  return one(pool, `SELECT ${masterColumns(table)} FROM ${table} x WHERE x.id=?${v.sql}`, [context.params.id, ...v.args]);
 }
 export async function updateFacilityFindFacilities(connection, context) {
-  return one(connection, 'SELECT * FROM facilities WHERE id=? FOR UPDATE', [context.params.id]);
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? FOR UPDATE', [context.params.id]);
 }
 export async function updateFacilityFindStocks(connection, f) {
   return one(connection, 'SELECT COALESCE(SUM(on_hand_g),0) AS total FROM stocks WHERE facility_id=?', [f.id]);
@@ -104,10 +105,10 @@ export async function setFacilityOrSeasonStatusUpdateSET(connection, table, data
   return rows(connection, `UPDATE ${table} SET active=?,updated_by=?,updated_at=? WHERE id=?`, [data.active, context.user.id ?? null, new Date(), record.id]);
 }
 export async function setMasterStatusFindX(connection, table, v, context) {
-  return one(connection, `SELECT x.* FROM ${table} x WHERE x.id=?${v.sql} FOR UPDATE`, [context.params.id, ...v.args]);
+  return one(connection, `SELECT ${masterColumns(table)} FROM ${table} x WHERE x.id=?${v.sql} FOR UPDATE`, [context.params.id, ...v.args]);
 }
 export async function setMasterStatusCountShipments(connection, filter, type, r) {
-  return one(connection, `SELECT COUNT(*) AS n FROM shipments WHERE ${filter} AND status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')`, [type === 'gps-devices' ? r.vehicle_id : r.id]);
+  return one(connection, `SELECT COUNT(id) AS n FROM shipment_details WHERE ${filter} AND status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')`, [type === 'gps-devices' ? r.vehicle_id : r.id]);
 }
 export async function setMasterStatusUpdateRouteTags(connection, data, unassignedBy, unassignedAt, r) {
   return rows(connection, 'UPDATE route_tags SET active=?,unassigned_by=?,unassigned_at=? WHERE id=?', [data.active, unassignedBy, unassignedAt, r.id]);
@@ -116,10 +117,10 @@ export async function setMasterStatusUpdateSET(connection, table, data, context,
   return rows(connection, `UPDATE ${table} SET active=?,updated_by=?,updated_at=? WHERE id=?`, [data.active, context.user.id ?? null, new Date(), r.id]);
 }
 export async function updateMasterProfileFindX(connection, table, v, context) {
-  return one(connection, `SELECT x.* FROM ${table} x WHERE x.id=?${v.sql} FOR UPDATE`, [context.params.id, ...v.args]);
+  return one(connection, `SELECT ${masterColumns(table)} FROM ${table} x WHERE x.id=?${v.sql} FOR UPDATE`, [context.params.id, ...v.args]);
 }
 export async function updateMasterProfileFindShipments(connection, record) {
-  return one(connection, "SELECT MAX(quantity_g) max_load FROM shipments WHERE vehicle_id=? AND status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')", [record.id]);
+  return one(connection, "SELECT MAX(quantity_g) max_load FROM shipment_details WHERE vehicle_id=? AND status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')", [record.id]);
 }
 export async function updateMasterProfileFindVehicleTypes(connection, data) {
   return one(connection, 'SELECT id FROM vehicle_types WHERE id=? AND active=1', [data.vehicle_type_id]);

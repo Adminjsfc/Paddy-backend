@@ -7,6 +7,7 @@ import { event } from "../repositories/events.repository.js";
 import { ensure, grams, millerAccess, vehicleAccess, recoveryGrams, pageParams, scopedWhere } from "../utils/core.js";
 import { activeSeason } from "./procurement.service.js";
 import {ensureDriver} from './drivers.service.js';
+import {planRoute,shipmentRoute,expectedArrival} from './shipment-routes.service.js';
 export async function ownedShipment(connection, context, lock = true) {
   const scope = scopedWhere(context.user);
   return repository.ownedShipmentFindShipments(connection, scope, lock, context);
@@ -56,7 +57,8 @@ export async function createShipment(connection, data, context, submission = {})
   const driverPhone = submission.driver_phone ?? data.driver_phone;
   const driver = driverName && driverPhone ? await ensureDriver(connection, {name:driverName,phone:driverPhone}, context, driverOwnerId) : null;
   submission = {...submission,driver_user_id:driver?.id ?? null};
-  const id = await repository.createShipmentInsertShipments(connection, data, flowType, source, dest, v, qty, recovery, submission, masters);
+  const route=await planRoute(connection,source.id,dest.id,context.user.id);
+  const id = await repository.createShipmentInsertShipments(connection, data, flowType, source, dest, v, qty, recovery, submission, masters,route.id);
   await stock(connection, source.id, data.season_id, data.leg === 'PADDY' ? 'PADDY' : 'RICE', 0, qty, 'RESERVE', id, data.scheme_code, context.user);
   if (data.leg === 'PADDY') {
     let allocations = [];
@@ -103,6 +105,8 @@ export async function createShipment(connection, data, context, submission = {})
   return {
     id,
     shipment_no: data.shipment_no,
+    route,
+    route_id: route.id,
     driver_user_id: driver?.id ?? null,
     driver_account: driver,
     ...masters,
@@ -166,7 +170,8 @@ export async function dispatchShipment(connection, data, context) {
   data={...data,driver_name:data.driver_name??s.driver_name,driver_phone:data.driver_phone??s.driver_phone};
   ensure(data.driver_name,'driver_name is required.','VALIDATION',400);
   ensure(data.driver_phone,'driver_phone is required.','VALIDATION',400);
-  const expected=data.expected_completion_at===undefined?s.expected_completion_at:data.expected_completion_at;
+  const route=await shipmentRoute(connection,s.id);
+  const expected=data.expected_completion_at===undefined?(s.expected_completion_at??expectedArrival(data.dispatched_at,route)):data.expected_completion_at;
   ensure(!expected||new Date(expected)>=data.dispatched_at,'expected_completion_at must be on or after dispatched_at.','VALIDATION',400);
   data.expected_completion_at=expected??null;
   await lockFacilities(connection, [s.source_id]);
@@ -273,6 +278,7 @@ export async function getShipment(context) {
       ok: true,
       data: {
         ...s,
+        route: await shipmentRoute(pool,s.id),
         events,
         lots
       }

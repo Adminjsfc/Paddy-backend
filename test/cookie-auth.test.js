@@ -21,7 +21,7 @@ test('Browser cookie login, refresh, origin checks and revocation', async () => 
   };
   let session;
   const execute = async (sql, args = []) => {
-    if (sql.startsWith('SELECT * FROM users')) return [[args[0] === user.email ? user : undefined].filter(Boolean)];
+    if (sql.includes(' FROM users ')) return [[args[0] === user.email ? user : undefined].filter(Boolean)];
     if (sql.startsWith('INSERT INTO sessions')) {
       const fields = sql.match(/\(([^)]+)\)/)[1].split(',');
       session = Object.fromEntries(fields.map((f, i) => [f, args[i]]));

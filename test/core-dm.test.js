@@ -177,12 +177,12 @@ test('DM maps a selected active vehicle and IMEI without inserting another vehic
   const { registerMillerVehicle } = await import('../src/services/dm-setup.service.js');
   const writes = [];
   const db = { async execute(sql, args) {
-    if (sql.includes('SELECT * FROM facilities')) return [[{ id: 7, kind: 'MILLER', district_id: 364, block_id: 1 }]];
+    if (sql.includes(' FROM facilities ')) return [[{ id: 7, kind: 'MILLER', district_id: 364, block_id: 1 }]];
     if (sql.includes('SELECT id FROM vehicles WHERE')) {
       assert.deepEqual(args, [9, 7]);
       return [[{ id: 9 }]];
     }
-    if (sql.startsWith('SELECT v.*')) return [[{ id: 9, miller_id: 7 }]];
+    if (sql.includes('FROM vehicles v ')) return [[{ id: 9, miller_id: 7 }]];
     if (sql.startsWith('SELECT id FROM')) return [[{ id: 1 }]];
     writes.push(sql);
     if (sql.startsWith('INSERT INTO gps_devices')) return [{ insertId: 11 }];

@@ -79,7 +79,7 @@ after(async () => {
   await pool.end();
 });
 test('Shipment schema keeps master IDs and meaningful CMR metadata',async()=>{
-  const fields=new Set((await rows(pool,'SHOW COLUMNS FROM shipments')).map(row=>row.Field));
+  const fields=new Set((await rows(pool,'SHOW COLUMNS FROM shipment_details')).map(row=>row.Field));
   for(const field of ['scheme_id','commodity_id','vehicle_type_id','submitted_on','cmr_lot_count','trip_status','trip_started_at','trip_completed_at','expected_completion_at'])assert(fields.has(field));
   for(const field of ['scheme_code','scheme_type','commodity_type','submitted_vehicle_type','submitted_count'])assert(!fields.has(field));
 });
@@ -282,13 +282,13 @@ test('Reserve paddy, reject over-allocation and protect cross-miller data', asyn
   ids.paddy = (await request('POST', '/shipments', paddy('PADDY'), {
     auth: millerToken
   })).data.id;
-  const driver=await one(pool,'SELECT driver_name,driver_phone FROM shipments WHERE id=?',[ids.paddy]);
+  const driver=await one(pool,'SELECT driver_name,driver_phone FROM shipment_details WHERE id=?',[ids.paddy]);
   assert.deepEqual(driver,{driver_name:'Paddy Test Driver',driver_phone:'9999999999'});
   const planned=(await request('GET',`/shipments/${ids.paddy}`)).data;
   assert.equal(planned.trip_status,0);assert.equal(planned.trip_started_at,null);assert.equal(planned.trip_completed_at,null);
   assert(planned.expected_completion_at);
   const stored=await one(pool,`SELECT s.scheme_id,s.commodity_id,s.vehicle_type_id,sc.code scheme_code,co.code commodity_code
-    FROM shipments s JOIN schemes sc ON sc.id=s.scheme_id JOIN commodities co ON co.id=s.commodity_id WHERE s.id=?`,[ids.paddy]);
+    FROM shipment_details s JOIN schemes sc ON sc.id=s.scheme_id JOIN commodities co ON co.id=s.commodity_id WHERE s.id=?`,[ids.paddy]);
   assert.equal(stored.scheme_code,'SCMR');assert.equal(stored.commodity_code,'PADDY');
   assert.equal(stored.vehicle_type_id,(await one(pool,'SELECT vehicle_type_id FROM vehicles WHERE id=?',[ids.vehicle1])).vehicle_type_id);
   const listed=await request('GET',`/shipments?scheme_code=SCMR&scheme_id=${stored.scheme_id}&commodity_id=${stored.commodity_id}`,undefined,{auth:millerToken});
@@ -314,7 +314,7 @@ test('Reserve paddy, reject over-allocation and protect cross-miller data', asyn
   }, {
     auth: transporterToken
   });
-  const dispatchedDriver=await one(pool,'SELECT driver_name,driver_phone FROM shipments WHERE id=?',[ids.paddy]);
+  const dispatchedDriver=await one(pool,'SELECT driver_name,driver_phone FROM shipment_details WHERE id=?',[ids.paddy]);
   assert.deepEqual(dispatchedDriver,driver);
   assert.equal(dispatch.data.trip_status,0);assert.equal(dispatch.data.trip_started_at,null);
   assert.equal(dispatch.data.expected_completion_at,planned.expected_completion_at);

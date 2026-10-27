@@ -50,13 +50,13 @@ export async function listEligibleVehiclesListVehicles(context) {
     WHERE COALESCE(v.miller_id,t.miller_id)=? AND v.active=1 AND v.capacity_g>0
       AND (v.transporter_id IS NULL OR t.active=1)
       AND EXISTS(SELECT 1 FROM gps_devices d WHERE d.vehicle_id=v.id AND d.active=1)
-      AND NOT EXISTS(SELECT 1 FROM shipments s WHERE s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED'))
+      AND NOT EXISTS(SELECT 1 FROM shipment_details s WHERE s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED'))
     ORDER BY v.registration_no`, [context.user.miller_id]);
 }
 export async function getVehicleFindGpsDevices(registration, context) {
   return one(pool, `SELECT v.id,v.registration_no,v.capacity_g,vt.name vehicle_type,t.name transporter_name,
     EXISTS(SELECT 1 FROM gps_devices d WHERE d.vehicle_id=v.id AND d.active=1) gps_active,
-    EXISTS(SELECT 1 FROM shipments s WHERE s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')) busy
+    EXISTS(SELECT 1 FROM shipment_details s WHERE s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')) busy
     FROM vehicles v LEFT JOIN transporters t ON t.id=v.transporter_id JOIN vehicle_types vt ON vt.id=v.vehicle_type_id
     WHERE v.registration_no=? AND COALESCE(v.miller_id,t.miller_id)=? AND v.active=1 AND (v.transporter_id IS NULL OR t.active=1)`, [registration, context.user.miller_id]);
 }

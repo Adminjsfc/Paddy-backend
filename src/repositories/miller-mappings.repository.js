@@ -8,7 +8,7 @@ export async function listMappings(millerId,type,seasonId,{limit,offset}) {
     JOIN seasons se ON se.id=a.season_id
     LEFT JOIN tbl_district_master d ON d.id=f.district_id LEFT JOIN tbl_block_master b ON b.id=f.block_id
     WHERE f.kind IN (${type==='PACS'?"'PACS','LAMPS'":"'SFC_GODOWN','FCI'"})${seasonId?' AND a.season_id=?':''}`;
-  const count=await one(pool,`SELECT COUNT(*) total ${base}`,args);
+  const count=await one(pool,`SELECT COUNT(a.id) total ${base}`,args);
   const data=await rows(pool,`SELECT a.id mapping_id,a.season_id,a.created_at mapped_at,se.name season_name,
     f.id,f.code,f.name,f.kind,f.address,f.active,f.contact_name,f.phone,f.latitude,f.longitude,f.radius_m,f.capacity_g,
     d.district_name,b.block_name ${base} ORDER BY f.name,a.season_id DESC,a.id LIMIT ${limit} OFFSET ${offset}`,args);

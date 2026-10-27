@@ -10,9 +10,9 @@ export async function sourceLiftingSummary(sourceId,seasonId,{limit,offset},sche
     WHERE p.facility_id=? AND p.season_id=? AND co.code='PADDY'${schemeCode?' AND sc.code=?':''}
     GROUP BY p.facility_id,p.season_id,p.scheme_id`;
   const lifted=`SELECT source_id,season_id,scheme_id,destination_id,SUM(quantity_g) lifted_g
-    FROM shipments WHERE leg='PADDY' AND status IN ('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED')
+    FROM shipment_details WHERE leg='PADDY' AND status IN ('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED')
     GROUP BY source_id,season_id,scheme_id,destination_id`;
-  const sourceBalances=`SELECT b.*,COALESCE(l.lifted_g,0) source_lifted_g,
+  const sourceBalances=`SELECT b.source_id,b.season_id,b.scheme_id,b.target_g,COALESCE(l.lifted_g,0) source_lifted_g,
     b.target_g-COALESCE(l.lifted_g,0) pending_g FROM (${balances}) b
     LEFT JOIN (SELECT source_id,season_id,scheme_id,SUM(lifted_g) lifted_g FROM (${lifted}) lifted
       GROUP BY source_id,season_id,scheme_id) l
@@ -26,8 +26,8 @@ export async function sourceLiftingSummary(sourceId,seasonId,{limit,offset},sche
     JOIN facilities m ON m.id=r.destination_id AND m.kind='MILLER' AND m.active=1
     LEFT JOIN (${lifted}) l ON l.source_id=b.source_id AND l.season_id=b.season_id
       AND l.scheme_id=b.scheme_id AND l.destination_id=m.id`;
-  const count=await one(pool,`SELECT COUNT(*) total ${base}`,args);
-  const data=await rows(pool,`SELECT b.*,src.name source_name,src.code source_code,
+  const count=await one(pool,`SELECT COUNT(m.id) total ${base}`,args);
+  const data=await rows(pool,`SELECT b.source_id,b.season_id,b.scheme_id,b.target_g,b.source_lifted_g,b.pending_g,src.name source_name,src.code source_code,
     m.id miller_id,m.name miller_name,m.address miller_address,sc.code scheme_code,
     COALESCE(l.lifted_g,0) lifted_g ${base}
     ORDER BY m.name,m.id,sc.code LIMIT ${limit} OFFSET ${offset}`,args);
@@ -41,7 +41,7 @@ export async function listMappedSources(millerId,seasonId,{limit,offset},schemeC
     COALESCE(st.on_hand_g,0) on_hand_g,COALESCE(st.reserved_g,0) reserved_g,
     CASE WHEN st.status=1 THEN st.on_hand_g-st.reserved_g ELSE 0 END available_g,
     COALESCE((SELECT SUM(p.quantity_g) FROM procurement p WHERE p.facility_id=f.id AND p.season_id=m.season_id AND p.scheme_id=st.scheme_id),0) procured_g,
-    COALESCE((SELECT SUM(l.quantity_g) FROM shipments l
+    COALESCE((SELECT SUM(l.quantity_g) FROM shipment_details l
       WHERE l.source_id=f.id AND l.destination_id=m.destination_id AND l.season_id=m.season_id
       AND l.scheme_id=st.scheme_id AND l.leg='PADDY' AND l.status IN ('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED')),0) lifted_g
     FROM (SELECT DISTINCT source_id,destination_id,season_id FROM route_tags WHERE active=1 AND destination_id=?${seasonId?' AND season_id=?':''}) m
@@ -53,7 +53,7 @@ export async function listMappedSources(millerId,seasonId,{limit,offset},schemeC
   const totals=await one(pool,`SELECT COUNT(*) total,COALESCE(SUM(procured_g),0) procured_g,
     COALESCE(SUM(available_g),0) available_g,COALESCE(SUM(reserved_g),0) reserved_g,
     COALESCE(SUM(lifted_g),0) lifted_g FROM (${base}) summary`,args);
-  const data=await rows(pool,`SELECT summary.*,available_g liftable_g FROM (${base}) summary
+  const data=await rows(pool,`SELECT summary.source_id,summary.code,summary.kind,summary.source_name,summary.address,summary.district_name,summary.block_name,summary.season_id,summary.season_name,summary.scheme_id,summary.commodity_id,summary.scheme_code,summary.on_hand_g,summary.reserved_g,summary.available_g,summary.procured_g,summary.lifted_g,available_g liftable_g FROM (${base}) summary
     ORDER BY source_name,source_id,season_id DESC,scheme_code LIMIT ${limit} OFFSET ${offset}`,args);
   return {data,totals};
 }
@@ -67,7 +67,7 @@ export const mappedMiller=(sourceId,millerId,seasonId)=>one(pool,`SELECT r.id FR
 export const mappedVehicles=millerId=>rows(pool,`SELECT v.id,v.registration_no,v.capacity_g FROM vehicles v
  LEFT JOIN transporters t ON t.id=v.transporter_id
  WHERE v.active=1 AND COALESCE(t.active,1)=1 AND COALESCE(v.miller_id,t.miller_id)=? ORDER BY v.registration_no`,[millerId]);
-export const lockVehicle=(connection,registration)=>one(connection,`SELECT v.*,COALESCE(v.miller_id,t.miller_id) owner_miller_id
+export const lockVehicle=(connection,registration)=>one(connection,`SELECT v.id,v.transporter_id,v.miller_id,v.vehicle_type_id,v.registration_no,v.capacity_g,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at,COALESCE(v.miller_id,t.miller_id) owner_miller_id
  FROM vehicles v LEFT JOIN transporters t ON t.id=v.transporter_id WHERE v.registration_no=? FOR UPDATE`,[registration],false);
 export const facility=id=>one(pool,`SELECT f.id,f.name,f.district_id,d.district_name FROM facilities f
  LEFT JOIN tbl_district_master d ON d.id=f.district_id WHERE f.id=? AND f.active=1`,[id]);
