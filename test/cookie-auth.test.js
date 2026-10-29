@@ -1,8 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from "../src/app.js";
+import { cookieOptions } from "../src/middlewares/browser-session.js";
 import { pool } from "../src/config/database.js";
 import { passwordHash } from "../src/utils/core.js";
+
+test('Session cookie path can match a reverse-proxy API prefix', () => {
+  const previous = process.env.COOKIE_PATH;
+  process.env.COOKIE_PATH = '/paddyapi';
+  try {
+    assert.equal(cookieOptions().path, '/paddyapi');
+  } finally {
+    if (previous === undefined) delete process.env.COOKIE_PATH;
+    else process.env.COOKIE_PATH = previous;
+  }
+});
+
 test('Browser cookie login, refresh, origin checks and revocation', async () => {
   const originalExecute = pool.execute,
     originalConnection = pool.getConnection;

@@ -7,13 +7,15 @@ export function cookieToken(req, name) {
 export function cookieOptions() {
   const sameSite = process.env.COOKIE_SAME_SITE || 'lax';
   const secure = process.env.COOKIE_SECURE === undefined ? process.env.NODE_ENV === 'production' : process.env.COOKIE_SECURE === 'true';
+  const path = process.env.COOKIE_PATH || '/api/v1';
   ensure(['lax', 'strict', 'none'].includes(sameSite), 'Invalid COOKIE_SAME_SITE', 'CONFIGURATION', 500);
   ensure(sameSite !== 'none' || secure, 'SameSite=None requires COOKIE_SECURE=true', 'CONFIGURATION', 500);
+  ensure(path.startsWith('/') && !/[\r\n;?#]/.test(path), 'Invalid COOKIE_PATH', 'CONFIGURATION', 500);
   return {
     httpOnly: true,
     secure,
     sameSite,
-    path: '/api/v1'
+    path
   };
 }
 export function setSessionCookies(res, access, refresh, refreshExpires) {
