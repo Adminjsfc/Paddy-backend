@@ -14,7 +14,6 @@ export function expectedArrival(dispatchedAt,route) {
 export async function planRoute(connection,sourceId,destinationId,actorId=null) {
   const existing=await repository.findPlan(connection,sourceId,destinationId);
   if(existing){
-    ensure(Number(existing.status)===1,'Saved route is inactive. Activate it before lifting.','ROUTE_INACTIVE',409);
     if(existing.geometry)return routeDetails(existing);
   }
   const points=await repository.facilities(connection,sourceId,destinationId);

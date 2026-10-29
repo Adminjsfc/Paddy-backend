@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {Client} from '@googlemaps/google-maps-services-js';
 import {computeDrivingRoute,decodePolyline} from '../src/services/google-routes.service.js';
 import {expectedArrival,routeDetails,planRoute} from '../src/services/shipment-routes.service.js';
 const encoded='_p~iF~ps|U_ulLnnqC_mqNvxq`@';
@@ -19,14 +20,41 @@ test('Lifting reuses an old source/destination plan without Google or coordinate
  assert.equal(first.encoded_polyline,encoded);assert.equal(second.distance_km,12.345);
  assert.equal(lookups,2);assert.deepEqual(first.geometry,second.geometry);
 });
-test('Lifting resolves the saved route ID and rejects inactive routes without regenerating',async()=>{
+test('Lifting resolves the active saved route ID',async()=>{
  const connection={execute:async(sql,args)=>{
   if(sql.includes('FROM shipment_routes'))return [[{id:9,status:1,geometry:decodePolyline(encoded),distance_km:0.01,duration_minutes:1}]];
   throw Error('Unexpected query');
  }};
  const route=await planRoute(connection,1,4,3);
  assert.equal(route.id,9);
- await assert.rejects(planRoute({execute:async()=>[[{id:9,status:0}]]},1,4),e=>e.code==='ROUTE_INACTIVE');
+});
+
+test('Lifting creates a new active route when only an inactive route exists',async(t)=>{
+ t.mock.method(Client.prototype,'directions',async()=>({data:{status:'OK',routes:[{
+  overview_polyline:{points:encoded},legs:[{distance:{value:12000},duration:{value:900}}]
+ }]}}));
+ const previousKey=process.env.GOOGLE_API_KEY;
+ process.env.GOOGLE_API_KEY='test-key';
+ t.after(()=>{if(previousKey===undefined)delete process.env.GOOGLE_API_KEY;else process.env.GOOGLE_API_KEY=previousKey;});
+ const inactive={id:9,status:0,source_id:1,destination_id:4};
+ let saved=null;
+ const connection={execute:async(sql,args)=>{
+  if(sql.includes('FROM shipment_routes')){
+   assert.match(sql,/AND status=1 FOR UPDATE$/);
+   return [saved?[saved]:[]];
+  }
+  if(sql.includes('FROM facilities'))return [[{id:1,...source},{id:4,...dest}]];
+  if(sql.includes('INSERT INTO shipment_routes')){
+   assert.equal(args[10],3);
+   saved={id:10,status:1,source_id:args[0],destination_id:args[1],geometry:args[7],distance_km:args[8],duration_minutes:args[9]};
+   return [{insertId:10}];
+  }
+  throw Error('Inactive route must not be updated: '+sql);
+ }};
+ const route=await planRoute(connection,1,4,3);
+ assert.equal(route.id,10);assert.equal(route.status,1);
+ assert.equal(route.distance_km,12);assert.equal(route.duration_minutes,15);
+ assert.deepEqual(inactive,{id:9,status:0,source_id:1,destination_id:4});
 });
 test('Directions client receives coordinates and returns road distance, integer minutes and GeoJSON',async()=>{
  const route=await computeDrivingRoute(source,dest,{apiKey:'test-key',mapsClient:{directions:async(options)=>{

@@ -2,7 +2,7 @@ import {one,rows} from './database.js';
 export const facilities=(connection,sourceId,destinationId)=>rows(connection,
   'SELECT id,latitude,longitude FROM facilities WHERE id IN (?,?)',[sourceId,destinationId]);
 export const findPlan=(connection,sourceId,destinationId)=>one(connection,
-  'SELECT id,source_id,destination_id,source_lat,source_lng,destination_lat,destination_lng,encoded_polyline,geometry,distance_km,duration_minutes,created_at,updated_at,created_by,updated_by,status FROM shipment_routes WHERE source_id=? AND destination_id=? FOR UPDATE',
+  'SELECT id,source_id,destination_id,source_lat,source_lng,destination_lat,destination_lng,encoded_polyline,geometry,distance_km,duration_minutes,created_at,updated_at,created_by,updated_by,status FROM shipment_routes WHERE source_id=? AND destination_id=? AND status=1 FOR UPDATE',
   [sourceId,destinationId],false);
 export const savePlan=(connection,source,destination,route,actorId)=>rows(connection,
   `INSERT INTO shipment_routes(source_id,destination_id,source_lat,source_lng,destination_lat,destination_lng,encoded_polyline,geometry,distance_km,duration_minutes,created_by)
