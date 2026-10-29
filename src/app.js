@@ -16,6 +16,13 @@ export function createApp() {
     limit: '2mb'
   }));
   app.use(requestId);
+  app.use((req, res, next) => {
+    const prefix = '/paddyapi';
+    if (req.url === prefix || req.url.startsWith(`${prefix}/`) || req.url.startsWith(`${prefix}?`)) {
+      req.url = `/api/v1${req.url.slice(prefix.length)}`;
+    }
+    next();
+  });
   app.use('/api/v1', browserAccess);
   app.use(healthRoutes);
   app.use('/api', rateLimit({

@@ -34,6 +34,18 @@ try {
     // Versioned SQL contains plain DDL only. MySQL DDL commits implicitly.
     for (const statement of text.split(';').map(s => s.trim()).filter(Boolean)) await c.query(statement);
     if(filename==='032_common_lifting.sql')await migrateCommonLifting(c);
+    if(filename==='063_shipment_route_endpoints.sql')await c.query(`CREATE TRIGGER shipment_route_endpoints_immutable BEFORE UPDATE ON shipment_routes FOR EACH ROW
+      BEGIN
+        IF NOT(NEW.source_id <=> OLD.source_id) OR NOT(NEW.destination_id <=> OLD.destination_id) THEN
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Route source/destination are immutable. Create a new route instead.';
+        END IF;
+      END`);
+    if(filename==='063_shipment_route_endpoints.sql')await c.query(`CREATE TRIGGER shipment_route_link_immutable BEFORE UPDATE ON shipments FOR EACH ROW
+      BEGIN
+        IF NOT(NEW.route_id <=> OLD.route_id) THEN
+          SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Shipment route cannot change after creation.';
+        END IF;
+      END`);
     await c.execute('INSERT INTO schema_migrations(version) VALUES (?)', [filename]);
     console.log(`Applied: ${filename}`);
   }

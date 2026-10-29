@@ -90,14 +90,14 @@ test('Receiving scopes exact store/district pairs and blocks repeated or unshipp
     user
   };
   const db = {
-    execute: async sql => [sql.includes('SELECT s.*') ? [{
+    execute: async sql => [sql.includes('FROM shipment_details s') ? [{
       id: 1,
       status: 'PLANNED'
     }] : []]
   };
   await assert.rejects(receiveCMR(db, receivingSchema.parse(payload()), req), error => error.code === 'INVALID_STATUS');
   const reviewed = {
-    execute: async sql => [sql.includes('SELECT s.*') ? [{
+    execute: async sql => [sql.includes('FROM shipment_details s') ? [{
       id: 1,
       status: 'ARRIVED'
     }] : [{

@@ -14,7 +14,7 @@
     "db:import-stores": "node --env-file-if-exists=.env scripts/import-store-facilities.js",
     "db:seed-cmr-test": "node --env-file-if-exists=.env scripts/seed-cmr-test.js",
     "admin:create": "node --env-file-if-exists=.env scripts/create-admin.js",
-    "test": "node --test test/unit.test.js test/location-prerequisites.test.js test/cookie-auth.test.js test/core-dm.test.js test/modules.test.js test/cmr-submissions.test.js test/store-facility-import.test.js test/cmr-receiving.test.js test/architecture.test.js test/paddy-orders.test.js test/seasons.test.js test/paddy-dashboard.test.js test/common-lifting.test.js test/drivers.test.js",
+    "test": "node --test test/unit.test.js test/location-prerequisites.test.js test/cookie-auth.test.js test/core-dm.test.js test/modules.test.js test/cmr-submissions.test.js test/store-facility-import.test.js test/cmr-receiving.test.js test/architecture.test.js test/paddy-orders.test.js test/seasons.test.js test/paddy-dashboard.test.js test/common-lifting.test.js test/drivers.test.js test/google-routes.test.js",
     "test:integration": "node --env-file-if-exists=.env.test --test --test-concurrency=1 test/integration.test.js",
     "test:shipment-migration": "node --env-file-if-exists=.env scripts/validate-shipment-master-migration.js",
     "test:all": "npm test && npm run test:integration",
@@ -22,6 +22,8 @@
     "check": "node scripts/check.js"
   },
   "dependencies": {
+    "@googlemaps/google-maps-services-js": "^3.4.2",
+    "@mapbox/polyline": "^1.2.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",

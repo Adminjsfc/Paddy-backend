@@ -60,17 +60,21 @@ function database({mapped=true,stock=2000000,lots=2000000}={}) {
  const queries=[];
  const connection={execute:async(sql,args)=>{
   queries.push({sql,args});
+  if(sql.startsWith('SELECT id,latitude,longitude FROM facilities'))return [[{id:153,latitude:23,longitude:85},{id:3,latitude:23,longitude:85}]];
+  if(sql.includes('FROM shipment_routes'))return [[{id:9,status:1,source_lat:23,source_lng:85,destination_lat:23,destination_lng:85,
+   encoded_polyline:'_p~iF~ps|U_ulLnnqC_mqNvxq`@',geometry:{type:'LineString',coordinates:[[85,23],[85.01,23.01]]},distance_km:1.2,duration_minutes:3,created_at:new Date()}]];
+  if(sql.includes('JOIN shipment_routes r'))return [[{distance_km:1.2,duration_minutes:3}]];
   if(sql.includes('FROM schemes')||sql.includes('FROM commodities'))return [[{id:1}]];
-  if(sql.startsWith('SELECT * FROM seasons'))return [[{id:2,recovery_percent:68}]];
+  if(sql.includes(' FROM seasons '))return [[{id:2,recovery_percent:68}]];
   if(sql==='SELECT id FROM facilities WHERE id=? FOR UPDATE')return [[{id:args[0]}]];
-  if(sql.startsWith('SELECT * FROM facilities'))return [[{id:args[0],kind:args[0]===153?'PACS':'MILLER',district_id:1,block_id:1,latitude:23,longitude:85,radius_m:200}]];
+  if(sql.includes(' FROM facilities '))return [[{id:args[0],kind:args[0]===153?'PACS':'MILLER',district_id:1,block_id:1,latitude:23,longitude:85,radius_m:200}]];
   if(sql.includes('FROM route_tags'))return [mapped?[{id:1}]:[]];
   if(sql.includes('FROM vehicles'))return [[{id:4,vehicle_type_id:7,miller_id:3,active:1,transporter_active:1,capacity_g:3000000}]];
   if(sql.includes('FROM gps_devices'))return [[{id:1}]];
-  if(sql.includes('FROM shipments'))return [[]];
-  if(sql.startsWith('SELECT * FROM stocks'))return [[{id:1,status:1,on_hand_g:stock,reserved_g:0}]];
+  if(sql.includes('FROM shipment_details'))return [[]];
+  if(sql.includes(' FROM stocks '))return [[{id:1,status:1,on_hand_g:stock,reserved_g:0}]];
   if(sql.startsWith('SELECT p.id,p.available_g'))return [[{id:8,available_g:lots,reserved_g:0}]];
-  if(sql.startsWith('SELECT p.*,sc.code'))return [[{id:8,facility_id:153,season_id:2,scheme_id:1,commodity_id:1,scheme_code:'SCMR',commodity:'PADDY',available_g:lots,reserved_g:0}]];
+  if(sql.includes('FROM procurement p '))return [[{id:8,facility_id:153,season_id:2,scheme_id:1,commodity_id:1,scheme_code:'SCMR',commodity:'PADDY',available_g:lots,reserved_g:0}]];
   if(sql.startsWith('INSERT')||sql.startsWith('UPDATE'))return [{insertId:20}];
   throw new Error('Unexpected query: '+sql);
  }};
@@ -108,6 +112,8 @@ test('Shipment auto-creates and links driver accounts using the original creator
   assert.equal(result.driver_user_id,20);
   const saved=queries.find(q=>q.sql.startsWith('INSERT INTO shipments '));
   const fields=saved.sql.match(/\(([^)]+)\)/)[1].split(',');
+  assert.equal(fields.includes('source_id'),false);assert.equal(fields.includes('destination_id'),false);
+  assert.equal(saved.args[fields.indexOf('route_id')],9);
   assert.equal(saved.args[fields.indexOf('driver_user_id')],20);
   const owner=queries.find(q=>q.sql.startsWith('INSERT INTO driver_owners'));
   assert.deepEqual(owner.args,[20,user.facility_id??user.miller_id,user.id]);
@@ -119,14 +125,15 @@ test('Dispatch links an existing driver using saved shipment contact without iss
  const execute=connection.execute;
  connection.execute=async(sql,args)=>{
   if(sql.includes('FROM users WHERE phone='))return [[{id:55,name:'Saved Driver',phone:'9999999999',role:'DRIVER',active:1}]];
-  if(sql.includes('SELECT s.*'))return [[{id:20,leg:'PADDY',status:'PLANNED',miller_id:3,source_id:153,season_id:2,vehicle_id:4,quantity_g:1000000,scheme_code:'SCMR',driver_name:'Saved Driver',driver_phone:'9999999999'}]];
+  if(sql.startsWith('SELECT s.') && sql.includes('FROM shipment_details s'))return [[{id:20,leg:'PADDY',status:'PLANNED',miller_id:3,source_id:153,season_id:2,vehicle_id:4,quantity_g:1000000,scheme_code:'SCMR',driver_name:'Saved Driver',driver_phone:'9999999999'}]];
   if(sql.startsWith('SELECT active FROM facilities'))return [[{active:1}]];
   if(sql.includes('FROM shipment_lots'))return [[]];
-  if(sql.startsWith('SELECT * FROM stocks'))return [[{id:1,status:1,on_hand_g:2000000,reserved_g:1000000}]];
+  if(sql.includes(' FROM stocks '))return [[{id:1,status:1,on_hand_g:2000000,reserved_g:1000000}]];
   return execute(sql,args);
  };
  const result=await dispatchShipment(connection,{dispatched_at:new Date('2026-01-01T10:00:00Z'),receipt_no:'R-1'},{user:{id:1,role:'PACS',facility_id:153},params:{id:20}});
  assert.equal(result.driver_user_id,55);
+ assert.equal(result.expected_completion_at.toISOString(),'2026-01-01T10:03:00.000Z');
  assert.equal(result.driver_account.created,false);
  assert(!Object.hasOwn(result.driver_account,'initial_password'));
  const update=queries.find(q=>q.sql.startsWith("UPDATE shipments SET status='DISPATCHED'"));

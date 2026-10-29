@@ -4,8 +4,8 @@ import { hash } from "../utils/core.js";
 export async function loginFindUsers(data) {
   const identifier = data.phone ?? data.email;
   return identifier.includes('@')
-    ? one(pool, 'SELECT * FROM users WHERE email=?', [identifier], false)
-    : one(pool, "SELECT * FROM users WHERE phone=? AND role='DRIVER'", [identifier], false);
+    ? one(pool, 'SELECT id,name,email,password_hash,role,miller_id,transporter_id,facility_id,active,created_at,created_by,updated_by,updated_at,phone FROM users WHERE email=?', [identifier], false)
+    : one(pool, "SELECT id,name,email,password_hash,role,miller_id,transporter_id,facility_id,active,created_at,created_by,updated_by,updated_at,phone FROM users WHERE phone=? AND role='DRIVER'", [identifier], false);
 }
 export async function loginInsertSessions(raw, u, expires, refresh, refreshExpires) {
   return insert(pool, 'sessions', {

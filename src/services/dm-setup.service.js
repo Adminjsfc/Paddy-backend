@@ -60,7 +60,8 @@ export async function assignPaddySource(connection, data, context) {
   await scopedDMFacility(connection, context.user, data.destination_id, 'MILLER');
   await repository.assignPaddySourceFindSeasons(connection, data);
   await repository.assignPaddySourceExecuteRouteTags(connection, data);
-  return repository.assignPaddySourceFindRouteTags(connection, data);
+  const assignment=await repository.assignPaddySourceFindRouteTags(connection,data);
+  return assignment;
 }
 export async function getSetupOptions(context) {
   const effects = {

@@ -8,7 +8,7 @@ test('Source Paddy summary scopes all queries and separates shared totals from m
   pool.execute=async(sql,args)=>{
     calls.push({sql,args});
     if(sql.startsWith('SELECT COALESCE(SUM(target_g)')) return [[{target_g:1000000,lifted_g:300000,pending_g:700000}]];
-    if(sql.startsWith('SELECT COUNT(*)')) return [[{total:2}]];
+    if(sql.startsWith('SELECT COUNT(')) return [[{total:2}]];
     return [[{miller_id:3,target_g:1000000,pending_g:700000,lifted_g:200000},
       {miller_id:4,target_g:1000000,pending_g:700000,lifted_g:100000}]];
   };
@@ -45,7 +45,7 @@ import {getSubmissionOptionsFindStocks,getSubmissionOptionsListCmrOrders} from '
 
 test('PACS and LAMPS stock and ledger reports keep facility scope with scheme filters',async()=>{
   const original=pool.execute,calls=[];
-  pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.includes('COUNT(*)')?[{total:0}]:[]];};
+  pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.includes('COUNT(')?[{total:0}]:[]];};
   try {
     for(const role of ['PACS','LAMPS']){
       for(const read of [listStocks,listLedger]){
@@ -104,7 +104,7 @@ test('PACS vehicle lookup validates the source, season and mapped Miller without
 
 test('Paddy overview uses procurement stock and counts all dispatched trips without RO links',async()=>{
   const original=pool.execute,calls=[];
-  pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.includes('COUNT(*)')?[{total:1}]:[]];};
+  pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.includes('COUNT(')?[{total:1}]:[]];};
   try {
     await listMappedSources(3,2,{limit:20,offset:0});
     for(const {sql,args} of calls){
@@ -119,7 +119,7 @@ test('Paddy overview uses procurement stock and counts all dispatched trips with
 
 test('Vehicle dashboard reads separate IMEI master and scopes totals and rows to the Miller',async()=>{
   const original=pool.execute, calls=[];
-  pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.includes('COUNT(*)')?[{total:1}]:[{id:4,imei:'123456789012345',provider:'test'}]];};
+  pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.includes('COUNT(')?[{total:1}]:[{id:4,imei:'123456789012345',provider:'test'}]];};
   try {
     const result=await dashboardVehicles(7,2,{limit:20,offset:0});
     assert.equal(result.data[0].imei,'123456789012345');

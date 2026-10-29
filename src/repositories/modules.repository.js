@@ -7,7 +7,7 @@ export async function listAssignedModulesListModulePermissions(context) {
   return rows(pool, 'SELECT module_key,can_view,can_add,can_edit FROM module_permissions WHERE role=?', [context.user.role]);
 }
 export async function listModulePermissionsListModulePermissions() {
-  return rows(pool, "SELECT * FROM module_permissions WHERE role='MILLER' ORDER BY module_key");
+  return rows(pool, "SELECT role,module_key,can_view,can_add,can_edit,updated_by,updated_at FROM module_permissions WHERE role='MILLER' ORDER BY module_key");
 }
 export async function updateModulePermissionsExecuteModulePermissions(connection, data, module, context) {
   return rows(connection, `INSERT INTO module_permissions (role,module_key,can_view,can_add,can_edit,updated_by)

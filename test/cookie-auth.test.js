@@ -21,7 +21,7 @@ test('Browser cookie login, refresh, origin checks and revocation', async () => 
   };
   let session;
   const execute = async (sql, args = []) => {
-    if (sql.startsWith('SELECT * FROM users')) return [[args[0] === user.email ? user : undefined].filter(Boolean)];
+    if (sql.includes(' FROM users ')) return [[args[0] === user.email ? user : undefined].filter(Boolean)];
     if (sql.startsWith('INSERT INTO sessions')) {
       const fields = sql.match(/\(([^)]+)\)/)[1].split(',');
       session = Object.fromEntries(fields.map((f, i) => [f, args[i]]));
@@ -173,6 +173,17 @@ test('Browser cookie login, refresh, origin checks and revocation', async () => 
         'Access-Control-Request-Method': 'GET'
       }
     })).status, 204);
+    response = await fetch(`http://127.0.0.1:${server.address().port}/paddyapi/core/location-options?district_id=364`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'http://localhost:5173',
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'authorization'
+      }
+    });
+    assert.equal(response.status, 204);
+    assert.equal(response.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+    assert.match(response.headers.get('access-control-allow-headers'), /Authorization/i);
     user.active = 0;
     assert.equal((await call('/auth/me', {
       headers: {
