@@ -1,4 +1,5 @@
 import { setSessionCookies, clearSessionCookies } from '../middlewares/browser-session.js';
+import { dateJsonReplacer } from './datetime.js';
 
 // Pass request data to services without passing the Express response object.
 export function requestContext(req) {
@@ -18,4 +19,11 @@ export function respond(res, result) {
   if (result.cookies) setSessionCookies(res, ...result.cookies);
   if (result.clearCookies) clearSessionCookies(res);
   return res.status(result.status ?? 200).json(result.body);
+}
+
+export function respondReport(res, result) {
+  return respond(res, {
+    ...result,
+    body: JSON.parse(JSON.stringify(result.body, dateJsonReplacer))
+  });
 }

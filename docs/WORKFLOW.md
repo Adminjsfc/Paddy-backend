@@ -93,7 +93,7 @@ GPS arrival never credits inventory or confirms quantity. A destination packet c
 
 ## GPS ordering and history
 
-- All API timestamps require ISO 8601 with `Z` or an explicit offset. Stored and returned timestamps are UTC. Display IST in the client; do not add 5:30 twice.
+- Request timestamps require ISO 8601 with `Z` or an explicit offset. Stored timestamps and ordinary API responses remain UTC. Only report responses display IST as `DD-MM-YYYY hh:mm:ss AM/PM`; report date-only strings use `DD-MM-YYYY`. Parse report dates explicitly and convert them to ISO before reusing them in requests.
 - `gps_fix` must be true. Coordinates and speed are range-checked.
 - Each `(device_id, gps_at)` is unique. An identical coordinate retry is a duplicate; different coordinates at the same timestamp are a conflict. Higher-frequency sources must provide millisecond timestamps.
 - A batch is sorted by GPS time; each packet has its own transaction. HTTP 207 reports per-packet failures while retaining successful packets.

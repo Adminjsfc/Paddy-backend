@@ -383,3 +383,7 @@ Paddy/CMR lifting report filters: season_id and scheme_code are optional on GET 
 
 
 GET /paddy/lifting-summary now returns one receipt per row. Its actual primary key is id, and procurement_ids is the corresponding singleton array [id]. Active mapped Millers are provided separately in mapped_millers.
+
+### Report date display
+
+Only `/reports/*`, `/paddy/lifting-summary` and `GET /shipments` (Paddy/CMR shipment reports) format response dates for display. Timestamps display Indian Standard Time (UTC+05:30) as `DD-MM-YYYY hh:mm:ss AM/PM`, for example `02-11-2026 03:25:40 PM`. Date-only strings display as `DD-MM-YYYY`; null dates remain null. Login, master data, dropdowns, shipment detail and mutation responses retain their existing ISO format. Request formats and database storage are unchanged. Parse report display dates explicitly before converting them to ISO for requests.

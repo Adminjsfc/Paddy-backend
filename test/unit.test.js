@@ -8,7 +8,8 @@ import { normalizeMqtt } from "../src/services/gps.service.js";
 import { millerRegistrationSchema } from "../src/validators/millers.schema.js";
 import { registerMiller } from "../src/services/millers.service.js";
 import { visibility } from '../src/services/masters.service.js';
-import { secondPrecision, secondsJsonReplacer } from '../src/utils/datetime.js';
+import { secondPrecision, dateJsonReplacer, secondsJsonReplacer } from '../src/utils/datetime.js';
+import { respond, respondReport } from '../src/utils/http.js';
 import { timestamp } from '../src/utils/core.js';
 import { rows } from '../src/repositories/database.js';
 import { profilePatches,configs } from '../src/config/masters.js';
@@ -90,7 +91,7 @@ test('Master removal stops before dropping tables when a historical code cannot 
   assert(statements.some(sql=>sql.includes('JOIN `schemes`')));
   assert(!statements.some(sql=>/DROP TABLE|DROP COLUMN/.test(sql)));
 });
-test('Timestamps use seconds in input, database writes and nested JSON responses', async () => {
+test('Timestamps keep ISO input and UTC storage with IST display in nested JSON responses', async () => {
   const date = new Date('2026-10-21T18:30:39.984Z');
   assert.equal(secondPrecision(date).toISOString(), '2026-10-21T18:30:39.000Z');
   assert.equal(date.getUTCMilliseconds(), 984);
@@ -99,13 +100,37 @@ test('Timestamps use seconds in input, database writes and nested JSON responses
   await rows({ execute: async (sql, values) => { stored = values; return [[]]; } }, 'SELECT ?', [date, null, 'keep']);
   assert.equal(stored[0].getUTCMilliseconds(), 0);
   assert.deepEqual(stored.slice(1), [null, 'keep']);
-  const result = JSON.parse(JSON.stringify({ created_at: date, nested: [{ at: date.toISOString() }], replay: '2026-10-22T00:00:39.984+05:30', quantity: 12.984, note: 'Value 39.984', empty: null }, secondsJsonReplacer));
-  assert.equal(result.created_at, '2026-10-21T18:30:39Z');
-  assert.equal(result.nested[0].at, '2026-10-21T18:30:39Z');
-  assert.equal(result.replay, '2026-10-22T00:00:39+05:30');
+  const result = JSON.parse(JSON.stringify({ created_at: date, nested: [{ at: date.toISOString() }], replay: '2026-10-22T00:00:39.984+05:30', quantity: 12.984, note: 'Value 39.984', empty: null }, dateJsonReplacer));
+  assert.equal(result.created_at, '22-10-2026 12:00:39 AM');
+  assert.equal(result.nested[0].at, '22-10-2026 12:00:39 AM');
+  assert.equal(result.replay, '22-10-2026 12:00:39 AM');
   assert.equal(result.quantity, 12.984);
   assert.equal(result.note, 'Value 39.984');
   assert.equal(result.empty, null);
+});
+
+test('Date display handles noon, year rollover, date-only values and non-date strings', () => {
+  assert.equal(dateJsonReplacer('', '2026-11-02T09:55:40Z'), '02-11-2026 03:25:40 PM');
+  assert.equal(dateJsonReplacer('', '2026-11-02T06:30:00Z'), '02-11-2026 12:00:00 PM');
+  assert.equal(dateJsonReplacer('', '2026-12-31T20:30:00Z'), '01-01-2027 02:00:00 AM');
+  assert.equal(dateJsonReplacer('', '2026-11-02'), '02-11-2026');
+  for (const value of ['2026-02-30', 'invalid', '2026-99-02T01:00:00Z', '02-11-2026 03:25:40 PM']) {
+    assert.equal(dateJsonReplacer('', value), value);
+  }
+});
+
+test('Only reports format timestamps while normal API responses and original dates stay unchanged', () => {
+  const created = new Date('2026-11-02T09:55:40.123Z');
+  const result = {status: 200, body: {data: [{created_at: created, due_date: '2026-11-02'}]}};
+  const response = () => ({status(code) {assert.equal(code, 200); return this;}, json(body) {return JSON.parse(JSON.stringify(body, secondsJsonReplacer));}});
+  const report = respondReport(response(), result);
+  assert.equal(report.data[0].created_at, '02-11-2026 03:25:40 PM');
+  assert.equal(report.data[0].due_date, '02-11-2026');
+  const normal = respond(response(), result);
+  assert.equal(normal.data[0].created_at, '2026-11-02T09:55:40Z');
+  assert.equal(normal.data[0].due_date, '2026-11-02');
+  assert.equal(result.body.data[0].created_at, created);
+  assert.equal(created.toISOString(), '2026-11-02T09:55:40.123Z');
 });
 test('IMEI identity is separate from GPS vehicle and location registration', () => {
   const identity = { imei: '867123456789012', provider: 'GPS provider', district_id: 3};
