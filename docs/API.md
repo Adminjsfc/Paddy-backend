@@ -347,17 +347,17 @@ Migration 040 adds `shipments.trip_status` (0 not started, 1 started, 2 complete
 Common shipment creation and the CMR submission form accept optional `expected_completion_at` as an ISO datetime with an explicit timezone offset (for example `2026-10-22T18:30:00+05:30`), or NULL. Dispatch can set/replace it; omission retains the stored estimate and explicit NULL clears it. At dispatch the estimate cannot precede `dispatched_at`. It is a supplied estimate; no travel duration is inferred from coordinates. All timestamps are stored in UTC to seconds. Clients cannot set `trip_status`, `trip_started_at` or `trip_completed_at` directly. Shipment detail/list, CMR receiving lists and vehicle dashboard expose these trip fields. `GET /shipments?trip_status=0` filters not-started trips; allowed values are 0, 1 and 2.
 
 
-### PACS/LAMPS Paddy and Lifting tabs
+### PACS/LAMPS procurement and shipment reports
 
-GET /api/v1/paddy/lifting-summary?season_id=1&page=1&limit=20&scheme_code=SCMR
+GET /api/v1/paddy/lifting-summary?page=1&limit=50
 
-Requires PACS/LAMPS login (cookie or Bearer token), not an integration API key. season_id is required; scheme_code is optional. Source is always the logged-in facility; a caller cannot select another source.
+Requires PACS/LAMPS login. season_id and scheme_code are optional. Source is always the logged-in facility; a caller cannot select another source.
 
-Response: {ok:true, quantity_scope:"SOURCE_SEASON_SCHEME", data:[{source_id, source_name, source_code, season_id, scheme_code, miller_id, miller_name, miller_address, target_g, source_lifted_g, pending_g, lifted_g}], totals:{target_g,lifted_g,pending_g}, pagination:{page,limit,total}}.
+The endpoint returns procurement records, despite the retained lifting-summary URL. Each data row corresponds to exactly one procurement.id. Fields include id, procurement_ids:[id], external_ref, receipt_no, source_id, source_name, source_code, season_id, season_name, scheme_code, commodity_code, farmer_id, procured_at, quantity_g, available_g, reserved_g and unreserved_g. Farmer IDs are preserved.
 
-Each row represents an active mapped miller and a procurement scheme. target_g is total procured PADDY at the source for the selected season/scheme. source_lifted_g includes all destinations, including historical/inactive mappings; pending_g = target_g - source_lifted_g. lifted_g on a row is that miller's lifted quantity. Only DISPATCHED, IN_TRANSIT, ARRIVED and DELIVERED shipments count as lifted; PLANNED and CANCELLED do not. Planned reservations do not reduce pending. Pending is not a promise of available unreserved stock.
+mapped_millers contains active route-tag Miller mappings for the source and record season. has_route_tag is true when that array is non-empty. A receipt is returned only once even if several Millers are mapped. Receipts without a route tag remain visible. No shipment table/view is queried, and no shipment status or lifted/pending summary is returned.
 
-Target and pending are shared source quantities repeated on miller rows. Never sum those rows for cards: use totals, which includes all source procurement schemes even if they have no active mapped miller. totals.lifted_g is source-wide. An empty procurement scheme has no summary rows. Pagination counts miller/scheme rows. All quantity fields are grams; divide by 100000 to display QTL. No SQL schema changes are required.
+Response: {ok:true, quantity_scope:"SOURCE_PROCUREMENT", data:[...], totals:{procurement_count,quantity_g,available_g,reserved_g,unreserved_g}, pagination:{page,limit,total}}. Pagination counts procurement receipts; totals cover all receipts matching the filters, not just the current page. All quantities are grams; divide by 100000 for QTL.
 
 For the Lifting tab use GET /api/v1/shipments?leg=PADDY&season_id=1&page=1&limit=20, with optional scheme_code, miller_id and status filters. Render shipment_no, scheme_code, quantity_g, source_name, destination_name, registration_no, display_status and status_at. GET /api/v1/shipments/:id returns details, events and lots. Move individual shipments off the Paddy summary tab. Frontend must reload both tabs after lifting actions and season/scheme changes.
 
@@ -379,4 +379,7 @@ Core DM POST /core/dm/vehicles accepts {vehicle_id,imei_id} to map a selected ve
 PACS/LAMPS procurement visibility: GET /procurements and GET /procurements/available-lots now accept PACS/LAMPS sessions. Their source facility is always taken from the account facility_id; requesting another facility returns 403. They only see PADDY rows. List responses include unreserved_g; available-lots returns rows with available_g > reserved_g and includes external_ref/receipt_no for selection. These read permissions do not grant correction access. ADMIN/OPERATOR access and Miller route-mapping checks remain in place.
 
 
-Paddy/CMR lifting report filters: season_id and scheme_code are optional on GET /paddy/lifting-summary and GET /reports/lifting-summary, and on shipment report GET /shipments. Omitting them includes all seasons and schemes within account scope; either filter may be supplied independently. Paddy totals remain source-scoped and grouped internally by season/scheme before aggregation. Postman report Params keep these filters disabled by default. Shipment submit/dropdown prerequisites are unchanged.
+Paddy/CMR lifting report filters: season_id and scheme_code are optional on GET /paddy/lifting-summary and GET /reports/lifting-summary, and on shipment report GET /shipments. Omitting them includes all seasons and schemes within account scope; either filter may be supplied independently. Paddy totals remain source-scoped and are calculated from matching procurement records. Postman report Params keep these filters disabled by default. Shipment submit/dropdown prerequisites are unchanged.
+
+
+GET /paddy/lifting-summary now returns one receipt per row. Its actual primary key is id, and procurement_ids is the corresponding singleton array [id]. Active mapped Millers are provided separately in mapped_millers.

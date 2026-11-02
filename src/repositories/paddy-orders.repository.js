@@ -1,36 +1,43 @@
 import {pool} from '../config/database.js';
 import {one,rows} from './database.js';
 
-// Source balances are shared by all mapped millers; aggregate them before joining mappings.
-export async function sourceLiftingSummary(sourceId,seasonId,{limit,offset},schemeCode=null) {
+// Procurement is the report source; route tags only enrich each receipt with Miller mappings.
+export async function sourceProcurementReport(sourceId,seasonId,{limit,offset},schemeCode=null) {
   const args=[sourceId,...(seasonId?[seasonId]:[]),...(schemeCode?[schemeCode]:[])];
-  const balances=`SELECT p.facility_id source_id,p.season_id,p.scheme_code,SUM(p.quantity_g) target_g
-    FROM procurement p
-    WHERE p.facility_id=?${seasonId?' AND p.season_id=?':''} AND p.commodity_code='PADDY'${schemeCode?' AND p.scheme_code=?':''}
-    GROUP BY p.facility_id,p.season_id,p.scheme_code`;
-  const lifted=`SELECT source_id,season_id,scheme_code,destination_id,SUM(quantity_g) lifted_g
-    FROM shipment_details WHERE leg='PADDY' AND status IN ('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED')
-    GROUP BY source_id,season_id,scheme_code,destination_id`;
-  const sourceBalances=`SELECT b.source_id,b.season_id,b.scheme_code,b.target_g,COALESCE(l.lifted_g,0) source_lifted_g,
-    b.target_g-COALESCE(l.lifted_g,0) pending_g FROM (${balances}) b
-    LEFT JOIN (SELECT source_id,season_id,scheme_code,SUM(lifted_g) lifted_g FROM (${lifted}) lifted
-      GROUP BY source_id,season_id,scheme_code) l
-      ON l.source_id=b.source_id AND l.season_id=b.season_id AND l.scheme_code=b.scheme_code`;
-  const totals=await one(pool,`SELECT COALESCE(SUM(target_g),0) target_g,
-    COALESCE(SUM(source_lifted_g),0) lifted_g,COALESCE(SUM(pending_g),0) pending_g FROM (${sourceBalances}) balances`,args);
-  const base=`FROM (${sourceBalances}) b
-    JOIN facilities src ON src.id=b.source_id
-    JOIN (SELECT DISTINCT source_id,destination_id,season_id FROM route_tags WHERE active=1) r
-      ON r.source_id=b.source_id AND r.season_id=b.season_id
-    JOIN facilities m ON m.id=r.destination_id AND m.kind='MILLER' AND m.active=1
-    LEFT JOIN (${lifted}) l ON l.source_id=b.source_id AND l.season_id=b.season_id
-      AND l.scheme_code=b.scheme_code AND l.destination_id=m.id`;
-  const count=await one(pool,`SELECT COUNT(m.id) total ${base}`,args);
-  const data=await rows(pool,`SELECT b.source_id,b.season_id,b.scheme_code,b.target_g,b.source_lifted_g,b.pending_g,src.name source_name,src.code source_code,
-    m.id miller_id,m.name miller_name,m.address miller_address,
-    COALESCE(l.lifted_g,0) lifted_g ${base}
-    ORDER BY m.name,m.id,b.scheme_code,b.season_id DESC LIMIT ${limit} OFFSET ${offset}`,args);
-  return {data,totals,total:count.total};
+  const filter=`WHERE p.facility_id=? AND p.commodity_code='PADDY'${seasonId?' AND p.season_id=?':''}${schemeCode?' AND p.scheme_code=?':''}`;
+  const totals=await one(pool,`SELECT COUNT(p.id) procurement_count,
+    COALESCE(SUM(p.quantity_g),0) quantity_g,COALESCE(SUM(p.available_g),0) available_g,
+    COALESCE(SUM(p.reserved_g),0) reserved_g,COALESCE(SUM(p.available_g-p.reserved_g),0) unreserved_g
+    FROM procurement p ${filter}`,args);
+  const data=await rows(pool,`SELECT p.id,p.external_ref,p.facility_id,p.facility_id source_id,
+    src.name source_name,src.code source_code,p.season_id,se.name season_name,p.scheme_code,p.commodity_code,
+    p.farmer_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.available_g-p.reserved_g unreserved_g,
+    p.moisture_percent,p.receipt_no,p.created_at
+    FROM procurement p JOIN facilities src ON src.id=p.facility_id JOIN seasons se ON se.id=p.season_id
+    ${filter} ORDER BY p.procured_at DESC,p.id DESC LIMIT ${limit} OFFSET ${offset}`,args);
+  const bySeason=new Map();
+  if(data.length) {
+    const seasons=[...new Set(data.map(row=>Number(row.season_id)))];
+    const mappings=await rows(pool,`SELECT r.id route_tag_id,r.season_id,m.id miller_id,m.name miller_name,m.address miller_address
+      FROM route_tags r JOIN facilities m ON m.id=r.destination_id AND m.kind='MILLER' AND m.active=1
+      WHERE r.source_id=? AND r.active=1 AND r.season_id IN (${seasons.map(()=>'?').join(',')})
+      ORDER BY m.name,m.id,r.id`,[sourceId,...seasons]);
+    for(const mapping of mappings) {
+      const season=Number(mapping.season_id);
+      if(!bySeason.has(season))bySeason.set(season,new Map());
+      const group=bySeason.get(season);
+      if(!group.has(Number(mapping.miller_id))) {
+        const {season_id,...details}=mapping;
+        group.set(Number(mapping.miller_id),details);
+      }
+    }
+  }
+  for(const row of data) {
+    row.procurement_ids=[Number(row.id)];
+    row.mapped_millers=[...(bySeason.get(Number(row.season_id))?.values()||[])].map(mapping=>({...mapping}));
+    row.has_route_tag=row.mapped_millers.length>0;
+  }
+  return {data,totals,total:Number(totals.procurement_count)};
 }
 
 export async function listMappedSources(millerId,seasonId,{limit,offset},schemeCode=null) {

@@ -40,55 +40,57 @@ test('Miller available procurement still requires a source mapping',async()=>{
   }finally{pool.execute=original;}
 });
 
-test('Source Paddy summary scopes all queries and separates shared totals from miller rows',async()=>{
-  const original=pool.execute,calls=[];
-  pool.execute=async(sql,args)=>{
-    calls.push({sql,args});
-    if(sql.startsWith('SELECT COALESCE(SUM(target_g)')) return [[{target_g:1000000,lifted_g:300000,pending_g:700000}]];
-    if(sql.startsWith('SELECT COUNT(')) return [[{total:2}]];
-    return [[{miller_id:3,target_g:1000000,pending_g:700000,lifted_g:200000},
-      {miller_id:4,target_g:1000000,pending_g:700000,lifted_g:100000}]];
-  };
-  try {
-    for(const role of ['PACS','LAMPS']) {
-      calls.length=0;
-      const {body}=await sourceLiftingSummary({user:{role,facility_id:153},query:{season_id:'2',source_id:'999',scheme_code:'SCMR'}});
-      assert.equal(body.totals.target_g,1000000);
-      assert.equal(body.pagination.total,2);
-      assert.equal(body.data.length,2);
-      assert.equal(body.quantity_scope,'SOURCE_SEASON_SCHEME');
-      for(const {sql,args} of calls) {
-        assert.deepEqual(args,[153,2,'SCMR']);
-        assert.equal((sql.match(/\?/g)||[]).length,args.length);
-        assert.match(sql,/p.commodity_code='PADDY'/);
-        assert.match(sql,/status IN \('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED'\)/);
-      }
-      assert.doesNotMatch(calls[0].sql,/JOIN facilities m/);
-      assert.match(calls[2].sql,/m.address miller_address/);
-    }
-    calls.length=0;
-    for(const user of [{role:'MILLER',miller_id:3},{role:'ADMIN'},{role:'PACS'}])
-      await assert.rejects(sourceLiftingSummary({user,query:{season_id:'2'}}),e=>e.status===403);
-    for(const query of [{season_id:'bad'},{season_id:'2',limit:201}])
-      await assert.rejects(sourceLiftingSummary({user:{role:'PACS',facility_id:153},query}));
-    assert.equal(calls.length,0);
-  } finally {pool.execute=original;}
+test('Paddy report returns procurement records once even when several Millers are mapped',async()=>{
+ const original=pool.execute,calls=[];
+ pool.execute=async(sql,args)=>{
+  calls.push({sql,args});
+  if(sql.startsWith('SELECT COUNT(p.id)'))return [[{procurement_count:3,quantity_g:600000,available_g:500000,reserved_g:100000,unreserved_g:400000}]];
+  if(sql.includes('FROM route_tags r'))return [[{route_tag_id:1,season_id:2,miller_id:3,miller_name:'Mill A'},
+   {route_tag_id:2,season_id:2,miller_id:4,miller_name:'Mill B'},
+   {route_tag_id:3,season_id:2,miller_id:4,miller_name:'Mill B'}]];
+  return [[{id:11,facility_id:153,season_id:2,scheme_code:'SCMR',quantity_g:100000},
+   {id:12,facility_id:153,season_id:2,scheme_code:'SCMR',quantity_g:200000},
+   {id:13,facility_id:153,season_id:3,scheme_code:'CCMR',quantity_g:300000}]];
+ };
+ try{
+  const {body}=await sourceLiftingSummary({user:{role:'PACS',facility_id:153},query:{source_id:'999'}});
+  assert.equal(body.quantity_scope,'SOURCE_PROCUREMENT');assert.equal(body.pagination.total,3);
+  assert.deepEqual(body.data.map(row=>row.id),[11,12,13]);
+  assert.deepEqual(body.data.map(row=>row.procurement_ids),[[11],[12],[13]]);
+  assert.deepEqual(body.data[0].mapped_millers.map(m=>m.miller_id),[3,4]);
+  assert.deepEqual(body.data[1].mapped_millers.map(m=>m.miller_id),[3,4]);
+  assert.deepEqual(body.data[2].mapped_millers,[]);assert.equal(body.data[2].has_route_tag,false);
+  assert.equal(body.totals.quantity_g,600000);assert.equal(body.totals.unreserved_g,400000);
+  assert.equal(calls.length,3);assert.deepEqual(calls[0].args,[153]);assert.deepEqual(calls[1].args,[153]);assert.deepEqual(calls[2].args,[153,2,3]);
+  for(const {sql,args} of calls){assert.doesNotMatch(sql,/shipment|lifted_g|pending_g/i);assert.equal((sql.match(/\?/g)||[]).length,args.length);}
+  assert.doesNotMatch(calls[0].sql,/route_tags/);assert.doesNotMatch(calls[1].sql,/route_tags|GROUP BY/);
+ }finally{pool.execute=original;}
 });
-test('Paddy received/lifted reports support omitted and independent optional season/scheme filters',async()=>{
-  const original=pool.execute,calls=[];
-  pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.startsWith('SELECT COALESCE')?[{target_g:0,lifted_g:0,pending_g:0}]:sql.startsWith('SELECT COUNT')?[{total:0}]:[]];};
-  try{
-    for(const role of ['PACS','LAMPS'])for(const [query,expected] of [[{},[153]],[{season_id:'',scheme_code:''},[153]],[{season_id:'2'},[153,2]],[{scheme_code:'CCMR'},[153,'CCMR']]]){
-      calls.length=0;
-      const result=await sourceLiftingSummary({user:{role,facility_id:153},query});assert.equal(result.body.ok,true);assert.equal(calls.length,3);
-      for(const {sql,args} of calls){
-        assert.deepEqual(args,expected);assert.equal((sql.match(/\?/g)||[]).length,args.length);
-        assert.equal(sql.includes('p.season_id=?'),Boolean(query.season_id));
-        assert.equal(sql.includes('p.scheme_code=?'),Boolean(query.scheme_code));
-        assert.match(sql,/p.facility_id=\?/);assert.match(sql,/l.season_id=b.season_id/);
-      }
-    }
-  }finally{pool.execute=original;}
+
+test('Procurement report keeps source scope with optional season/scheme filters',async()=>{
+ const original=pool.execute,calls=[];
+ pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.startsWith('SELECT COUNT(p.id)')?[{procurement_count:0,quantity_g:0}]:[]];};
+ try{
+  for(const role of ['PACS','LAMPS'])for(const [query,expected] of [[{},[153]],[{season_id:'',scheme_code:''},[153]],[{season_id:'2'},[153,2]],[{scheme_code:'CCMR'},[153,'CCMR']],[{season_id:'2',scheme_code:'SCMR'},[153,2,'SCMR']]]){
+   calls.length=0;const result=await sourceLiftingSummary({user:{role,facility_id:153},query});assert.equal(result.body.ok,true);assert.equal(calls.length,2);
+   for(const {sql,args} of calls){assert.deepEqual(args,expected);assert.equal((sql.match(/\?/g)||[]).length,args.length);assert.equal(sql.includes('p.season_id=?'),Boolean(query.season_id));assert.equal(sql.includes('p.scheme_code=?'),Boolean(query.scheme_code));assert.match(sql,/p.facility_id=\?/);assert.match(sql,/p.commodity_code='PADDY'/);}
+  }
+  calls.length=0;
+  for(const user of [{role:'MILLER',miller_id:3},{role:'ADMIN'},{role:'PACS'}])await assert.rejects(sourceLiftingSummary({user,query:{}}),e=>e.status===403);
+  for(const query of [{season_id:'bad'},{season_id:'2',limit:201}])await assert.rejects(sourceLiftingSummary({user:{role:'PACS',facility_id:153},query}));
+  assert.equal(calls.length,0);
+ }finally{pool.execute=original;}
+});
+
+test('Unmapped procurements stay visible and pagination counts receipts instead of Miller mappings',async()=>{
+ const original=pool.execute,calls=[];
+ pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.startsWith('SELECT COUNT(p.id)')?[{procurement_count:5,quantity_g:500000,available_g:500000,reserved_g:0,unreserved_g:500000}]:sql.includes('FROM route_tags r')?[]:[{id:91,facility_id:153,season_id:7,scheme_code:'SCMR'}]];};
+ try{
+  const {body}=await sourceLiftingSummary({user:{role:'LAMPS',facility_id:153},query:{page:'2',limit:'1'}});
+  assert.equal(body.data.length,1);assert.equal(body.data[0].id,91);assert.deepEqual(body.data[0].mapped_millers,[]);assert.equal(body.data[0].has_route_tag,false);
+  assert.equal(body.pagination.total,5);assert.equal(body.pagination.page,2);assert.equal(body.totals.quantity_g,500000);
+  assert.match(calls[1].sql,/ORDER BY p.procured_at DESC,p.id DESC LIMIT 1 OFFSET 1/);
+ }finally{pool.execute=original;}
 });
 import {dashboardVehicles} from '../src/repositories/reports.repository.js';
 import {liftingMillers,liftingVehicles} from '../src/services/paddy-orders.service.js';

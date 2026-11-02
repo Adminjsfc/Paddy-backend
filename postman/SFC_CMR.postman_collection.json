@@ -2,7 +2,7 @@
   "info": {
     "name": "SFC Paddy Procurement and CMR — Complete Workflow",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Paddy Shipment and CMR Shipment each contain required Dropdowns, Submit and Dispatch/Actions. Reports > Shipment Reports contains the shared shipment report filtered by lifting_leg=PADDY or CMR. Master CRUD stays under Masters and logins under Login.\n\nVehicles are independent shared fleet records. Register with transporter_name, transporter_contact_no, district_id, vehicle_type_id, registration_no and capacity; do not supply miller_id or transporter_id. Transporter master APIs are removed. Vehicle registration accepts ADMIN, OPERATOR, MILLER, PACS, LAMPS and TRANSPORTER accounts. Mutations by non-admin users are scoped to records they created; Core DM remains district-scoped.\n\nScheme and commodity master CRUD endpoints have been removed. Stock, procurement and shipments now store scheme_code and commodity_code directly. CMR options provide SCMR/CCMR and RICE codes.\n\nSetup: import this collection and SFC_CMR.postman_environment.json, then select SFC CMR ? Local configuration once in the Postman environment dropdown. Postman cannot auto-select the environment from this file. The collection includes a default local base_url; credentials remain in the environment. Login response scripts save tokens automatically. Requests are organized by resource: Login, Masters, Users and business operations. Facilities are preserved.\n\nAPI reference collection with master requests grouped under Masters by resource. Each master groups Add, List, Update (where supported) and Delete. Master detail and restore requests are omitted; use List for records and IDs. Role-specific login requests remain separate. Configure environment variables and the appropriate tokens before sending. Send requests manually; this collection is not a sequential demo run. Every mutation requires a fresh Idempotency-Key; retry_key is only for an identical retry. Core APIs require their corresponding real core tokens and integration.\n\nTrip tracking: Shipments and Trips includes trip detail and numeric trip-status filtering. Configure expected_completion_at in the active environment for an optional planned completion time. Start/completion actuals are set by GPS."
+    "description": "Procurement and shipment workflows are separate: Paddy Procurement and Route Tagging contains e-Uparjan imports, procurement records and the procurement/mapping report. Paddy Shipment and CMR Shipment contain their shipment submit/actions/reports. Route-tag master management remains in Masters.\n\nPaddy Shipment and CMR Shipment each contain required Dropdowns, Submit and Dispatch/Actions. Reports > Shipment Reports contains the shared shipment report filtered by lifting_leg=PADDY or CMR. Master CRUD stays under Masters and logins under Login.\n\nVehicles are independent shared fleet records. Register with transporter_name, transporter_contact_no, district_id, vehicle_type_id, registration_no and capacity; do not supply miller_id or transporter_id. Transporter master APIs are removed. Vehicle registration accepts ADMIN, OPERATOR, MILLER, PACS, LAMPS and TRANSPORTER accounts. Mutations by non-admin users are scoped to records they created; Core DM remains district-scoped.\n\nScheme and commodity master CRUD endpoints have been removed. Stock, procurement and shipments now store scheme_code and commodity_code directly. CMR options provide SCMR/CCMR and RICE codes.\n\nSetup: import this collection and SFC_CMR.postman_environment.json, then select SFC CMR ? Local configuration once in the Postman environment dropdown. Postman cannot auto-select the environment from this file. The collection includes a default local base_url; credentials remain in the environment. Login response scripts save tokens automatically. Requests are organized by resource: Login, Masters, Users and business operations. Facilities are preserved.\n\nAPI reference collection with master requests grouped under Masters by resource. Each master groups Add, List, Update (where supported) and Delete. Master detail and restore requests are omitted; use List for records and IDs. Role-specific login requests remain separate. Configure environment variables and the appropriate tokens before sending. Send requests manually; this collection is not a sequential demo run. Every mutation requires a fresh Idempotency-Key; retry_key is only for an identical retry. Core APIs require their corresponding real core tokens and integration.\n\nTrip tracking: Shipments and Trips includes trip detail and numeric trip-status filtering. Configure expected_completion_at in the active environment for an optional planned completion time. Start/completion actuals are set by GPS."
   },
   "item": [
     {
@@ -5254,8 +5254,320 @@
       ]
     },
     {
+      "name": "Paddy Procurement and Route Tagging",
+      "description": "e-Uparjan procurement records and their active route-tag Miller mappings. This folder does not contain shipment creation or shipment reports. The report shows one receipt per row; mapping details are informational and do not prove a fixed Miller allocation. Route-tag master Add/List/Status requests remain under Masters.",
+      "item": [
+        {
+          "name": "01 - e-Uparjan Import and Corrections",
+          "item": [
+            {
+              "name": "19 Push 100 QTL PACS procurement (farmer optional)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{operation_key}}"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{euparjan_api_key}}"
+                  }
+                ],
+                "url": "{{base_url}}/integrations/euparjan/procurements",
+                "description": "Procurement sync creates Paddy stock; it does not create a lifting shipment. facility_code must be the exact active PACS/LAMPS code returned by facility registration. PACS-{{run_id}} is valid only after registering that demo PACS. Use {{season_code}} and {{scheme_code}} without asterisks. For lifting, use folder 15 POST /shipments with matching facility, season, scheme and mapped Miller. Missing/mismatched values return a specific error code/message.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"PROC-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"PACS-{{run_id}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 100,\n        \"unit\": \"QTL\"\n      },\n      \"moisture_percent\": 14,\n      \"receipt_no\": \"PURCHASE-{{run_id}}\",\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.request.body && pm.request.body.mode === 'raw') {",
+                      " const resolved = pm.variables.replaceIn(pm.request.body.raw);",
+                      " function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                      " const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);",
+                      " if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));",
+                      " let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }",
+                      " function convert(value) {",
+                      "  if (Array.isArray(value)) return value.map(convert);",
+                      "  if (value && typeof value === 'object') for (const key of Object.keys(value)) {",
+                      "   if (key === 'id' || key.endsWith('_id')) {",
+                      "    if (value[key] === null) continue;",
+                      "    const n = Number(value[key]);",
+                      "    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');",
+                      "    value[key] = n;",
+                      "   } else value[key] = convert(value[key]);",
+                      "  }",
+                      "  return value;",
+                      " }",
+                      " pm.request.body.update(JSON.stringify(convert(body), null, 2));",
+                      "}"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response=pm.response.json();",
+                      "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));",
+                      "if (response.ok && response.data?.records?.length) { pm.collectionVariables.set(\"procurement_id\", response.data.records[0].id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update existing procurement external_ref and quantity",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{operation_key}}"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{euparjan_api_key}}"
+                  }
+                ],
+                "url": "{{base_url}}/integrations/euparjan/procurements/{{procurement_id}}",
+                "description": "Correct the existing procurement by its stable ID. external_ref and quantity are optional individually; reason is required. quantity is the new total purchase quantity, not an additional receipt. Stock changes only by the quantity difference. Existing dispatches/reservations must still be covered. Old references remain linked to this procurement so source retries do not add stock again. Use a new Idempotency-Key for a different correction; repeat the same key/body for retry. Run this request only when a correction is intended.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"external_ref\": \"PROC-{{run_id}}-UPDATED\",\n  \"quantity\": {\n    \"value\": 200,\n    \"unit\": \"QTL\"\n  },\n  \"reason\": \"Correct purchase reference and total quantity\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.request.body && pm.request.body.mode === 'raw') {",
+                      " const resolved = pm.variables.replaceIn(pm.request.body.raw);",
+                      " function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                      " const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);",
+                      " if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));",
+                      " let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }",
+                      " function convert(value) {",
+                      "  if (Array.isArray(value)) return value.map(convert);",
+                      "  if (value && typeof value === 'object') for (const key of Object.keys(value)) {",
+                      "   if (key === 'id' || key.endsWith('_id')) {",
+                      "    if (value[key] === null) continue;",
+                      "    const n = Number(value[key]);",
+                      "    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');",
+                      "    value[key] = n;",
+                      "   } else value[key] = convert(value[key]);",
+                      "  }",
+                      "  return value;",
+                      " }",
+                      " pm.request.body.update(JSON.stringify(convert(body), null, 2));",
+                      "}"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response = pm.response.json();",
+                      "pm.test('Successful correction', () => pm.expect(response.ok).to.eql(true));",
+                      "if (response.ok) { pm.collectionVariables.set('procurement_id', response.data.id); pm.collectionVariables.set('procurement_external_ref', response.data.external_ref); }"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "02 - Procurement Records",
+          "item": [
+            {
+              "name": "My Paddy procurement records - PACS LAMPS",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{pacs_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/procurements?season_id={{season_id}}&scheme_code={{scheme_code}}&page=1&limit=50",
+                "description": "PACS/LAMPS token required. Lists procurement rows for your own source facility only, including reference, date, total quantity, available quantity, reserved quantity and unreserved_g. Facility is derived from the account; no facility_id parameter is needed. All quantities are grams. Another facility_id is rejected."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response=pm.response.json();",
+                      "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));",
+                      "if(response.ok){pm.test('Rows belong to the logged-in source',()=>response.data.forEach(row=>pm.expect(Number(row.facility_id)).to.eql(Number(pm.variables.get('pacs_id')))));}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Procurement records - current account",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": "{{base_url}}/procurements?season_id={{season_id}}",
+                "description": ""
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response=pm.response.json();",
+                      "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Available procurement lots - Miller",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{miller_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/procurements/available-lots?facility_id={{pacs_id}}&season_id={{season_id}}",
+                "description": ""
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response=pm.response.json();",
+                      "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "03 - Procurement and Route Tagging Report",
+          "item": [
+            {
+              "name": "01 - Paddy procurement report",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{pacs_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/paddy/lifting-summary?page=1&limit=50",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "paddy",
+                    "lifting-summary"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "50"
+                    },
+                    {
+                      "key": "season_id",
+                      "value": "{{season_id}}",
+                      "disabled": true,
+                      "description": "Optional. Enable to filter; disabled returns all seasons."
+                    },
+                    {
+                      "key": "scheme_code",
+                      "value": "{{scheme_code}}",
+                      "disabled": true,
+                      "description": "Optional. Enable to filter; disabled returns all schemes."
+                    }
+                  ]
+                },
+                "description": "PACS/LAMPS login. One data row per procurement record, with its actual id, procurement_ids:[id], external_ref, receipt_no, source, season, scheme and procurement quantity fields. mapped_millers contains active route-tag Miller mappings for that receipt season; has_route_tag indicates whether a mapping exists. Route tags do not duplicate receipt rows. Unmapped receipts remain visible. This endpoint does not join shipments and does not return shipment status, lifted_g or pending_g. Totals contain procurement_count, quantity_g, available_g, reserved_g and unreserved_g. season_id and scheme_code are optional and disabled in Params by default."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP success',()=>pm.response.to.have.status(200));",
+                      "const response=pm.response.json();",
+                      "pm.test('Successful response',()=>pm.expect(response.ok).to.eql(true));",
+                      "if(response.ok){",
+                      " pm.test('One row per procurement',()=>pm.expect(new Set(response.data.map(row=>row.id)).size).to.eql(response.data.length));",
+                      " pm.test('Procurement IDs and mapping details',()=>response.data.forEach(row=>{pm.expect(row.procurement_ids).to.eql([row.id]);pm.expect(row.mapped_millers).to.be.an('array');pm.expect(row.has_route_tag).to.eql(row.mapped_millers.length>0);}));",
+                      " pm.test('No shipment summary fields',()=>response.data.forEach(row=>{pm.expect(row).not.to.have.property('lifted_g');pm.expect(row).not.to.have.property('pending_g');}));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Paddy Shipment",
-      "description": "PACS/LAMPS: login, load the Dropdowns, choose IDs and available stock, then Submit. Miller workflow can use the explicit-lot request with its token. All quantities in dropdown responses are grams; divide by 100000 for QTL. No release order is required.",
+      "description": "Paddy shipment workflow only: load shipment dropdowns, submit a shipment, dispatch/receive/cancel and view the actual Paddy shipment report. For e-Uparjan receipt records and route tagging, use the separate Paddy Procurement and Route Tagging folder.",
       "item": [
         {
           "name": "01 - Dropdowns",
@@ -5417,35 +5729,7 @@
               ]
             },
             {
-              "name": "06 - My Paddy procurement records",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{pacs_token}}"
-                  }
-                ],
-                "url": "{{base_url}}/procurements?season_id={{season_id}}&scheme_code={{scheme_code}}&page=1&limit=50",
-                "description": "PACS/LAMPS token required. Lists procurement rows for your own source facility only, including reference, date, total quantity, available quantity, reserved quantity and unreserved_g. Facility is derived from the account; no facility_id parameter is needed. All quantities are grams. Another facility_id is rejected."
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
-                      "const response=pm.response.json();",
-                      "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));",
-                      "if(response.ok){pm.test('Rows belong to the logged-in source',()=>response.data.forEach(row=>pm.expect(Number(row.facility_id)).to.eql(Number(pm.variables.get('pacs_id')))));}"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "07 - My available procurement lots for shipment",
+              "name": "06 - Select Paddy for Shipment",
               "request": {
                 "method": "GET",
                 "header": [
@@ -5473,7 +5757,7 @@
               ]
             },
             {
-              "name": "08 - Driver dropdown - optional saved contacts",
+              "name": "07 - Driver dropdown - optional saved contacts",
               "request": {
                 "method": "GET",
                 "header": [
@@ -5504,7 +5788,7 @@
               ]
             },
             {
-              "name": "09 - Source PACS LAMPS stock - Miller login",
+              "name": "08 - Source PACS LAMPS stock - Miller login",
               "request": {
                 "method": "GET",
                 "url": "{{base_url}}/paddy/mapped-sources?season_id={{season_id}}&page=1&limit=20",
@@ -6153,68 +6437,10 @@
         },
         {
           "name": "04 - Reports",
-          "description": "Season and scheme filters are optional. By default include all seasons and schemes within account scope.\n\nPACS/LAMPS source report. Use totals for total received, lifted and pending; source totals repeat across mapped-Miller rows and must not be summed. Quantities are grams; divide by 100000 for QTL. Pending can include reserved stock; free stock is available_g in the stock dropdown.",
+          "description": "Actual Paddy shipment records only. Procurement/route-tagging report is in the separate Paddy Procurement and Route Tagging folder.",
           "item": [
             {
-              "name": "01 - Paddy received lifted and pending report",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{pacs_token}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/paddy/lifting-summary?page=1&limit=50",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "paddy",
-                    "lifting-summary"
-                  ],
-                  "query": [
-                    {
-                      "key": "page",
-                      "value": "1"
-                    },
-                    {
-                      "key": "limit",
-                      "value": "50"
-                    },
-                    {
-                      "key": "season_id",
-                      "value": "{{season_id}}",
-                      "disabled": true,
-                      "description": "Optional. Enable to filter; disabled returns all seasons."
-                    },
-                    {
-                      "key": "scheme_code",
-                      "value": "{{scheme_code}}",
-                      "disabled": true,
-                      "description": "Optional. Enable to filter; disabled returns all schemes."
-                    }
-                  ]
-                },
-                "description": "season_id and scheme_code are optional and disabled in Params by default. Without them, the report includes all seasons and schemes within the logged-in account scope. Enable either Params checkbox to apply that filter.\n\nPACS/LAMPS login. Own facility is derived from the session. totals.target_g = total Paddy procurement received; totals.lifted_g = dispatched/in-transit/arrived/delivered Paddy; totals.pending_g = received minus lifted. Pending includes reserved planned quantities. data contains mapped-Miller breakdown. Use totals for summary cards; do not sum repeated target/pending rows."
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('HTTP success',()=>pm.response.to.have.status(200));",
-                      "const response=pm.response.json();",
-                      "pm.test('Successful response',()=>pm.expect(response.ok).to.eql(true));"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "02 - Paddy shipment report",
+              "name": "01 - Paddy shipment report",
               "request": {
                 "method": "GET",
                 "header": [
@@ -6835,65 +7061,6 @@
                 "exec": [
                   "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
                   "const response = pm.response.json();",
-                  "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Procurement",
-      "item": [
-        {
-          "name": "20 Available procurement lots",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{miller_token}}"
-              }
-            ],
-            "url": "{{base_url}}/procurements/available-lots?facility_id={{pacs_id}}&season_id={{season_id}}",
-            "description": ""
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
-                  "const response=pm.response.json();",
-                  "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "40 Farmers and procurement",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": "{{base_url}}/procurements?season_id={{season_id}}",
-            "description": ""
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
-                  "const response=pm.response.json();",
                   "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));"
                 ]
               }
@@ -8461,152 +8628,6 @@
     {
       "name": "Integrations",
       "item": [
-        {
-          "name": "19 Push 100 QTL PACS procurement (farmer optional)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Idempotency-Key",
-                "value": "{{operation_key}}"
-              },
-              {
-                "key": "X-API-Key",
-                "value": "{{euparjan_api_key}}"
-              }
-            ],
-            "url": "{{base_url}}/integrations/euparjan/procurements",
-            "description": "Procurement sync creates Paddy stock; it does not create a lifting shipment. facility_code must be the exact active PACS/LAMPS code returned by facility registration. PACS-{{run_id}} is valid only after registering that demo PACS. Use {{season_code}} and {{scheme_code}} without asterisks. For lifting, use folder 15 POST /shipments with matching facility, season, scheme and mapped Miller. Missing/mismatched values return a specific error code/message.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"PROC-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"PACS-{{run_id}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 100,\n        \"unit\": \"QTL\"\n      },\n      \"moisture_percent\": 14,\n      \"receipt_no\": \"PURCHASE-{{run_id}}\",\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\"\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.request.body && pm.request.body.mode === 'raw') {",
-                  " const resolved = pm.variables.replaceIn(pm.request.body.raw);",
-                  " function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
-                  " const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);",
-                  " if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));",
-                  " let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }",
-                  " function convert(value) {",
-                  "  if (Array.isArray(value)) return value.map(convert);",
-                  "  if (value && typeof value === 'object') for (const key of Object.keys(value)) {",
-                  "   if (key === 'id' || key.endsWith('_id')) {",
-                  "    if (value[key] === null) continue;",
-                  "    const n = Number(value[key]);",
-                  "    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');",
-                  "    value[key] = n;",
-                  "   } else value[key] = convert(value[key]);",
-                  "  }",
-                  "  return value;",
-                  " }",
-                  " pm.request.body.update(JSON.stringify(convert(body), null, 2));",
-                  "}"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
-                  "const response=pm.response.json();",
-                  "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));",
-                  "if (response.ok && response.data?.records?.length) { pm.collectionVariables.set(\"procurement_id\", response.data.records[0].id); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Update existing procurement external_ref and quantity",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Idempotency-Key",
-                "value": "{{operation_key}}"
-              },
-              {
-                "key": "X-API-Key",
-                "value": "{{euparjan_api_key}}"
-              }
-            ],
-            "url": "{{base_url}}/integrations/euparjan/procurements/{{procurement_id}}",
-            "description": "Correct the existing procurement by its stable ID. external_ref and quantity are optional individually; reason is required. quantity is the new total purchase quantity, not an additional receipt. Stock changes only by the quantity difference. Existing dispatches/reservations must still be covered. Old references remain linked to this procurement so source retries do not add stock again. Use a new Idempotency-Key for a different correction; repeat the same key/body for retry. Run this request only when a correction is intended.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"external_ref\": \"PROC-{{run_id}}-UPDATED\",\n  \"quantity\": {\n    \"value\": 200,\n    \"unit\": \"QTL\"\n  },\n  \"reason\": \"Correct purchase reference and total quantity\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.request.body && pm.request.body.mode === 'raw') {",
-                  " const resolved = pm.variables.replaceIn(pm.request.body.raw);",
-                  " function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
-                  " const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);",
-                  " if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));",
-                  " let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }",
-                  " function convert(value) {",
-                  "  if (Array.isArray(value)) return value.map(convert);",
-                  "  if (value && typeof value === 'object') for (const key of Object.keys(value)) {",
-                  "   if (key === 'id' || key.endsWith('_id')) {",
-                  "    if (value[key] === null) continue;",
-                  "    const n = Number(value[key]);",
-                  "    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');",
-                  "    value[key] = n;",
-                  "   } else value[key] = convert(value[key]);",
-                  "  }",
-                  "  return value;",
-                  " }",
-                  " pm.request.body.update(JSON.stringify(convert(body), null, 2));",
-                  "}"
-                ]
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
-                  "const response = pm.response.json();",
-                  "pm.test('Successful correction', () => pm.expect(response.ok).to.eql(true));",
-                  "if (response.ok) { pm.collectionVariables.set('procurement_id', response.data.id); pm.collectionVariables.set('procurement_external_ref', response.data.external_ref); }"
-                ]
-              }
-            }
-          ]
-        },
         {
           "name": "26 Push miller CMR order for SFC",
           "request": {
