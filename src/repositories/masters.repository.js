@@ -2,46 +2,38 @@ import {masterColumns} from './master-columns.js';
 import { pool } from "../config/database.js";
 import { rows, one, insert } from "../repositories/database.js";
 export async function findActiveImei(connection, id) {
-  return one(connection, 'SELECT id FROM imeis WHERE id=? AND active=1 FOR UPDATE', [id]);
+  return one(connection, 'SELECT id,district_id FROM imeis WHERE id=? AND active=1 FOR UPDATE', [id]);
 }
 export async function findActiveImeiDevice(connection, id) {
   return one(connection, 'SELECT id FROM gps_devices WHERE imei_id=? AND active=1', [id], false);
 }
 export async function updateDeviceMappingState(connection, id, active, location) {
   const status = active ? 'MAPPED' : 'AVAILABLE';
-  await rows(connection, 'UPDATE imeis SET status_updated_at=IF(NOT(mapping_status <=> ?),UTC_TIMESTAMP(),status_updated_at),mapping_status=?,district_id=?,block_id=? WHERE id=?', [status, status, location.district_id, location.block_id, id]);
+  await rows(connection, 'UPDATE imeis SET status_updated_at=IF(NOT(mapping_status <=> ?),UTC_TIMESTAMP(),status_updated_at),mapping_status=?,district_id=? WHERE id=?', [status, status, location.district_id, id]);
   await rows(connection, 'UPDATE vehicles SET status_updated_at=IF(NOT(mapping_status <=> ?),UTC_TIMESTAMP(),status_updated_at),mapping_status=? WHERE id=?', [status, status, location.vehicle_id]);
 }
 export async function syncImeiLocation(connection, id, location) {
-  await rows(connection, 'UPDATE imeis SET district_id=?,block_id=? WHERE id=?', [location.district_id, location.block_id, id]);
-  await rows(connection, 'UPDATE gps_devices SET district_id=?,block_id=? WHERE imei_id=? AND active=1', [location.district_id, location.block_id, id]);
+  await rows(connection, 'UPDATE imeis SET district_id=? WHERE id=?', [location.district_id, id]);
+  await rows(connection, 'UPDATE gps_devices SET district_id=? WHERE imei_id=? AND active=1', [location.district_id, id]);
 }
 export async function ensureLocationFindTblDistrictMaster(connection, districtId) {
   return one(connection, 'SELECT id FROM tbl_district_master WHERE id=? AND status=1', [districtId]);
 }
-export async function ensureLocationFindTblBlockMaster(connection, blockId, districtId) {
-  return one(connection, 'SELECT id FROM tbl_block_master WHERE id=? AND district_id=?', [blockId, districtId]);
-}
-export async function createMasterFindFacilities(connection, data) {
-  return one(connection, "SELECT id FROM facilities WHERE id=? AND kind='MILLER' AND active=1", [data.miller_id]);
-}
-export async function createMasterFindTransporters(connection, data) {
-  return one(connection, 'SELECT id,miller_id,code,name,contact_name,phone,address,district_id,block_id,active,created_by,created_at,updated_by,updated_at FROM transporters WHERE id=? AND active=1', [data.transporter_id]);
-}
-export async function createMasterFindFacilities2(connection, data) {
-  return one(connection, "SELECT id FROM facilities WHERE id=? AND kind='MILLER' AND active=1", [data.miller_id]);
-}
+
+
+
+
 export async function createMasterFindVehicleTypes(connection, data) {
   return one(connection, 'SELECT id FROM vehicle_types WHERE id=? AND active=1', [data.vehicle_type_id]);
 }
 export async function createMasterFindVehicles(connection, data) {
-  return one(connection, 'SELECT v.id,v.transporter_id,v.vehicle_type_id,v.registration_no,v.capacity_g,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at,COALESCE(v.miller_id,t.miller_id) miller_id FROM vehicles v LEFT JOIN transporters t ON t.id=v.transporter_id WHERE v.id=? AND v.active=1 AND (v.transporter_id IS NULL OR t.active=1)', [data.vehicle_id]);
+  return one(connection, 'SELECT v.id,v.transporter_name,v.transporter_contact_no,v.district_id,v.vehicle_type_id,v.registration_no,v.capacity_g,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at FROM vehicles v WHERE v.id=? AND v.active=1', [data.vehicle_id]);
 }
 export async function createMasterFindFacilities3(connection, data) {
-  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.source_id]);
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.source_id]);
 }
 export async function createMasterFindFacilities4(connection, data) {
-  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.destination_id]);
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.destination_id]);
 }
 export async function createMasterFindSeasons(connection, data) {
   return one(connection, 'SELECT id FROM seasons WHERE id=? AND active=1', [data.season_id]);
@@ -56,17 +48,15 @@ export async function listRouteTagAssignmentOptionsListSeasons() {
   return rows(pool, 'SELECT id,code,name,start_date,end_date FROM seasons WHERE active=1 ORDER BY start_date DESC,id DESC');
 }
 export async function listRouteTagAssignmentOptionsListFacilities() {
-  return rows(pool, "SELECT f.id,f.code,f.name,f.kind,f.district_id,f.block_id,d.district_name,b.block_name FROM facilities f LEFT JOIN tbl_district_master d ON d.id=f.district_id LEFT JOIN tbl_block_master b ON b.id=f.block_id WHERE f.kind IN ('PACS','LAMPS') AND f.active=1 ORDER BY d.district_name,f.kind,f.name,f.id");
+  return rows(pool, "SELECT f.id,f.code,f.name,f.kind,f.district_id,d.district_name FROM facilities f LEFT JOIN tbl_district_master d ON d.id=f.district_id WHERE f.kind IN ('PACS','LAMPS') AND f.active=1 ORDER BY d.district_name,f.kind,f.name,f.id");
 }
 export async function listRouteTagAssignmentOptionsListFacilities2() {
-  return rows(pool, "SELECT f.id,f.code,f.name,f.district_id,f.block_id,d.district_name,b.block_name FROM facilities f LEFT JOIN tbl_district_master d ON d.id=f.district_id LEFT JOIN tbl_block_master b ON b.id=f.block_id WHERE f.kind='MILLER' AND f.active=1 ORDER BY d.district_name,f.name,f.id");
+  return rows(pool, "SELECT f.id,f.code,f.name,f.district_id,d.district_name FROM facilities f LEFT JOIN tbl_district_master d ON d.id=f.district_id WHERE f.kind='MILLER' AND f.active=1 ORDER BY d.district_name,f.name,f.id");
 }
 export async function listLocationOptionsListTblDistrictMaster() {
   return rows(pool, 'SELECT id,id_old,district_name FROM tbl_district_master WHERE status=1 ORDER BY district_name,id');
 }
-export async function listLocationOptionsListTblBlockMaster(districtId) {
-  return rows(pool, 'SELECT id,district_id,block_name,rgi_block_code FROM tbl_block_master WHERE district_id=? ORDER BY block_name,id', [districtId]);
-}
+
 export async function listMasterRecordsCountRecords(base, args) {
   return one(pool, `SELECT COUNT(x.id) AS total ${base}`, args);
 }
@@ -77,14 +67,14 @@ export async function listMasterRecordsCountX(table, sql, args) {
   return one(pool, `SELECT COUNT(x.id) AS total FROM ${table} x WHERE 1=1${sql}`, args);
 }
 export async function listMasterRecordsListX(table, sql, limit, offset, args) {
-  if (table === 'gps_devices') return rows(pool, `SELECT x.id,x.vehicle_id,x.imei_id,x.district_id,x.block_id,x.model,x.sim_no,x.active,x.created_by,x.created_at,x.updated_by,x.updated_at,x.last_gps_at,x.latitude,x.longitude,x.speed_kph,i.imei,i.provider FROM gps_devices x JOIN imeis i ON i.id=x.imei_id WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  if (table === 'gps_devices') return rows(pool, `SELECT x.id,x.vehicle_id,x.imei_id,x.district_id,x.model,x.sim_no,x.active,x.created_by,x.created_at,x.updated_by,x.updated_at,x.last_gps_at,x.latitude,x.longitude,x.speed_kph,i.imei,i.provider FROM gps_devices x JOIN imeis i ON i.id=x.imei_id WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
   return rows(pool, `SELECT ${masterColumns(table)} FROM ${table} x WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function getMasterRecordFindX(table, v, context) {
   return one(pool, `SELECT ${masterColumns(table)} FROM ${table} x WHERE x.id=?${v.sql}`, [context.params.id, ...v.args]);
 }
 export async function updateFacilityFindFacilities(connection, context) {
-  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? FOR UPDATE', [context.params.id]);
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? FOR UPDATE', [context.params.id]);
 }
 export async function updateFacilityFindStocks(connection, f) {
   return one(connection, 'SELECT COALESCE(SUM(on_hand_g),0) AS total FROM stocks WHERE facility_id=?', [f.id]);
@@ -127,8 +117,4 @@ export async function updateMasterProfileFindVehicleTypes(connection, data) {
 }
 export async function updateMasterProfileUpdateSET(connection, table, update, record) {
   return rows(connection, `UPDATE ${table} SET ${Object.keys(update).map(k => `${k}=?`).join(',')} WHERE id=?`, [...Object.values(update), record.id]);
-}
-
-export function requireCoreDMMiller(connection, millerId, districtIds) {
-  return one(connection, "SELECT id FROM facilities WHERE id=? AND kind='MILLER' AND active=1 AND district_id IN (" + districtIds.map(() => '?').join(',') + ') FOR UPDATE', [millerId, ...districtIds], true, { status: 403, code: 'DISTRICT_FORBIDDEN', message: 'Miller is outside your assigned districts or inactive' });
 }

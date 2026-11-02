@@ -1,7 +1,7 @@
-import {one} from './database.js';
+import {code,ensure} from '../utils/core.js';
 
 export async function requireStockMasters(connection,schemeCode,commodity) {
-  const scheme=await one(connection,'SELECT id FROM schemes WHERE code=? AND active=1',[schemeCode],true,{code:'SCHEME_NOT_FOUND',message:`scheme_code=${schemeCode}: not found or inactive.`});
-  const item=await one(connection,'SELECT id FROM commodities WHERE code=? AND active=1',[commodity],true,{code:'COMMODITY_NOT_FOUND',message:`commodity_code=${commodity}: not found or inactive.`});
-  return {scheme_id:scheme.id,commodity_id:item.id};
+  const scheme=code.parse(schemeCode);
+  ensure(['PADDY','RICE'].includes(commodity),'commodity_code must be PADDY or RICE','VALIDATION',400);
+  return {scheme_code:scheme,commodity_code:commodity};
 }

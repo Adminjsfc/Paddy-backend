@@ -1,21 +1,20 @@
 import { pool } from "../config/database.js";
 import { rows, one, insert } from "../repositories/database.js";
 export async function ownedShipmentFindShipments(connection, scope, lock, context) {
-  return one(connection, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.block_id,s.vehicle_id,s.order_id,s.quantity_g,s.accepted_g,s.shortage_g,s.recovery_percent,s.expected_rice_g,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.delivery_receipt,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.core_store_location_id,s.scheme_id,s.commodity_id,s.vehicle_type_id,s.driver_user_id,s.source_id,s.destination_id,sc.code scheme_code,co.code commodity_code,vt.name vehicle_type FROM shipment_details s
-    JOIN schemes sc ON sc.id=s.scheme_id JOIN commodities co ON co.id=s.commodity_id
+  return one(connection, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_g,s.accepted_g,s.shortage_g,s.recovery_percent,s.expected_rice_g,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.delivery_receipt,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,s.source_id,s.destination_id,vt.name vehicle_type FROM shipment_details s
     LEFT JOIN vehicle_types vt ON vt.id=s.vehicle_type_id WHERE s.id=?${scope.sql}${lock ? ' FOR UPDATE' : ''}`, [context.params.id, ...scope.params]);
 }
 export async function transportFindVehicles(connection, vehicleId) {
-  return one(connection, `SELECT v.id,v.transporter_id,v.vehicle_type_id,v.registration_no,v.capacity_g,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at,COALESCE(v.miller_id,t.miller_id) miller_id,COALESCE(t.active,1) transporter_active FROM vehicles v LEFT JOIN transporters t ON t.id=v.transporter_id WHERE v.id=? FOR UPDATE`, [vehicleId],true,{code:'VEHICLE_NOT_FOUND',message:`vehicle_id=${vehicleId} was not found. Select a registered vehicle.`});
+  return one(connection, `SELECT v.id,v.transporter_name,v.transporter_contact_no,v.district_id,v.vehicle_type_id,v.registration_no,v.capacity_g,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at FROM vehicles v WHERE v.id=? FOR UPDATE`, [vehicleId],true,{code:'VEHICLE_NOT_FOUND',message:`vehicle_id=${vehicleId} was not found. Select a registered vehicle.`});
 }
 export async function transportFindGpsDevices(connection, v) {
   return one(connection, 'SELECT id FROM gps_devices WHERE vehicle_id=? AND active=1', [v.id],true,{code:'GPS_DEVICE_NOT_FOUND',message:`vehicle_id=${v.id} has no active GPS device. Map an active GPS device before lifting.`});
 }
 export async function createShipmentFindFacilities(connection, data) {
-  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.source_id],true,{code:'SOURCE_NOT_FOUND',message:`source_id=${data.source_id} was not found or is inactive.`});
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.source_id],true,{code:'SOURCE_NOT_FOUND',message:`source_id=${data.source_id} was not found or is inactive.`});
 }
 export async function createShipmentFindFacilities2(connection, data) {
-  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.destination_id],true,{code:'DESTINATION_NOT_FOUND',message:`destination_id=${data.destination_id} was not found or is inactive.`});
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [data.destination_id],true,{code:'DESTINATION_NOT_FOUND',message:`destination_id=${data.destination_id} was not found or is inactive.`});
 }
 export async function createShipmentFindRouteTags(connection, data, source, dest) {
   return one(connection, 'SELECT id FROM route_tags WHERE season_id=? AND source_id=? AND destination_id=? AND active=1', [data.season_id, source.id, dest.id],true,{code:'PADDY_MAPPING_NOT_FOUND',message:`PACS/LAMPS source_id=${source.id} is not mapped to Miller destination_id=${dest.id} for season_id=${data.season_id}. Create or activate this mapping before lifting.`});
@@ -40,7 +39,6 @@ export async function createShipmentInsertShipments(connection, data, flowType, 
     miller_id: data.miller_id,
     route_id: routeId,
     district_id: source.district_id,
-    block_id: source.block_id,
     vehicle_id: v.id,
     order_id: data.order_id,
     driver_name: data.driver_name ?? null,
@@ -59,10 +57,10 @@ export async function createShipmentInsertShipments(connection, data, flowType, 
   });
 }
 export async function createShipmentListProcurement(connection, source, data) {
-  return rows(connection, "SELECT p.id,p.available_g,p.reserved_g FROM procurement p JOIN schemes sc ON sc.id=p.scheme_id JOIN commodities co ON co.id=p.commodity_id WHERE p.facility_id=? AND p.season_id=? AND sc.code=? AND co.code='PADDY' AND p.available_g>p.reserved_g ORDER BY p.procured_at,p.id FOR UPDATE", [source.id, data.season_id, data.scheme_code]);
+  return rows(connection, "SELECT p.id,p.available_g,p.reserved_g FROM procurement p WHERE p.facility_id=? AND p.season_id=? AND p.scheme_code=? AND p.commodity_code='PADDY' AND p.available_g>p.reserved_g ORDER BY p.procured_at,p.id FOR UPDATE", [source.id, data.season_id, data.scheme_code]);
 }
 export async function createShipmentFindProcurement(connection, l) {
-  return one(connection, 'SELECT p.id,p.external_ref,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.moisture_percent,p.receipt_no,p.created_at,p.scheme_id,p.commodity_id,sc.code scheme_code,co.code commodity FROM procurement p JOIN schemes sc ON sc.id=p.scheme_id JOIN commodities co ON co.id=p.commodity_id WHERE p.id=? FOR UPDATE', [l.procurement_id],true,{code:'PROCUREMENT_LOT_NOT_FOUND',message:`procurement_id=${l.procurement_id} was not found. Select a synced procurement lot.`});
+  return one(connection, 'SELECT p.id,p.external_ref,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.moisture_percent,p.receipt_no,p.created_at,p.scheme_code,p.commodity_code,p.commodity_code commodity FROM procurement p WHERE p.id=? FOR UPDATE', [l.procurement_id],true,{code:'PROCUREMENT_LOT_NOT_FOUND',message:`procurement_id=${l.procurement_id} was not found. Select a synced procurement lot.`});
 }
 export async function createShipmentUpdateProcurement(connection, l, p) {
   return rows(connection, 'UPDATE procurement SET reserved_g=reserved_g+? WHERE id=?', [l.quantity_g, p.id]);
@@ -116,14 +114,13 @@ export async function cancelShipmentUpdateShipments(connection, s) {
   return rows(connection, "UPDATE shipments SET status='CANCELLED' WHERE id=?", [s.id]);
 }
 export async function listShipmentsCountShipments(sql, args) {
-  return one(pool, `SELECT COUNT(s.id) total FROM shipment_details s JOIN schemes sc ON sc.id=s.scheme_id WHERE 1=1${sql}`, args);
+  return one(pool, `SELECT COUNT(s.id) total FROM shipment_details s WHERE 1=1${sql}`, args);
 }
 export async function listShipmentsListShipmentEvents(sql, limit, offset, args) {
-  return rows(pool, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.block_id,s.vehicle_id,s.order_id,s.quantity_g,s.accepted_g,s.shortage_g,s.recovery_percent,s.expected_rice_g,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.delivery_receipt,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.core_store_location_id,s.scheme_id,s.commodity_id,s.vehicle_type_id,s.driver_user_id,s.source_id,s.destination_id,sc.code scheme_code,co.code commodity_code,vt.name vehicle_type,v.registration_no,f.name source_name,t.name destination_name,
+  return rows(pool, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_g,s.accepted_g,s.shortage_g,s.recovery_percent,s.expected_rice_g,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.delivery_receipt,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,s.source_id,s.destination_id,vt.name vehicle_type,v.registration_no,f.name source_name,t.name destination_name,
     dd.district_name destination_district_name,COALESCE(r.decision,s.status) display_status,
     COALESCE(r.received_at,(SELECT MAX(e.occurred_at) FROM shipment_events e WHERE e.shipment_id=s.id AND e.event_type=s.status),s.created_at) status_at
-    FROM shipment_details s JOIN vehicles v ON v.id=s.vehicle_id JOIN facilities f ON f.id=s.source_id JOIN facilities t ON t.id=s.destination_id
-    JOIN schemes sc ON sc.id=s.scheme_id JOIN commodities co ON co.id=s.commodity_id LEFT JOIN vehicle_types vt ON vt.id=s.vehicle_type_id
+    FROM shipment_details s JOIN vehicles v ON v.id=s.vehicle_id JOIN facilities f ON f.id=s.source_id JOIN facilities t ON t.id=s.destination_id LEFT JOIN vehicle_types vt ON vt.id=s.vehicle_type_id
     LEFT JOIN tbl_district_master dd ON dd.id=t.district_id LEFT JOIN cmr_receipts r ON r.shipment_id=s.id
     WHERE 1=1${sql} ORDER BY s.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }

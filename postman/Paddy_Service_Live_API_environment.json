@@ -1,0 +1,124 @@
+{
+  "name": "Paddy Service - Live API",
+  "values": [
+    {
+      "key": "paddy_api_url",
+      "value": "http://103.97.109.117/paddyapi",
+      "type": "default",
+      "enabled": true,
+      "description": "Live API prefix. Requests append endpoints such as /auth/login."
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@example.org",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "admin_password",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "euparjan_api_key",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "gps_api_key",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "demo_password",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "district_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "block_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "core_dm_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "core_receiver_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "new_password",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "store_location_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "retry_key",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "current_password",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "expected_completion_at",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Expected arrival/completion ISO datetime with timezone, e.g. 2026-10-22T18:30:00+05:30. Blank means unknown on create and keeps the existing estimate on dispatch. The literal null clears an estimate on dispatch."
+    },
+    {
+      "key": "trip_status",
+      "value": "0",
+      "type": "default",
+      "enabled": true,
+      "description": "Trip filter: 0 not started, 1 started, 2 completed at destination."
+    },
+    {
+      "key": "login_email",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "login_phone",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "login_password",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment",
+  "id": "a02e6710-2097-4140-85e5-f0b4299007f8"
+}

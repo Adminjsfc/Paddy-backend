@@ -1,9 +1,8 @@
 import * as repository from "../repositories/masters.repository.js";
-import { ensure, grams, millerAccess, vehicleAccess, pageParams } from "../utils/core.js";
+import { ensure, grams, millerAccess, vehicleAccess, scopedWhere, pageParams } from "../utils/core.js";
 import { readSelectedStore } from "./store-locations.service.js";
-export async function ensureLocation(connection, districtId, blockId) {
+export async function ensureLocation(connection, districtId) {
   await repository.ensureLocationFindTblDistrictMaster(connection, districtId);
-  await repository.ensureLocationFindTblBlockMaster(connection, blockId, districtId);
 }
 export async function createMaster(connection, type, d, user) {
   let table = type.replaceAll('-', '_'),
@@ -12,48 +11,36 @@ export async function createMaster(connection, type, d, user) {
     };
   if (type === 'imeis') {
     if (user.role === 'CORE_DM') ensure(user.district_ids.includes(Number(d.district_id)), 'District is outside your DM assignment', 'DISTRICT_FORBIDDEN', 403);
-    await ensureLocation(connection, d.district_id, d.block_id);
+    await ensureLocation(connection, d.district_id);
     data.mapping_status = null;
     data.status_updated_at = null;
   }
   if (type === 'facilities') {
     data.created_by_core_user_id = user.core_user_id ?? null;
     data.created_by_user_type = user.core_user_type ?? null;
-    await ensureLocation(connection, d.district_id, d.block_id);
+    await ensureLocation(connection, d.district_id);
     data.capacity_g = grams(d.capacity);
     delete data.capacity;
     data.milling_capacity_g_per_day = d.milling_capacity_per_day ? grams(d.milling_capacity_per_day) : null;
     delete data.milling_capacity_per_day;
   }
-  if (type === 'farmers' || type === 'transporters') await ensureLocation(connection, d.district_id, d.block_id);
-  if (type === 'transporters') {
-    millerAccess(user, d.miller_id);
-    await repository.createMasterFindFacilities(connection, d);
-  }
+  if (type === 'farmers') await ensureLocation(connection, d.district_id);
+
   if (type === 'vehicles') {
-    if (user.role === 'CORE_DM') {
-      ensure(!d.transporter_id, 'Use direct Miller registration', 'VALIDATION', 400);
-      await repository.requireCoreDMMiller(connection, d.miller_id, user.district_ids);
-    }
+    await ensureLocation(connection, d.district_id);
+    if (user.role === 'CORE_DM') ensure(user.district_ids?.includes(Number(d.district_id)), 'District is outside your DM assignment', 'DISTRICT_FORBIDDEN', 403);
     data.mapping_status = null;
     data.status_updated_at = null;
-    if (d.transporter_id) {
-      const t = await repository.createMasterFindTransporters(connection, d);
-      ensure(!d.miller_id || d.miller_id === t.miller_id, 'Transporter and miller do not match', 'VALIDATION', 400);
-      data.miller_id = t.miller_id;
-    } else data.transporter_id = null;
-    await repository.createMasterFindFacilities2(connection, data);
-    vehicleAccess(user.role === 'CORE_DM' ? { ...user, role: 'OPERATOR' } : user, {
-      transporter_id: data.transporter_id,
-      miller_id: data.miller_id
-    });
     data.capacity_g = grams(d.capacity);
     delete data.capacity;
     await repository.createMasterFindVehicleTypes(connection, d);
   }
   if (type === 'gps-devices') {
-    await ensureLocation(connection, d.district_id, d.block_id);
-    await repository.findActiveImei(connection, d.imei_id);
+    await ensureLocation(connection, d.district_id);
+    const imei=await repository.findActiveImei(connection, d.imei_id);
+    if(user.role==='CORE_DM') {
+      ensure(user.district_ids?.includes(Number(d.district_id))&&user.district_ids.includes(Number(imei.district_id)), 'District is outside your DM assignment','DISTRICT_FORBIDDEN',403);
+    }
     const v = await repository.createMasterFindVehicles(connection, d);
     vehicleAccess(user, v);
   }
@@ -85,16 +72,12 @@ export async function createMaster(connection, type, d, user) {
     ...data
   };
 }
-export function visibility(type, u) {
-  if (type === 'vehicles' && u.role === 'CORE_DM') {
-    ensure(u.district_ids?.length, 'DM has no assigned districts', 'DISTRICT_SCOPE_REQUIRED', 403);
-    return { sql: " AND x.miller_id IN (SELECT id FROM facilities WHERE kind='MILLER' AND active=1 AND district_id IN (" + u.district_ids.map(() => '?').join(',') + '))', args: u.district_ids };
-  }
-  if (type === 'imeis' && u.role === 'CORE_DM') {
+export function visibility(type, u, write=false) {
+  if (['imeis','vehicles','gps-devices'].includes(type) && u.role === 'CORE_DM') {
     ensure(u.district_ids?.length, 'DM has no assigned districts', 'DISTRICT_SCOPE_REQUIRED', 403);
     return { sql: ' AND x.district_id IN (' + u.district_ids.map(() => '?').join(',') + ')', args: u.district_ids };
   }
-  if (['ADMIN', 'OPERATOR'].includes(u.role) || ['seasons', 'schemes', 'commodities'].includes(type)) return {
+  if (['ADMIN', 'OPERATOR'].includes(u.role) || ['seasons'].includes(type)) return {
     sql: '',
     args: []
   };
@@ -115,29 +98,17 @@ export function visibility(type, u) {
     sql: ' AND (x.source_id=? OR x.destination_id=?)',
     args: [u.miller_id, u.miller_id]
   };
-  if (type === 'transporters') return u.role === 'MILLER' ? {
-    sql: ' AND x.miller_id=?',
-    args: [u.miller_id]
-  } : {
-    sql: ' AND x.id=?',
-    args: [u.transporter_id]
-  };
-  const clause = u.role === 'MILLER' ? 't.miller_id=?' : 't.id=?',
-    arg = u.role === 'MILLER' ? u.miller_id : u.transporter_id;
-  if (type === 'vehicles') return u.role === 'MILLER' ? {
-    sql: ' AND x.miller_id=?',
-    args: [u.miller_id]
-  } : {
-    sql: ` AND x.transporter_id IN (SELECT t.id FROM transporters t WHERE ${clause})`,
-    args: [arg]
-  };
-  return u.role === 'MILLER' ? {
-    sql: ' AND x.vehicle_id IN (SELECT id FROM vehicles WHERE miller_id=?)',
-    args: [u.miller_id]
-  } : {
-    sql: ` AND x.vehicle_id IN (SELECT v.id FROM vehicles v JOIN transporters t ON t.id=v.transporter_id WHERE ${clause})`,
-    args: [arg]
-  };
+  if (type === 'vehicles') {
+    ensure(['MILLER','TRANSPORTER','PACS','LAMPS'].includes(u.role), 'Vehicle access denied', 'FORBIDDEN',403);
+    return write ? {sql:' AND x.created_by=?',args:[u.id]} : {sql:'',args:[]};
+  }
+  if (type === 'gps-devices') {
+    if (write) return {sql:' AND x.created_by=?',args:[u.id]};
+    const scope = scopedWhere(u);
+    return {sql:' AND (x.created_by=? OR x.vehicle_id IN (SELECT v.id FROM vehicles v WHERE v.created_by=?) OR x.vehicle_id IN (SELECT s.vehicle_id FROM shipment_details s WHERE 1=1'+scope.sql+'))',args:[u.id,u.id,...scope.params]};
+  }
+  ensure(false,'Master access denied','FORBIDDEN',403);
+
 }
 export async function listRouteTagAssignmentOptions(context) {
   const effects = {
@@ -163,13 +134,11 @@ export async function listLocationOptions(context) {
   };
   const districts = await repository.listLocationOptionsListTblDistrictMaster();
   const districtId = context.query.district_id ? Number(context.query.district_id) : null;
-  const blocks = districtId ? await repository.listLocationOptionsListTblBlockMaster(districtId) : [];
   return {
     body: {
       ok: true,
       data: {
         districts,
-        blocks
       }
     },
     status: 200,
@@ -223,7 +192,7 @@ export async function listMasterRecords(context, type, table) {
   }
   if (context.query.code) {
     sql += ' AND x.code=?';
-    ensure(['seasons', 'facilities', 'farmers', 'transporters', 'vehicle-types', 'schemes', 'commodities'].includes(type), 'code filter unsupported', 'VALIDATION', 400);
+    ensure(['seasons', 'facilities', 'farmers', 'vehicle-types'].includes(type), 'code filter unsupported', 'VALIDATION', 400);
     args.push(String(context.query.code));
   }
   if (type === 'imeis' && context.query.imei) {
@@ -231,7 +200,7 @@ export async function listMasterRecords(context, type, table) {
     args.push(String(context.query.imei));
   }
   if (type === 'gps-devices') {
-    for (const field of ['imei_id', 'vehicle_id', 'district_id', 'block_id']) {
+    for (const field of ['imei_id', 'vehicle_id', 'district_id']) {
       if (context.query[field] !== undefined) {
         const value = Number(context.query[field]);
         ensure(Number.isSafeInteger(value) && value > 0, `${field} must be a positive ID`, 'VALIDATION', 400);
@@ -298,7 +267,7 @@ export async function updateFacility(connection, data, context) {
     update.milling_capacity_g_per_day = data.milling_capacity_per_day ? grams(data.milling_capacity_per_day) : null;
     delete update.milling_capacity_per_day;
   }
-  if ('district_id' in data || 'block_id' in data) await ensureLocation(connection, update.district_id ?? f.district_id, update.block_id ?? f.block_id);
+  if ('district_id' in data) await ensureLocation(connection, update.district_id ?? f.district_id);
   const coreStoreId = update.core_store_id === undefined ? f.core_store_id : update.core_store_id;
   if (coreStoreId != null) {
     ensure(['FCI', 'SFC_GODOWN'].includes(f.kind), 'Only receiving stores can link to a core store', 'INVALID_STORE', 400);
@@ -336,7 +305,7 @@ export async function setFacilityOrSeasonStatus(connection, data, context, type)
   };
 }
 export async function setMasterStatus(connection, data, context, type) {
-  const v = visibility(type, context.user),
+  const v = visibility(type, context.user, true),
     table = type.replaceAll('-', '_');
   const r = await repository.setMasterStatusFindX(connection, table, v, context);
   if (type === 'gps-devices' && data.active) await repository.findActiveImei(connection, r.imei_id);
@@ -344,8 +313,8 @@ export async function setMasterStatus(connection, data, context, type) {
     const linked = await repository.findActiveImeiDevice(connection, r.id);
     ensure(!linked, 'Deactivate the linked GPS device before deleting this IMEI', 'IMEI_IN_USE', 409);
   }
-  if (!data.active && ['vehicles', 'gps-devices', 'transporters'].includes(type)) {
-    const filter = type === 'transporters' ? 'vehicle_id IN (SELECT id FROM vehicles WHERE transporter_id=?)' : 'vehicle_id=?';
+  if (!data.active && ['vehicles', 'gps-devices'].includes(type)) {
+    const filter = 'vehicle_id=?';
     const active = await repository.setMasterStatusCountShipments(connection, filter, type, r);
     ensure(active.n === 0, 'Finish or cancel active shipments before deactivating this transport record');
   }
@@ -371,10 +340,10 @@ export function importMasterRecord(connection, data, context, type) {
   return createMaster(connection, type, data, context.user);
 }
 export async function updateMasterProfile(connection, data, context, schema, type) {
-  const v = visibility(type, context.user),
+  const v = visibility(type, context.user, true),
     table = type.replaceAll('-', '_');
   const record = await repository.updateMasterProfileFindX(connection, table, v, context);
-  if (type === 'imeis' && context.user.role === 'CORE_DM' && data.district_id !== undefined) ensure(context.user.district_ids.includes(Number(data.district_id)), 'District is outside your DM assignment', 'DISTRICT_FORBIDDEN', 403);
+  if (['imeis','vehicles','gps-devices'].includes(type) && context.user.role === 'CORE_DM' && data.district_id !== undefined) ensure(context.user.district_ids.includes(Number(data.district_id)), 'District is outside your DM assignment', 'DISTRICT_FORBIDDEN', 403);
   const update = {
     ...data
   };
@@ -385,14 +354,13 @@ export async function updateMasterProfile(connection, data, context, schema, typ
     ensure(!s.max_load || update.capacity_g >= s.max_load, 'Capacity is below active shipment load');
   }
   if (type === 'vehicles' && data.vehicle_type_id) await repository.updateMasterProfileFindVehicleTypes(connection, data);
-  if ('district_id' in data || 'block_id' in data) await ensureLocation(connection, update.district_id ?? record.district_id, update.block_id ?? record.block_id);
+  if ('district_id' in data) await ensureLocation(connection, update.district_id ?? record.district_id);
   update.updated_by = context.user.id ?? null;
   update.updated_at = new Date();
   await repository.updateMasterProfileUpdateSET(connection, table, update, record);
-  if (['imeis', 'gps-devices'].includes(type) && ('district_id' in data || 'block_id' in data)) {
+  if (['imeis', 'gps-devices'].includes(type) && ('district_id' in data)) {
     await repository.syncImeiLocation(connection, type === 'imeis' ? record.id : record.imei_id, {
       district_id: update.district_id ?? record.district_id,
-      block_id: update.block_id ?? record.block_id
     });
   }
   return {

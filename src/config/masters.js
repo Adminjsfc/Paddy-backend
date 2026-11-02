@@ -2,8 +2,6 @@ import { id, name, phone, quantity } from "../utils/core.js";
 import { z } from 'zod';
 import * as S from "../validators/schemas.js";
 export const configs = {
-  schemes: { schema: S.schemeMaster, roles: ['ADMIN', 'OPERATOR'] },
-  commodities: { schema: S.commodityMaster, roles: ['ADMIN', 'OPERATOR'] },
   imeis: {
     schema: S.imeiMaster,
     roles: ['ADMIN', 'OPERATOR']
@@ -20,13 +18,9 @@ export const configs = {
     schema: S.farmer,
     roles: ['ADMIN', 'OPERATOR']
   },
-  transporters: {
-    schema: S.transporter,
-    roles: ['ADMIN', 'OPERATOR', 'MILLER']
-  },
   vehicles: {
     schema: S.vehicle,
-    roles: ['ADMIN', 'OPERATOR', 'MILLER', 'TRANSPORTER']
+    roles: ['ADMIN', 'OPERATOR', 'MILLER', 'TRANSPORTER', 'PACS', 'LAMPS']
   },
   'vehicle-types': {
     schema: S.vehicleType,
@@ -34,7 +28,7 @@ export const configs = {
   },
   'gps-devices': {
     schema: S.device,
-    roles: ['ADMIN', 'OPERATOR', 'MILLER', 'TRANSPORTER']
+    roles: ['ADMIN', 'OPERATOR', 'MILLER', 'TRANSPORTER', 'PACS', 'LAMPS']
   },
   'route-tags': {
     schema: S.tag,
@@ -42,8 +36,6 @@ export const configs = {
   }
 };
 export const profilePatches = {
-  schemes: S.schemeMaster.omit({ code: true }).partial(),
-  commodities: S.commodityMaster.omit({ code: true }).partial(),
   imeis: S.imeiMaster.partial(),
   'vehicle-types': S.vehicleType.partial(),
   farmers: z.object({
@@ -51,23 +43,16 @@ export const profilePatches = {
     phone: phone.nullable().optional(),
     village: name.optional(),
     district_id: id.optional(),
-    block_id: id.optional()
-  }).strict(),
-  transporters: z.object({
-    name: name.optional(),
-    contact_name: name.optional(),
-    phone: phone.optional(),
-    address: z.string().min(1).max(500).optional(),
-    district_id: id.optional(),
-    block_id: id.optional()
   }).strict(),
   vehicles: z.object({
+    transporter_name: name.optional(),
+    transporter_contact_no: phone.optional(),
+    district_id: id.optional(),
     capacity: quantity.optional(),
     vehicle_type_id: id.optional()
   }).strict(),
   'gps-devices': z.object({
     district_id: id.optional(),
-    block_id: id.optional(),
     model: z.string().max(100).nullable().optional(),
     sim_no: z.string().regex(/^\+?\d{10,22}$/).nullable().optional()
   }).strict()

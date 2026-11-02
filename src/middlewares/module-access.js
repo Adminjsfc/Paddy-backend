@@ -8,7 +8,7 @@ export function moduleForRequest(context) {
   if (path === '/reports/stocks') return 'stocks';
   if (path === '/reports/ledger' || path === '/reports/lifting-summary') return 'ledger';
   if (/^\/reports\/millers\/\d+\/reconciliation$/.test(path)) return 'reconciliation';
-  return ['transporters', 'vehicles', 'gps-devices'].find(key => path === `/${key}` || new RegExp(`^/${key}/\\d+(?:/status)?$`).test(path));
+  return ['vehicles', 'gps-devices'].find(key => path === `/${key}` || new RegExp(`^/${key}/\\d+(?:/status)?$`).test(path));
 }
 export function allowedModule(permission, method) {
   const action = ['GET', 'HEAD'].includes(method) ? 'can_view' : method === 'POST' ? 'can_add' : 'can_edit';

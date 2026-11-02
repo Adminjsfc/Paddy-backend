@@ -29,10 +29,9 @@ function requireSameProcurement(existing,data,digest) {
     :`external_ref=${data.external_ref}: already imported with different data.`;
   ensure(existing.payload_hash===digest||matchesCurrent,difference,'EXTERNAL_REF_CONFLICT');
 }
-async function bindProcurementReference(connection,externalRef,procurementId) {
-  await repository.reserveProcurementReference(connection,externalRef,procurementId);
+async function ensureProcurementReferenceAvailable(connection,externalRef,procurementId) {
   const owner=await repository.procurementReferenceOwner(connection,externalRef);
-  ensure(Number(owner.procurement_id)===Number(procurementId),`external_ref=${externalRef}: already belongs to another procurement.`,'EXTERNAL_REF_CONFLICT');
+  ensure(!owner||Number(owner.procurement_id)===Number(procurementId),`external_ref=${externalRef}: already belongs to another procurement.`,'EXTERNAL_REF_CONFLICT');
 }
 export async function pushProcurement(connection, data, context = {}) {
   const digest = hash(data),
@@ -59,7 +58,6 @@ export async function pushProcurement(connection, data, context = {}) {
   }
   const amount = grams(data.quantity);
   const id = await repository.pushProcurementInsertProcurement(connection, data, digest, season, farmer, f, amount, masters);
-  await bindProcurementReference(connection,data.external_ref,id);
   await stock(connection, f.id, season.id, 'PADDY', amount, 0, 'PROCUREMENT', id, data.scheme_code, context.user);
   return {
     id,
@@ -81,7 +79,7 @@ export async function updateProcurement(connection,data,context) {
   const minimum=used+Number(current.reserved_g);
   ensure(amount>=minimum,`quantity must be at least ${minimum/100000} QTL (${used/100000} QTL dispatched + ${Number(current.reserved_g)/100000} QTL reserved).`,'PROCUREMENT_QUANTITY_IN_USE');
   if(delta===0&&externalRef===current.external_ref)return {id:procurementId,external_ref:externalRef,quantity_g:amount,available_g:current.available_g,reserved_g:current.reserved_g,updated:false};
-  await bindProcurementReference(connection,externalRef,procurementId);
+  await ensureProcurementReferenceAvailable(connection,externalRef,procurementId);
   const correctionId=await repository.insertProcurementCorrection(connection,{
     procurement_id:procurementId,old_external_ref:current.external_ref,new_external_ref:externalRef,
     old_quantity_g:current.quantity_g,new_quantity_g:amount,reason:data.reason,
@@ -150,12 +148,25 @@ export async function listProcurements(context) {
   } = pageParams(context.query);
   let filter = '';
   const args = [];
-  for (const field of ['season_id', 'facility_id', 'farmer_id', 'scheme_id', 'commodity_id']) if (context.query[field]) {
+  const sourceAccount=['PACS','LAMPS'].includes(context.user.role);
+  if(sourceAccount) {
+    ensure(context.user.facility_id,'PACS/LAMPS facility is required','FORBIDDEN',403);
+    const facilityId=id.parse(Number(context.user.facility_id));
+    ensure(context.query.facility_id===undefined||Number(context.query.facility_id)===facilityId,'Cannot view another facility procurement','FORBIDDEN',403);
+    filter+=" AND p.facility_id=? AND p.commodity_code='PADDY'";
+    args.push(facilityId);
+  }
+  for (const field of ['season_id', 'facility_id', 'farmer_id', 'commodity_code']) if (context.query[field]) {
+    if(sourceAccount&&field==='facility_id')continue;
     filter += ` AND p.${field}=?`;
     args.push(String(context.query[field]));
   }
-  if(context.query.external_ref){filter+=' AND EXISTS (SELECT 1 FROM procurement_references pr WHERE pr.procurement_id=p.id AND pr.external_ref=?)';args.push(String(context.query.external_ref));}
-  for(const [field,column] of [['scheme_code','sc.code'],['commodity','co.code']])if(context.query[field]){
+  if(context.query.external_ref){
+    filter+=' AND (p.external_ref=? OR EXISTS (SELECT 1 FROM procurement_corrections correction WHERE correction.procurement_id=p.id AND (correction.old_external_ref=? OR correction.new_external_ref=?)))';
+    const reference=String(context.query.external_ref);
+    args.push(reference,reference,reference);
+  }
+  for(const [field,column] of [['scheme_code','p.scheme_code'],['commodity','p.commodity_code']])if(context.query[field]){
     filter+=` AND ${column}=?`;
     args.push(String(context.query[field]));
   }

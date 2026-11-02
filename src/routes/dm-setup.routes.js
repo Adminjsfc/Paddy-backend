@@ -8,4 +8,4 @@ dmSetupRoutes.get('/options', controller.getSetupOptions);
 dmSetupRoutes.post('/assignments', controller.assignReceivingStore);
 dmSetupRoutes.post('/orders', controller.createCmrOrder);
 dmSetupRoutes.post('/test-rice', controller.addTestRice);
-dmSetupRoutes.post('/vehicles', controller.registerMillerVehicle);
+dmSetupRoutes.post('/vehicles', controller.registerVehicleWithGps);

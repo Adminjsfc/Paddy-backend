@@ -137,21 +137,15 @@ export async function changePassword(context) {
   };
 }
 export async function createUser(connection, data, context) {
-  if (data.role === 'MILLER' || data.role === 'TRANSPORTER') {
-    ensure(data.miller_id, 'miller_id is required', 'VALIDATION', 400);
-    const m = await repository.createUserFindFacilities(connection, data);
-    if (data.role === 'TRANSPORTER') {
-      ensure(data.transporter_id, 'transporter_id is required', 'VALIDATION', 400);
-      await repository.createUserFindTransporters(connection, data, m);
-    } else {
-      ensure(!data.transporter_id, 'MILLER users cannot have transporter_id', 'VALIDATION', 400);
-      data.facility_id = data.miller_id;
-    }
-  } else if (data.role === 'PACS' || data.role === 'LAMPS') {
-    ensure(data.facility_id, 'facility_id is required', 'VALIDATION', 400);
-    ensure(!data.miller_id && !data.transporter_id, 'PACS/LAMPS users cannot have Miller or transporter scope', 'VALIDATION', 400);
-    await repository.createUserFindFacilities2(connection, data);
-  } else ensure(!data.miller_id && !data.transporter_id && !data.facility_id, 'ADMIN/OPERATOR users cannot have entity scopes', 'VALIDATION', 400);
+  if (data.role === 'MILLER') {
+    ensure(data.miller_id, 'miller_id is required', 'VALIDATION',400);
+    await repository.createUserFindFacilities(connection,data);
+    data.facility_id=data.miller_id;
+  } else if (['PACS','LAMPS'].includes(data.role)) {
+    ensure(data.facility_id,'facility_id is required','VALIDATION',400);
+    ensure(!data.miller_id,'PACS/LAMPS users cannot have Miller scope','VALIDATION',400);
+    await repository.createUserFindFacilities2(connection,data);
+  } else ensure(!data.miller_id&&!data.facility_id,'This role cannot have facility scope','VALIDATION',400);
   const {
     password,
     ...safe

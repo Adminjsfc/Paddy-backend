@@ -9,7 +9,6 @@ function database({ selected = store, existing = null } = {}) {
     if (sql.includes('FROM tbl_store_location_master')) return [[selected]];
     if (sql.includes('FROM facilities')) return [existing ? [existing] : []];
     if (sql.includes('FROM tbl_district_master')) return [[{ id: 364, district_name: 'Test district' }]];
-    if (sql.includes('FROM tbl_block_master')) return [[]];
     if (sql.startsWith('INSERT INTO facilities')) { writes.push(args); return [{ insertId: 900 }]; }
     throw Error('Unexpected SQL: ' + sql);
   } };

@@ -13,11 +13,11 @@ for (const [type, config] of Object.entries(configs)) {
 }
 masters.patch('/facilities/:id', roles('ADMIN', 'OPERATOR'), controller.updateFacility);
 masters.patch('/seasons/:id', roles('ADMIN', 'OPERATOR'), controller.updateSeason);
-for (const type of ['facilities', 'seasons', 'schemes', 'commodities']) {
+for (const type of ['facilities', 'seasons']) {
   masters.patch(`/${type}/:id/status`, roles('ADMIN', 'OPERATOR'), controller.setFacilityOrSeasonStatus(type));
 }
-for (const type of ['farmers', 'transporters', 'vehicles', 'gps-devices', 'route-tags', 'vehicle-types', 'imeis']) {
-  masters.patch(`/${type}/:id/status`, roles(...(['route-tags', 'farmers', 'vehicle-types', 'imeis'].includes(type) ? ['ADMIN', 'OPERATOR'] : ['ADMIN', 'OPERATOR', 'MILLER'])), controller.setMasterStatus(type));
+for (const type of ['farmers', 'vehicles', 'gps-devices', 'route-tags', 'vehicle-types', 'imeis']) {
+  masters.patch(`/${type}/:id/status`, roles(...(['route-tags', 'farmers', 'vehicle-types', 'imeis'].includes(type) ? ['ADMIN', 'OPERATOR'] : configs[type].roles)), controller.setMasterStatus(type));
 }
 export const masterPush = Router();
 for (const type of ['farmers', 'facilities', 'route-tags']) {

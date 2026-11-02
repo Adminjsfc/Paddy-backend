@@ -4,8 +4,8 @@ import { hash } from "../utils/core.js";
 export async function loginFindUsers(data) {
   const identifier = data.phone ?? data.email;
   return identifier.includes('@')
-    ? one(pool, 'SELECT id,name,email,password_hash,role,miller_id,transporter_id,facility_id,active,created_at,created_by,updated_by,updated_at,phone FROM users WHERE email=?', [identifier], false)
-    : one(pool, "SELECT id,name,email,password_hash,role,miller_id,transporter_id,facility_id,active,created_at,created_by,updated_by,updated_at,phone FROM users WHERE phone=? AND role='DRIVER'", [identifier], false);
+    ? one(pool, 'SELECT id,name,email,password_hash,role,miller_id,facility_id,active,created_at,created_by,updated_by,updated_at,phone FROM users WHERE email=?', [identifier], false)
+    : one(pool, "SELECT id,name,email,password_hash,role,miller_id,facility_id,active,created_at,created_by,updated_by,updated_at,phone FROM users WHERE phone=? AND role='DRIVER'", [identifier], false);
 }
 export async function loginInsertSessions(raw, u, expires, refresh, refreshExpires) {
   return insert(pool, 'sessions', {
@@ -38,9 +38,7 @@ export async function queryDeleteSessions(connection, context) {
 export async function createUserFindFacilities(connection, data) {
   return one(connection, "SELECT id FROM facilities WHERE id=? AND kind='MILLER' AND active=1", [data.miller_id]);
 }
-export async function createUserFindTransporters(connection, data, m) {
-  return one(connection, 'SELECT id FROM transporters WHERE id=? AND miller_id=? AND active=1', [data.transporter_id, m.id]);
-}
+
 export async function createUserFindFacilities2(connection, data) {
   return one(connection, 'SELECT id FROM facilities WHERE id=? AND kind=? AND active=1', [data.facility_id, data.role]);
 }
@@ -52,7 +50,7 @@ export async function createUserInsertUsers(connection, safe, encodedPassword, c
   });
 }
 export async function listUsersListUsers(active) {
-  return rows(pool, `SELECT u.id,u.name,u.email,u.role,u.miller_id,u.transporter_id,u.facility_id,u.active,u.created_at,u.updated_at,
+  return rows(pool, `SELECT u.id,u.name,u.email,u.role,u.miller_id,u.facility_id,u.active,u.created_at,u.updated_at,
     creator.name created_by_name,creator.email created_by_email,updater.name updated_by_name,updater.email updated_by_email
     FROM users u LEFT JOIN users creator ON creator.id=u.created_by LEFT JOIN users updater ON updater.id=u.updated_by WHERE u.active=? ORDER BY u.id LIMIT 200`, [active]);
 }

@@ -106,13 +106,8 @@ export async function resolveDMDepot(connection, data, context, legacyField) {
     ensure(existing.active && Number(existing.district_id) === Number(store.district_id) && existing.kind === (Number(store.store_type) === 1 ? 'FCI' : 'SFC_GODOWN'), 'Store facility link is inactive or inconsistent', 'INVALID_STORE', 400);
     return existing;
   }
-  const { districts, blocks: blockRows } = await repository.depotLocationMasters(connection);
-  const blocks = new Map();
-  for (const block of blockRows) {
-    const key = block.district_id + ':' + block.rgi_block_code;
-    blocks.set(key, [...(blocks.get(key) || []), block]);
-  }
-  const normalized = storeFacilityData(store, { districts, blocks, code: 'CORE-STORE-' + store.id, capacityUnit: 'MT', radiusUnit: 'KM' });
+  const { districts } = await repository.depotLocationMasters(connection);
+  const normalized = storeFacilityData(store, { districts, code: 'CORE-STORE-' + store.id, capacityUnit: 'MT', radiusUnit: 'KM' });
   ensure(!normalized.problems.length, 'Store requires valid facility details: ' + normalized.problems.join('; '), 'INVALID_STORE_DETAILS', 400);
   const facility = { ...normalized.data, created_by_core_user_id: context.user.core_user_id ?? null, created_by_user_type: context.user.core_user_type ?? null };
   return { ...facility, id: await repository.insertDepotFacility(connection, facility) };
@@ -154,28 +149,20 @@ export async function addTestRice(connection, data, context) {
     quantity_g: amount
   };
 }
-export async function registerMillerVehicle(connection, data, context) {
-  const miller = await scopedDMFacility(connection, context.user, data.miller_id, 'MILLER');
-  const actor = {
-    ...context.user,
-    role: 'OPERATOR'
-  };
+export async function registerVehicleWithGps(connection, data, context) {
+  ensure(context.user.district_ids?.length,'DM has no assigned districts','DISTRICT_SCOPE_REQUIRED',403);
   const vehicle = data.vehicle_id
-    ? await repository.findSelectedMillerVehicle(connection, data.vehicle_id, miller.id)
-    : await createMaster(connection, 'vehicles', S.vehicle.parse({
-    miller_id: data.miller_id,
-    vehicle_type_id: data.vehicle_type_id,
-    registration_no: data.registration_no,
-    capacity: data.capacity
-  }), actor);
-  const device = await createMaster(connection, 'gps-devices', S.device.parse({
-    vehicle_id: vehicle.id,
-    imei_id: data.imei_id,
-    district_id: miller.district_id,
-    block_id: miller.block_id
-  }), actor);
-  return {
-    id: vehicle.id,
-    device_id: device.id
-  };
+    ? await repository.findSelectedVehicle(connection,data.vehicle_id,context.user.district_ids)
+    : await createMaster(connection,'vehicles',S.vehicle.parse({
+        transporter_name:data.transporter_name,
+        transporter_contact_no:data.transporter_contact_no,
+        district_id:data.district_id,
+        vehicle_type_id:data.vehicle_type_id,
+        registration_no:data.registration_no,
+        capacity:data.capacity
+      }),context.user);
+  const device=await createMaster(connection,'gps-devices',S.device.parse({
+    vehicle_id:vehicle.id,imei_id:data.imei_id,district_id:vehicle.district_id
+  }),context.user);
+  return {id:vehicle.id,device_id:device.id};
 }

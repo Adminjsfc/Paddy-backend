@@ -67,8 +67,9 @@ export function millerAccess(user, millerId) {
   ensure(['ADMIN', 'OPERATOR', 'INTEGRATION', 'GPS'].includes(user.role) || user.miller_id === Number(millerId), 'Miller access denied', 'FORBIDDEN', 403);
 }
 export function vehicleAccess(user, vehicle) {
-  millerAccess(user, vehicle.miller_id);
-  ensure(user.role !== 'TRANSPORTER' || user.transporter_id === vehicle.transporter_id, 'Transporter access denied', 'FORBIDDEN', 403);
+  ensure(vehicle, 'Vehicle not found', 'NOT_FOUND',404);
+  ensure(['ADMIN','OPERATOR','MILLER','PACS','LAMPS','TRANSPORTER','CORE_DM'].includes(user.role), 'Vehicle access denied','FORBIDDEN',403);
+  if (user.role === 'CORE_DM') ensure(user.district_ids?.includes(Number(vehicle.district_id)), 'District is outside your DM assignment','DISTRICT_FORBIDDEN',403);
 }
 export function distanceMeters(lat1, lng1, lat2, lng2) {
   const r = v => v * Math.PI / 180;
@@ -124,8 +125,8 @@ export function scopedWhere(user, alias = 's') {
     params: [user.miller_id]
   };
   if (user.role === 'TRANSPORTER') return {
-    sql: ` AND ${alias}.vehicle_id IN (SELECT id FROM vehicles WHERE transporter_id=?)`,
-    params: [user.transporter_id]
+    sql: ` AND ${alias}.vehicle_id IN (SELECT id FROM vehicles WHERE created_by=?)`,
+    params: [user.id]
   };
   return {
     sql: '',

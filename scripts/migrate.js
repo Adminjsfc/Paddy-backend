@@ -1,4 +1,7 @@
 import fs from 'node:fs/promises';
+import {removeBlockLocation} from './remove-block-location.js';
+import {removeSchemeCommodityMasters} from './remove-scheme-commodity-masters.js';
+import {independentVehicles} from './independent-vehicles-migration.js';
 import {migrateCommonLifting,removeLegacyLiftingTable} from './common-lifting-migration.js';
 import {normalizeProcurementMasters,removePaddyReleaseOrders} from './procurement-master-migration.js';
 import {normalizeStockAudit} from './stock-audit-migration.js';
@@ -30,6 +33,18 @@ try {
     if(filename==='036_remove_paddy_release_orders.sql')await removePaddyReleaseOrders(c);
     if(filename==='037_stock_ids_and_audit.sql')await normalizeStockAudit(c);
     if(filename==='039_shipment_master_ids.sql')await normalizeShipmentMasters(c);
+    if(filename==='068_remove_block_location.sql')await removeBlockLocation(c);
+    if(filename==='071_remove_scheme_commodity_masters.sql')await removeSchemeCommodityMasters(c);
+    if(filename==='073_independent_vehicle_registration.sql')await independentVehicles(c);
+    if(filename==='072_remove_procurement_references.sql') {
+      const [uncovered]=await c.query(`SELECT r.external_ref FROM procurement_references r
+        JOIN procurement p ON p.id=r.procurement_id
+        WHERE p.external_ref<>r.external_ref AND NOT EXISTS (
+          SELECT 1 FROM procurement_corrections correction WHERE correction.procurement_id=r.procurement_id
+          AND (correction.old_external_ref=r.external_ref OR correction.new_external_ref=r.external_ref)
+        ) LIMIT 1`);
+      if(uncovered.length)throw new Error('A historical procurement reference is missing from correction history. Reconcile it before removing procurement_references.');
+    }
     const text = await fs.readFile(path.join(dir, filename), 'utf8');
     // Versioned SQL contains plain DDL only. MySQL DDL commits implicitly.
     for (const statement of text.split(';').map(s => s.trim()).filter(Boolean)) await c.query(statement);

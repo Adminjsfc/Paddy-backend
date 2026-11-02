@@ -1,3 +1,5 @@
+import {requireStockMasters} from '../src/repositories/stock-masters.repository.js';
+import {removeSchemeCommodityMasters} from '../scripts/remove-scheme-commodity-masters.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { grams, recoveryGrams, hash, distanceMeters, gpsTransition, passwordHash, verifyPassword, millerAccess, vehicleAccess } from "../src/utils/core.js";
@@ -9,14 +11,84 @@ import { visibility } from '../src/services/masters.service.js';
 import { secondPrecision, secondsJsonReplacer } from '../src/utils/datetime.js';
 import { timestamp } from '../src/utils/core.js';
 import { rows } from '../src/repositories/database.js';
-import { profilePatches } from '../src/config/masters.js';
-test('Scheme and commodity masters validate names and keep codes immutable on update', () => {
-  for (const [schema, patch, field] of [[S.schemeMaster, profilePatches.schemes, 'scheme_name'], [S.commodityMaster, profilePatches.commodities, 'commodity_name']]) {
-    assert.equal(schema.parse({ code: 'SAMPLE', [field]: ' Sample name ' })[field], 'Sample name');
-    assert.equal(schema.safeParse({ code: 'SAMPLE', [field]: '' }).success, false);
-    assert.equal(patch.safeParse({ code: 'NEW-CODE' }).success, false);
-    assert.equal(patch.parse({ [field]: 'Updated' })[field], 'Updated');
+import { profilePatches,configs } from '../src/config/masters.js';
+import {createMaster,visibility as masterVisibility} from '../src/services/masters.service.js';
+import {requireVehicleTrackingAccess} from '../src/repositories/gps.repository.js';
+import {pool} from '../src/config/database.js';
+
+test('All operational roles register independent vehicles with validated district and contact',async()=>{
+  const data=S.vehicle.parse({transporter_name:'Test Transport',transporter_contact_no:'9999999999',district_id:3,vehicle_type_id:1,registration_no:'JH01TEST123',capacity:{value:10,unit:'MT'}});
+  assert.equal(configs.transporters,undefined);
+  assert(!configs.vehicles.roles.includes('DRIVER'));
+  for(const role of ['ADMIN','OPERATOR','MILLER','PACS','LAMPS','TRANSPORTER']){
+    assert(configs.vehicles.roles.includes(role));let saved;
+    const db={execute:async(sql,args)=>{
+      assert(!/\btransporters\b|\bmiller_id\b|\btransporter_id\b/.test(sql));
+      if(sql.startsWith('SELECT'))return [[{id:1}]];
+      if(sql.startsWith('INSERT INTO vehicles')){const fields=sql.match(/\(([^)]+)\)/)[1].split(',');saved=Object.fromEntries(fields.map((f,i)=>[f,args[i]]));return [{insertId:8}];}
+      throw Error('Unexpected query');
+    }};
+    await createMaster(db,'vehicles',data,{role,id:5});
+    assert.equal(saved.transporter_name,data.transporter_name);assert.equal(saved.transporter_contact_no,data.transporter_contact_no);
+    assert.equal(saved.district_id,3);assert.equal(saved.created_by,5);
+    assert.equal(saved.capacity_g,10000000);
   }
+});
+
+test('Independent vehicle editing is creator-scoped while Core DM stays district-scoped',()=>{
+  assert.deepEqual(masterVisibility('vehicles',{role:'PACS',id:7}),{sql:'',args:[]});
+  assert.deepEqual(masterVisibility('vehicles',{role:'PACS',id:7},true),{sql:' AND x.created_by=?',args:[7]});
+  assert.deepEqual(masterVisibility('vehicles',{role:'CORE_DM',district_ids:[3]},true),{sql:' AND x.district_id IN (?)',args:[3]});
+  assert.throws(()=>masterVisibility('vehicles',{role:'CORE_DM',district_ids:[]}),e=>e.status===403);
+});
+
+test('Shared vehicle selection does not grant unrelated accounts GPS tracking access',async()=>{
+  const original=pool.execute;let allowed=false,calls=0;
+  pool.execute=async(sql,args)=>{calls++;assert.match(sql,/s.miller_id=\?/);assert.deepEqual(args,[4,3]);return [allowed?[{id:1}]:[]];};
+  try{
+    await assert.rejects(requireVehicleTrackingAccess({role:'MILLER',id:2,miller_id:3},{id:4,created_by:9}),e=>e.status===403);
+    allowed=true;await requireVehicleTrackingAccess({role:'MILLER',id:2,miller_id:3},{id:4,created_by:9});
+    const before=calls;await requireVehicleTrackingAccess({role:'TRANSPORTER',id:9},{id:4,created_by:9});assert.equal(calls,before);
+  }finally{pool.execute=original;}
+});
+import {ensureLocation} from '../src/services/masters.service.js';
+
+test('Location schemas require district only and reject the retired block field', async () => {
+  const samples = [
+    [S.facility, {code:'PACS-TEST',kind:'PACS',name:'Test PACS',address:'Test address',district_id:3,latitude:23,longitude:85,capacity:{value:100,unit:'MT'}}],
+    [S.farmer, {code:'FARMER-TEST',name:'Test farmer',village:'Test village',district_id:3}],
+    [S.imeiMaster, {imei:'867123456789012',provider:'Test provider',district_id:3}],
+    [S.device, {vehicle_id:1,imei_id:1,district_id:3}]
+  ];
+  for (const [schema,data] of samples) {
+    assert.equal(schema.safeParse(data).success,true);
+    assert.equal(schema.safeParse({...data,block_id:1}).success,false);
+    assert.equal(schema.safeParse({...data,district_id:undefined}).success,false);
+  }
+  const queries=[];
+  await ensureLocation({execute:async(sql,args)=>{queries.push({sql,args});return [[{id:3}]];}},3);
+  assert.equal(queries.length,1);
+  assert.match(queries[0].sql,/tbl_district_master/);
+  assert.deepEqual(queries[0].args,[3]);
+});
+test('Stock labels validate direct codes without querying removed masters', async () => {
+ const connection={execute:async()=>{throw Error('Master lookup is no longer allowed');}};
+ assert.deepEqual(await requireStockMasters(connection,'SCMR','PADDY'),{scheme_code:'SCMR',commodity_code:'PADDY'});
+ assert.deepEqual(await requireStockMasters(connection,'CUSTOM','RICE'),{scheme_code:'CUSTOM',commodity_code:'RICE'});
+ await assert.rejects(requireStockMasters(connection,'{{scheme_code}}','PADDY'));
+ await assert.rejects(requireStockMasters(connection,'SCMR','WHEAT'),e=>e.status===400);
+ assert.equal(profilePatches.schemes,undefined);assert.equal(profilePatches.commodities,undefined);
+});
+
+test('Master removal stops before dropping tables when a historical code cannot be resolved', async () => {
+  const statements=[];
+  const connection={
+    execute:async()=>[[{COLUMN_NAME:'scheme_id'},{COLUMN_NAME:'commodity_id'},{COLUMN_NAME:'scheme_code'},{COLUMN_NAME:'commodity_code'}]],
+    query:async(sql)=>{statements.push(sql);return [sql.startsWith('SELECT id')?[{id:17}]:[]];}
+  };
+  await assert.rejects(removeSchemeCommodityMasters(connection),/unresolved scheme\/commodity codes/);
+  assert(statements.some(sql=>sql.includes('JOIN `schemes`')));
+  assert(!statements.some(sql=>/DROP TABLE|DROP COLUMN/.test(sql)));
 });
 test('Timestamps use seconds in input, database writes and nested JSON responses', async () => {
   const date = new Date('2026-10-21T18:30:39.984Z');
@@ -36,11 +108,11 @@ test('Timestamps use seconds in input, database writes and nested JSON responses
   assert.equal(result.empty, null);
 });
 test('IMEI identity is separate from GPS vehicle and location registration', () => {
-  const identity = { imei: '867123456789012', provider: 'GPS provider', district_id: 3, block_id: 4 };
+  const identity = { imei: '867123456789012', provider: 'GPS provider', district_id: 3};
   assert.deepEqual(S.imeiMaster.parse(identity), identity);
   assert.equal(S.imeiMaster.safeParse({ ...identity, mapping_status: 'MAPPED' }).success, false);
   assert.throws(() => S.imeiMaster.parse({ imei: 'invalid', provider: 'GPS provider' }));
-  const assignment = { imei_id: 1, vehicle_id: 2, district_id: 3, block_id: 4 };
+  const assignment = { imei_id: 1, vehicle_id: 2, district_id: 3};
   assert.equal(S.device.parse(assignment).imei_id, 1);
   for (const key of Object.keys(assignment)) assert.equal(S.device.safeParse({ ...assignment, [key]: undefined }).success, false);
   assert.equal(S.device.safeParse({ ...assignment, imei: '867123456789012', provider: 'GPS provider' }).success, false);
@@ -54,7 +126,6 @@ test('Combined Miller registration validates facility type and account credentia
       name: 'Test Mill',
       address: 'Mill address',
       district_id: 1,
-      block_id: 1,
       latitude: 23,
       longitude: 85,
       capacity: {
@@ -97,27 +168,13 @@ test('Combined Miller registration validates facility type and account credentia
     }
   }));
 });
-test('Vehicle registration supports direct Miller ownership and retained transporter payloads', () => {
-  const vehicle = {
-    miller_id: 3,
-    vehicle_type_id: 1,
-    registration_no: 'JH01CMR0001',
-    capacity: {
-      value: 10,
-      unit: 'MT'
-    }
-  };
-  assert.equal(S.vehicle.parse(vehicle).transporter_id, undefined);
-  assert.equal(S.vehicle.parse({ ...vehicle, transporter_id: null }).transporter_id, null);
-  assert.equal(S.vehicle.parse({
-    ...vehicle,
-    miller_id: undefined,
-    transporter_id: 7
-  }).transporter_id, 7);
-  assert.throws(() => S.vehicle.parse({
-    ...vehicle,
-    miller_id: undefined
-  }));
+test('Vehicle registration requires contact and district without Miller or transporter master IDs', () => {
+ const vehicle={transporter_name:'Test Transport',transporter_contact_no:'9999999999',district_id:3,vehicle_type_id:1,registration_no:'JH01CMR0001',capacity:{value:10,unit:'MT'}};
+ assert.equal(S.vehicle.parse(vehicle).district_id,3);
+ for(const key of ['transporter_name','transporter_contact_no','district_id'])assert.equal(S.vehicle.safeParse({...vehicle,[key]:undefined}).success,false);
+ assert.equal(S.vehicle.safeParse({...vehicle,miller_id:3}).success,false);
+ assert.equal(S.vehicle.safeParse({...vehicle,transporter_id:7}).success,false);
+ assert.equal(S.vehicle.safeParse({...vehicle,transporter_contact_no:'invalid'}).success,false);
 });
 test('Miller registration hashes the backend default password and links the account', async () => {
   let account, facility;
@@ -149,7 +206,6 @@ test('Miller registration hashes the backend default password and links the acco
       name: 'Test Mill',
       address: 'Mill address',
       district_id: 1,
-      block_id: 1,
       latitude: 23,
       longitude: 85,
       capacity: {
@@ -232,22 +288,12 @@ test('Passwords use salted scrypt and verify safely', async () => {
   assert.equal(await verifyPassword('wrong', h), false);
   assert.notEqual(h, await passwordHash('A-unique-passphrase-2026'));
 });
-test('Miller and transporter ownership enforcement', () => {
-  assert.throws(() => millerAccess({
-    role: 'MILLER',
-    miller_id: 2
-  }, 1));
-  assert.throws(() => vehicleAccess({
-    role: 'TRANSPORTER',
-    miller_id: 1,
-    transporter_id: 3
-  }, {
-    miller_id: 1,
-    transporter_id: 4
-  }));
-  millerAccess({
-    role: 'ADMIN'
-  }, 1);
+test('Shipment Miller scope remains while independent vehicle use is role based', () => {
+ assert.throws(()=>millerAccess({role:'MILLER',miller_id:2},1));
+ for(const role of ['ADMIN','OPERATOR','MILLER','PACS','LAMPS','TRANSPORTER'])assert.doesNotThrow(()=>vehicleAccess({role},{id:4,district_id:3}));
+ assert.throws(()=>vehicleAccess({role:'DRIVER'},{id:4}));
+ assert.throws(()=>vehicleAccess({role:'CORE_DM',district_ids:[3]},{id:4,district_id:5}));
+ millerAccess({role:'ADMIN'},1);
 });
 const s = {
   status: 'DISPATCHED',

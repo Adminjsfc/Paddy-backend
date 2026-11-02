@@ -2,16 +2,6 @@ import { z } from 'zod';
 import {withDriverContact} from './driver-contact.js';
 import { id, code, name, phone, percent, quantity, dateOnly, pastTimestamp, timestamp } from "../utils/core.js";
 const nullable = v => v.nullable().default(null);
-export const schemeMaster = z.object({
-  code,
-  scheme_name: name,
-  description: nullable(z.string().trim().max(500))
-}).strict();
-export const commodityMaster = z.object({
-  code,
-  commodity_name: name,
-  description: nullable(z.string().trim().max(500))
-}).strict();
 export const empty = z.object({}).strict();
 export const season = z.object({
   code,
@@ -26,7 +16,6 @@ export const facility = z.object({
   name,
   address: z.string().min(1).max(500),
   district_id: id,
-  block_id: id,
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   radius_m: z.number().int().min(10).max(10000).default(200),
@@ -42,40 +31,28 @@ export const farmer = z.object({
   phone: nullable(phone),
   village: name,
   district_id: id,
-  block_id: id
-}).strict();
-export const transporter = z.object({
-  miller_id: id,
-  code,
-  name,
-  contact_name: name,
-  phone,
-  address: z.string().min(1).max(500),
-  district_id: id,
-  block_id: id
 }).strict();
 export const vehicleType = z.object({
   code,
   name
 }).strict();
 export const vehicle = z.object({
-  transporter_id: id.nullable().optional(),
-  miller_id: id.optional(),
+  transporter_name: name,
+  transporter_contact_no: phone,
+  district_id: id,
   vehicle_type_id: id,
   registration_no: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{5,20}$/),
   capacity: quantity
-}).strict().refine(value => Boolean(value.miller_id || value.transporter_id), 'Miller is required for direct vehicle registration');
+}).strict();
 export const imeiMaster = z.object({
   imei: z.string().regex(/^\d{10,20}$/),
   provider: z.string().trim().min(1).max(120),
   district_id: id,
-  block_id: id
 }).strict();
 export const device = z.object({
   vehicle_id: id,
   imei_id: id,
   district_id: id,
-  block_id: id,
   model: nullable(z.string().max(100)),
   sim_no: nullable(z.string().regex(/^\+?\d{10,22}$/))
 }).strict();
@@ -187,7 +164,6 @@ export const user = z.object({
   password: z.string().min(12).max(128),
   role: z.enum(['ADMIN', 'OPERATOR', 'PACS', 'LAMPS', 'MILLER', 'TRANSPORTER']),
   miller_id: nullable(id),
-  transporter_id: nullable(id),
   facility_id: nullable(id)
 }).strict();
 export const login = z.object({
@@ -208,7 +184,6 @@ export const facilityPatch = z.object({
   name: name.optional(),
   address: z.string().min(1).max(500).optional(),
   district_id: id.optional(),
-  block_id: id.optional(),
   core_store_id: id.nullable().optional(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),

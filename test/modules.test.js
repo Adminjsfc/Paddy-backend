@@ -60,7 +60,7 @@ test('Module permissions deny missing or hidden modules and distinguish view, ad
   }, 'PATCH'), true);
 });
 test('Operational paths map to the same modules used by navigation', () => {
-  for (const [path, key] of [['/reports/dashboard', 'dashboard'], ['/reports/stocks', 'stocks'], ['/reports/ledger', 'ledger'], ['/reports/millers/42/reconciliation', 'reconciliation'], ['/vehicles/7', 'vehicles'], ['/transporters/12/status', 'transporters'], ['/gps-devices', 'gps-devices']]) {
+  for (const [path, key] of [['/reports/dashboard', 'dashboard'], ['/reports/stocks', 'stocks'], ['/reports/ledger', 'ledger'], ['/reports/millers/42/reconciliation', 'reconciliation'], ['/vehicles/7', 'vehicles'], ['/gps-devices', 'gps-devices']]) {
     assert.equal(moduleForRequest({
       path
     }), key);

@@ -6,7 +6,7 @@ integration.post('/procurements', controller.importProcurements);
 integration.patch('/procurements/:id', controller.updateProcurement);
 integration.post('/cmr-orders', controller.importCmrOrders);
 export const procurementRoutes = Router();
-procurementRoutes.get('/procurements', roles('ADMIN', 'OPERATOR'), controller.listProcurements);
+procurementRoutes.get('/procurements', roles('ADMIN', 'OPERATOR', 'PACS', 'LAMPS'), controller.listProcurements);
 procurementRoutes.patch('/procurements/:id', roles('ADMIN', 'OPERATOR'), controller.updateProcurement);
 procurementRoutes.get('/cmr-orders', roles('ADMIN', 'OPERATOR', 'MILLER'), controller.listCmrOrders);
 procurementRoutes.patch('/cmr-orders/:id', roles('ADMIN', 'OPERATOR'), controller.updateCmrOrder);

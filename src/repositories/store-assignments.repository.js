@@ -26,10 +26,10 @@ export async function listMillerStoreAssignmentOptionsListSeasons() {
   return rows(pool, 'SELECT id,code,name,start_date,end_date FROM seasons WHERE active=1 ORDER BY start_date DESC,id DESC');
 }
 export async function listMillerStoreAssignmentOptionsListFacilities() {
-  return rows(pool, "SELECT f.id,f.code,f.name,f.district_id,f.block_id,d.district_name,b.block_name FROM facilities f LEFT JOIN tbl_district_master d ON d.id=f.district_id LEFT JOIN tbl_block_master b ON b.id=f.block_id WHERE f.kind='MILLER' AND f.active=1 ORDER BY d.district_name,f.name,f.id");
+  return rows(pool, "SELECT f.id,f.code,f.name,f.district_id,d.district_name FROM facilities f LEFT JOIN tbl_district_master d ON d.id=f.district_id WHERE f.kind='MILLER' AND f.active=1 ORDER BY d.district_name,f.name,f.id");
 }
 export async function listMillerStoreAssignmentOptionsListFacilities2() {
-  return rows(pool, "SELECT f.id,f.code,f.name,f.kind,f.district_id,f.block_id,d.district_name,b.block_name FROM facilities f LEFT JOIN tbl_district_master d ON d.id=f.district_id LEFT JOIN tbl_block_master b ON b.id=f.block_id WHERE f.kind IN ('SFC_GODOWN','FCI') AND f.active=1 ORDER BY d.district_name,f.name,f.id");
+  return rows(pool, "SELECT f.id,f.code,f.name,f.kind,f.district_id,d.district_name FROM facilities f LEFT JOIN tbl_district_master d ON d.id=f.district_id WHERE f.kind IN ('SFC_GODOWN','FCI') AND f.active=1 ORDER BY d.district_name,f.name,f.id");
 }
 export async function setAssignmentStatusFindMillerStoreAssignments(connection, context) {
   return one(connection, 'SELECT id,season_id,miller_id,store_id,active,created_by,created_at,unassigned_by,unassigned_at FROM miller_store_assignments WHERE id=? FOR UPDATE', [id.parse(Number(context.params.id))]);

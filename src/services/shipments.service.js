@@ -15,7 +15,7 @@ export async function ownedShipment(connection, context, lock = true) {
 export async function transport(connection, vehicleId, user) {
   const v = await repository.transportFindVehicles(connection, vehicleId);
   vehicleAccess(user, v);
-  ensure(v.active && v.transporter_active, 'Vehicle or transporter is inactive');
+  ensure(v.active, 'Vehicle is inactive');
   await repository.transportFindGpsDevices(connection, v);
   return v;
 }
@@ -38,7 +38,6 @@ export async function createShipment(connection, data, context, submission = {})
   ensure(data.leg === 'PADDY' ? ['PACS', 'LAMPS'].includes(source.kind) : ['SFC_GODOWN', 'FCI'].includes(dest.kind), data.leg==='PADDY'?`source_id=${source.id} must be a PACS/LAMPS facility for PADDY lifting.`:`destination_id=${dest.id} must be a godown/FCI facility for CMR lifting.`, 'INVALID_ROUTE', 400);
   if (data.leg === 'PADDY') await repository.createShipmentFindRouteTags(connection, data, source, dest);else await repository.createShipmentFindMillerStoreAssignments(connection, data, dest);
   const v = await transport(connection, data.vehicle_id, context.user);
-  ensure(v.miller_id === data.miller_id, 'Vehicle belongs to a different miller', 'FORBIDDEN', 403);
   const activeVehicle = await repository.createShipmentFindShipments(connection, v);
   ensure(!activeVehicle, 'Vehicle already has an active shipment', 'VEHICLE_BUSY', 409);
   const qty = grams(data.quantity);
@@ -99,7 +98,6 @@ export async function createShipment(connection, data, context, submission = {})
     driver_name: submission.driver_name ?? data.driver_name ?? null,
     driver_phone: submission.driver_phone ?? data.driver_phone ?? null,
     district_id: source.district_id,
-    block_id: source.block_id,
     actor_id: context.user.id
   });
   return {
@@ -241,11 +239,11 @@ export async function listShipments(context) {
     scope = scopedWhere(context.user);
   let sql = scope.sql;
   const args = [...scope.params];
-  for (const field of ['season_id', 'miller_id', 'vehicle_id', 'status', 'leg', 'order_id', 'scheme_id', 'commodity_id']) if (context.query[field]) {
+  for (const field of ['season_id', 'miller_id', 'vehicle_id', 'status', 'leg', 'order_id', 'commodity_code']) if (context.query[field]) {
     sql += ` AND s.${field}=?`;
     args.push(String(context.query[field]));
   }
-  if(context.query.scheme_code){sql+=' AND sc.code=?';args.push(String(context.query.scheme_code));}
+  if(context.query.scheme_code){sql+=' AND s.scheme_code=?';args.push(String(context.query.scheme_code));}
   if(context.query.trip_status!==undefined){
     ensure(/^[012]$/.test(String(context.query.trip_status)),'trip_status must be 0, 1 or 2.','VALIDATION',400);
     sql+=' AND s.trip_status=?';args.push(Number(context.query.trip_status));

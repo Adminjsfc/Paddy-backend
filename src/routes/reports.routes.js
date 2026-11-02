@@ -10,4 +10,4 @@ reportRoutes.get('/reports/millers/:id/reconciliation', roles('ADMIN', 'OPERATOR
 reportRoutes.get('/reports/store-assignments', roles('ADMIN', 'OPERATOR'), controller.listStoreAssignments);
 reportRoutes.get('/reports/dashboard', controller.getDashboard);
 reportRoutes.get('/reports/audit', roles('ADMIN'), controller.listAudit);
-reportRoutes.get('/procurements/available-lots', roles('ADMIN', 'OPERATOR', 'MILLER'), controller.listAvailableLots);
+reportRoutes.get('/procurements/available-lots', roles('ADMIN', 'OPERATOR', 'MILLER', 'PACS', 'LAMPS'), controller.listAvailableLots);

@@ -3,10 +3,6 @@ export const moduleCatalog = [{
   label: 'Dashboard',
   group: 'Dashboard'
 }, {
-  key: 'transporters',
-  label: 'Transporters',
-  group: 'Masters'
-}, {
   key: 'vehicles',
   label: 'Vehicles',
   group: 'Masters'

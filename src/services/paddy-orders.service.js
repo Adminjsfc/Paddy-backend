@@ -10,8 +10,8 @@ export async function listMappedSources(context) {
 }
 
 export function validateMappedVehicle(vehicle,millerId) {
-  ensure(vehicle&&Number(vehicle.active)===1&&Number(vehicle.owner_miller_id)===Number(millerId),
-    'Select an active vehicle mapped to the assigned Miller','INVALID_VEHICLE',400);
+  ensure(vehicle&&Number(vehicle.active)===1,
+    'Select an active registered vehicle','INVALID_VEHICLE',400);
 }
 function liftingSource(user) {
   ensure(['PACS','LAMPS'].includes(user.role)&&user.facility_id,'PACS/LAMPS facility is required','FORBIDDEN',403);
@@ -19,7 +19,7 @@ function liftingSource(user) {
 }
 export async function sourceLiftingSummary(context) {
   const sourceId=liftingSource(context.user);
-  const seasonId=id.parse(Number(context.query.season_id));
+  const seasonId=context.query.season_id?id.parse(Number(context.query.season_id)):null;
   const pagination=pageParams(context.query);
   const scheme=context.query.scheme_code?code.parse(context.query.scheme_code):null;
   const result=await repository.sourceLiftingSummary(sourceId,seasonId,pagination,scheme);

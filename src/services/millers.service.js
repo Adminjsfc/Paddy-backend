@@ -30,18 +30,15 @@ export async function listLocationOptions(context) {
   };
   const ids = context.user.district_ids;
   const districts = await repository.listLocationOptionsListTblDistrictMaster(ids);
-  let blocks = [];
   if (context.query.district_id) {
     const districtId = id.parse(Number(context.query.district_id));
     requireDMDistrict(context.user, districtId);
-    blocks = await repository.listLocationOptionsListTblBlockMaster(districtId);
   }
   return {
     body: {
       ok: true,
       data: {
         districts,
-        blocks
       }
     },
     status: 200,

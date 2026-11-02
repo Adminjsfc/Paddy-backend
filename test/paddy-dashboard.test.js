@@ -2,6 +2,43 @@
 import assert from 'node:assert/strict';
 import {pool} from '../src/config/database.js';
 import {sourceLiftingSummary} from '../src/services/paddy-orders.service.js';
+import {listProcurements} from '../src/services/procurement.service.js';
+import {listAvailableLots} from '../src/services/reports.service.js';
+
+test('PACS and LAMPS procurement and available lots are limited to their own Paddy source',async()=>{
+  const original=pool.execute,calls=[];
+  pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.includes('COUNT(')?[{total:0}]:[]];};
+  try {
+    for(const role of ['PACS','LAMPS'])for(const read of [listProcurements,listAvailableLots])for(const facility_id of [undefined,'153']) {
+      calls.length=0;
+      await read({user:{role,facility_id:153},query:{season_id:'2',scheme_code:'SCMR',...(facility_id?{facility_id}:{})}});
+      assert.equal(calls.length,2);
+      for(const {sql,args} of calls) {
+        assert.match(sql,/p.facility_id=\?/);assert.match(sql,/p.commodity_code='PADDY'/);
+        assert.deepEqual(args.map(String),['153','2','SCMR']);
+        assert.equal((sql.match(/\?/g)||[]).length,args.length);
+        assert.doesNotMatch(sql,/FROM route_tags/);
+      }
+      assert.match(calls[1].sql,/unreserved_g/);
+      if(read===listAvailableLots)assert.match(calls[1].sql,/p.available_g>p.reserved_g/);
+    }
+    calls.length=0;
+    for(const role of ['PACS','LAMPS'])for(const read of [listProcurements,listAvailableLots]){
+      await assert.rejects(read({user:{role,facility_id:153},query:{facility_id:'999',season_id:'2'}}),e=>e.status===403);
+      await assert.rejects(read({user:{role},query:{season_id:'2'}}),e=>e.status===403);
+    }
+    assert.equal(calls.length,0);
+  }finally{pool.execute=original;}
+});
+
+test('Miller available procurement still requires a source mapping',async()=>{
+  const original=pool.execute,calls=[];
+  pool.execute=async(sql,args)=>{calls.push({sql,args});return [[]];};
+  try{
+    await assert.rejects(listAvailableLots({user:{role:'MILLER',miller_id:3},query:{facility_id:'153',season_id:'2'}}),e=>e.status===404);
+    assert.equal(calls.length,1);assert.match(calls[0].sql,/FROM route_tags/);assert.deepEqual(calls[0].args,[153,3,2]);
+  }finally{pool.execute=original;}
+});
 
 test('Source Paddy summary scopes all queries and separates shared totals from miller rows',async()=>{
   const original=pool.execute,calls=[];
@@ -23,7 +60,7 @@ test('Source Paddy summary scopes all queries and separates shared totals from m
       for(const {sql,args} of calls) {
         assert.deepEqual(args,[153,2,'SCMR']);
         assert.equal((sql.match(/\?/g)||[]).length,args.length);
-        assert.match(sql,/co.code='PADDY'/);
+        assert.match(sql,/p.commodity_code='PADDY'/);
         assert.match(sql,/status IN \('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED'\)/);
       }
       assert.doesNotMatch(calls[0].sql,/JOIN facilities m/);
@@ -32,10 +69,26 @@ test('Source Paddy summary scopes all queries and separates shared totals from m
     calls.length=0;
     for(const user of [{role:'MILLER',miller_id:3},{role:'ADMIN'},{role:'PACS'}])
       await assert.rejects(sourceLiftingSummary({user,query:{season_id:'2'}}),e=>e.status===403);
-    for(const query of [{},{season_id:'bad'},{season_id:'2',limit:201}])
+    for(const query of [{season_id:'bad'},{season_id:'2',limit:201}])
       await assert.rejects(sourceLiftingSummary({user:{role:'PACS',facility_id:153},query}));
     assert.equal(calls.length,0);
   } finally {pool.execute=original;}
+});
+test('Paddy received/lifted reports support omitted and independent optional season/scheme filters',async()=>{
+  const original=pool.execute,calls=[];
+  pool.execute=async(sql,args)=>{calls.push({sql,args});return [sql.startsWith('SELECT COALESCE')?[{target_g:0,lifted_g:0,pending_g:0}]:sql.startsWith('SELECT COUNT')?[{total:0}]:[]];};
+  try{
+    for(const role of ['PACS','LAMPS'])for(const [query,expected] of [[{},[153]],[{season_id:'',scheme_code:''},[153]],[{season_id:'2'},[153,2]],[{scheme_code:'CCMR'},[153,'CCMR']]]){
+      calls.length=0;
+      const result=await sourceLiftingSummary({user:{role,facility_id:153},query});assert.equal(result.body.ok,true);assert.equal(calls.length,3);
+      for(const {sql,args} of calls){
+        assert.deepEqual(args,expected);assert.equal((sql.match(/\?/g)||[]).length,args.length);
+        assert.equal(sql.includes('p.season_id=?'),Boolean(query.season_id));
+        assert.equal(sql.includes('p.scheme_code=?'),Boolean(query.scheme_code));
+        assert.match(sql,/p.facility_id=\?/);assert.match(sql,/l.season_id=b.season_id/);
+      }
+    }
+  }finally{pool.execute=original;}
 });
 import {dashboardVehicles} from '../src/repositories/reports.repository.js';
 import {liftingMillers,liftingVehicles} from '../src/services/paddy-orders.service.js';
@@ -55,7 +108,7 @@ test('PACS and LAMPS stock and ledger reports keep facility scope with scheme fi
         for(const call of calls){
           assert.deepEqual(call.args,[153,'999','CCMR']);
           assert.equal((call.sql.match(/facility_id=\?/g)||[]).length,2);
-          assert.match(call.sql,/sc.code=\?/);
+          assert.match(call.sql,/[sl].scheme_code=\?/);
         }
       }
     }
@@ -72,7 +125,7 @@ test('CMR options select the chosen scheme for both stock and orders',async()=>{
     await getSubmissionOptionsListCmrOrders(context,2,'CCMR');
     for(const call of calls){
       assert.deepEqual(call.args,[3,2,'CCMR']);
-      assert.match(call.sql,/(?:sc.code|o.scheme_code)=\?/);
+      assert.match(call.sql,/(?:s.scheme_code|o.scheme_code)=\?/);
       assert.equal((call.sql.match(/\?/g)||[]).length,call.args.length);
     }
   }finally{pool.execute=original;}
@@ -92,7 +145,7 @@ test('PACS vehicle lookup validates the source, season and mapped Miller without
     const result=await liftingVehicles(context);
     assert.equal(result.body.data[0].id,4);
     assert.deepEqual(calls[1].args,[153,3,2]);
-    assert.deepEqual(calls[2].args,[3]);
+    assert.deepEqual(calls[2].args,[]);
     mapped=false;
     await assert.rejects(liftingVehicles(context),e=>e.status===403);
     assert.equal(calls.length,4);
@@ -126,8 +179,8 @@ test('Vehicle dashboard reads separate IMEI master and scopes totals and rows to
     assert.equal(calls.length,2);
     for(const call of calls){
       assert.match(call.sql,/JOIN imeis i ON i.id=d.imei_id/);
-      assert.match(call.sql,/WHERE COALESCE\(v.miller_id,t.miller_id\)=\?/);
-      assert.deepEqual(call.args,[2,7]);
+      assert.match(call.sql,/assigned.miller_id=\?/);
+      assert.deepEqual(call.args,[7,2,7]);
     }
     assert.match(calls[1].sql,/i.imei,i.provider/);
     assert.doesNotMatch(calls[1].sql,/d.imei,/);

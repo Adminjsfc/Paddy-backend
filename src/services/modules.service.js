@@ -73,18 +73,14 @@ export async function listMillerMasterOptions(context) {
     headers: []
   };
   const districts = await repository.listMillerMasterOptionsListTblDistrictMaster();
-  const blocks = context.query.district_id ? await repository.listMillerMasterOptionsListTblBlockMaster(context) : [];
   const vehicleTypes = await repository.listMillerMasterOptionsListVehicleTypes();
-  const transporters = await repository.listMillerMasterOptionsListTransporters(context);
   const vehicles = await repository.listMillerMasterOptionsListVehicles(context);
   return {
     body: {
       ok: true,
       data: {
         districts,
-        blocks,
         vehicle_types: vehicleTypes,
-        transporters,
         vehicles
       }
     },

@@ -48,12 +48,12 @@ try {
         name: 'Sample testing truck'
       })
     };
-    let vehicle = await one(c, "SELECT id,miller_id,transporter_id FROM vehicles WHERE registration_no='JH01CMR0001'", [], false);
-    if (vehicle && vehicle.miller_id !== miller.id) throw Error('Sample registration belongs to another miller');
+    let vehicle = await one(c, "SELECT id FROM vehicles WHERE registration_no='JH01CMR0001'", [], false);
     if (!vehicle) vehicle = {
       id: await insert(c, 'vehicles', {
-        miller_id: miller.id,
-        transporter_id: null,
+        transporter_name: 'Sample test transporter',
+        transporter_contact_no:'9999999999',
+        district_id: miller.district_id,
         vehicle_type_id: type.id,
         registration_no: 'JH01CMR0001',
         capacity_g: 10000000
@@ -62,14 +62,13 @@ try {
     const device = await one(c, 'SELECT id FROM gps_devices WHERE vehicle_id=?', [vehicle.id], false);
     if (!device) {
       let imei = await one(c, 'SELECT id FROM imeis WHERE imei=?', ['990000000000001'], false);
-      if (!imei) imei = { id: await insert(c, 'imeis', { imei: '990000000000001', provider: 'SAMPLE TEST ONLY - not live hardware', district_id: miller.district_id, block_id: miller.block_id }) };
+      if (!imei) imei = { id: await insert(c, 'imeis', { imei: '990000000000001', provider: 'SAMPLE TEST ONLY - not live hardware', district_id: miller.district_id }) };
       await insert(c, 'gps_devices', {
         vehicle_id: vehicle.id,
         imei_id: imei.id,
         district_id: miller.district_id,
-        block_id: miller.block_id
       });
-      await updateDeviceMappingState(c, imei.id, true, { vehicle_id: vehicle.id, district_id: miller.district_id, block_id: miller.block_id });
+      await updateDeviceMappingState(c, imei.id, true, { vehicle_id: vehicle.id, district_id: miller.district_id });
     }
     return {
       sample: true,

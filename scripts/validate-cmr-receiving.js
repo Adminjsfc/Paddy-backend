@@ -13,7 +13,7 @@ const c = await pool.getConnection(),
   suffix = crypto.randomBytes(5).toString('hex').toUpperCase();
 try {
   await c.beginTransaction();
-  const base = await one(c, "SELECT * FROM facilities WHERE kind='MILLER' AND active=1 AND block_id IS NOT NULL LIMIT 1");
+  const base = await one(c, "SELECT * FROM facilities WHERE kind='MILLER' AND active=1 LIMIT 1");
   const dest = await one(c, "SELECT * FROM facilities WHERE core_store_id IS NOT NULL AND kind IN ('FCI','SFC_GODOWN') AND active=1 AND capacity_g>1000000 ORDER BY capacity_g DESC LIMIT 1");
   const season = await one(c, 'SELECT id FROM seasons WHERE active=1 LIMIT 1');
   const type = await one(c, 'SELECT id FROM vehicle_types WHERE active=1 LIMIT 1');
@@ -27,7 +27,6 @@ try {
     name: 'Temporary receiving validation',
     address: 'Rollback fixture',
     district_id: base.district_id,
-    block_id: base.block_id,
     latitude: 23,
     longitude: 85,
     capacity: {
@@ -36,7 +35,9 @@ try {
     }
   }), actor);
   const vehicle = await createMaster(c, 'vehicles', S.vehicle.parse({
-    miller_id: miller.id,
+    transporter_name:'Validation transporter',
+    transporter_contact_no:'9999999999',
+    district_id:base.district_id,
     registration_no: 'TST' + suffix,
     vehicle_type_id: type.id,
     capacity: {
@@ -47,14 +48,12 @@ try {
   const imei = await createMaster(c, 'imeis', S.imeiMaster.parse({
     imei: '99' + String(BigInt('0x' + suffix)).padStart(13, '0'),
     provider: 'ROLLBACK VALIDATION',
-    district_id: base.district_id,
-    block_id: base.block_id
+    district_id: base.district_id
   }), actor);
   await createMaster(c, 'gps-devices', S.device.parse({
     vehicle_id: vehicle.id,
     imei_id: imei.id,
-    district_id: base.district_id,
-    block_id: base.block_id
+    district_id: base.district_id
   }), actor);
   await stock(c, miller.id, season.id, 'RICE', 500000, 0, 'VALIDATION', miller.id, 'SCMR');
   await insert(c, 'miller_store_assignments', {
@@ -75,7 +74,7 @@ try {
     due_date: '2026-12-31',
     rice_quantity_g: 500000
   });
-  const initial = await one(c, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_id=(SELECT id FROM commodities WHERE code='RICE') AND scheme_id=(SELECT id FROM schemes WHERE code='SCMR')", [dest.id, season.id], false);
+  const initial = await one(c, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE' AND scheme_code='SCMR'", [dest.id, season.id], false);
   const receiver = {
     role: 'CORE_RECEIVER',
     actor: 'receiving-validation',
@@ -136,7 +135,7 @@ try {
   });
   assert.equal(accepted.net_g, 100000);
   assert.equal((await one(c, 'SELECT status FROM shipments WHERE id=?', [acceptedId])).status, 'DELIVERED');
-  assert.equal((await one(c, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_id=(SELECT id FROM commodities WHERE code='RICE')", [dest.id, season.id])).on_hand_g, Number(initial?.on_hand_g || 0) + 100000);
+  assert.equal((await one(c, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE'", [dest.id, season.id])).on_hand_g, Number(initial?.on_hand_g || 0) + 100000);
   await assert.rejects(receiveCMR(c, body('ACCEPTED'), {
     user: receiver,
     params: {
@@ -151,7 +150,7 @@ try {
     }
   });
   assert.equal((await one(c, 'SELECT status FROM shipments WHERE id=?', [rejectedId])).status, 'ARRIVED');
-  assert.equal((await one(c, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_id=(SELECT id FROM commodities WHERE code='RICE')", [dest.id, season.id])).on_hand_g, Number(initial?.on_hand_g || 0) + 100000);
+  assert.equal((await one(c, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE'", [dest.id, season.id])).on_hand_g, Number(initial?.on_hand_g || 0) + 100000);
   const order = await one(c, 'SELECT delivered_g,committed_g FROM cmr_orders WHERE id=?', [orderId]);
   assert.equal(order.delivered_g, 100000);
   assert.equal(order.committed_g, 100000);

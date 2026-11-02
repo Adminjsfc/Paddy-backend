@@ -14,6 +14,3 @@ export async function registerMillerInsertUsers(connection, data, facility, acto
 export async function listLocationOptionsListTblDistrictMaster(ids) {
   return rows(pool, `SELECT id,district_name FROM tbl_district_master WHERE status=1 AND id IN (${ids.map(() => '?').join(',')}) ORDER BY district_name`, ids);
 }
-export async function listLocationOptionsListTblBlockMaster(districtId) {
-  return rows(pool, 'SELECT id,district_id,block_name FROM tbl_block_master WHERE district_id=? ORDER BY block_name', [districtId]);
-}

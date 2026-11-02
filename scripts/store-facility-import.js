@@ -1,7 +1,6 @@
 import { grams } from "../src/utils/core.js";
 export function storeFacilityData(store, {
   districts,
-  blocks,
   code,
   capacityUnit,
   radiusUnit
@@ -10,9 +9,6 @@ export function storeFacilityData(store, {
     warnings = [];
   const district = districts.get(Number(store.district_id));
   if (!district) problems.push('District is not present in the local district master');
-  const blockMatches = blocks.get(`${store.district_id}:${store.rgi_block_code}`) || [];
-  const block = blockMatches.length === 1 ? blockMatches[0] : null;
-  if (!block) warnings.push('Block is missing or ambiguous; block_id left NULL');
   const name = String(store.store_name || '').trim();
   if (!name || name.length > 180) problems.push('Store name missing or longer than 180 characters');
   const coordinates = [store.lat, store.lng];
@@ -44,9 +40,8 @@ export function storeFacilityData(store, {
       kind: Number(store.store_type) === 1 ? 'FCI' : 'SFC_GODOWN',
       name,
       // The source has no street-address field. Use its location names as a label.
-      address: [name, block?.block_name, district.district_name].filter(Boolean).join(', ').slice(0, 500),
+      address: [name, district.district_name].filter(Boolean).join(', ').slice(0, 500),
       district_id: Number(store.district_id),
-      block_id: block ? Number(block.id) : null,
       latitude: Number(latitude.toFixed(7)),
       longitude: Number(longitude.toFixed(7)),
       radius_m: Math.round(radius),

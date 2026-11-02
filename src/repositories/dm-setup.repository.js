@@ -5,11 +5,11 @@ export function createPaddyUser(connection,data) {
   return insert(connection,'users',data);
 }
 export async function scopedDMFacilityFindFacilities(connection, facilityId) {
-  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [facilityId]);
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND active=1', [facilityId]);
 }
 export async function listPaddyOptionsListFacilities(marks, ids) {
-  return rows(pool, `SELECT f.id,f.code,f.name,f.kind,f.district_id,d.district_name,b.block_name FROM facilities f
-    JOIN tbl_district_master d ON d.id=f.district_id LEFT JOIN tbl_block_master b ON b.id=f.block_id
+  return rows(pool, `SELECT f.id,f.code,f.name,f.kind,f.district_id,d.district_name FROM facilities f
+    JOIN tbl_district_master d ON d.id=f.district_id
     WHERE f.kind IN ('PACS','LAMPS') AND f.active=1 AND f.district_id IN (${marks}) ORDER BY f.name`, ids);
 }
 export async function listPaddyOptionsListFacilities2(marks, ids) {
@@ -50,10 +50,10 @@ export async function getSetupOptionsListCmrOrders(marks, ids) {
   return rows(pool, `SELECT o.id,o.external_ref,o.payload_hash,o.season_id,o.miller_id,o.destination_id,o.order_no,o.ordered_at,o.due_date,o.rice_quantity_g,o.committed_g,o.delivered_g,o.status,o.scheme_code,o.commodity,m.name miller_name,f.name destination_name FROM cmr_orders o JOIN facilities m ON m.id=o.miller_id JOIN facilities f ON f.id=o.destination_id WHERE m.district_id IN (${marks}) ORDER BY o.id DESC LIMIT 200`, ids);
 }
 export async function getSetupOptionsListStocks(marks, ids) {
-  return rows(pool, `SELECT s.id,s.facility_id,s.season_id,s.on_hand_g,s.reserved_g,s.scheme_id,s.commodity_id,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,sc.code scheme_code,co.code commodity,f.name miller_name FROM stocks s JOIN schemes sc ON sc.id=s.scheme_id JOIN commodities co ON co.id=s.commodity_id JOIN facilities f ON f.id=s.facility_id WHERE f.kind='MILLER' AND f.district_id IN (${marks}) AND co.code='RICE'`, ids);
+  return rows(pool, `SELECT s.id,s.facility_id,s.season_id,s.on_hand_g,s.reserved_g,s.scheme_code,s.commodity_code,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,s.commodity_code commodity,f.name miller_name FROM stocks s JOIN facilities f ON f.id=s.facility_id WHERE f.kind='MILLER' AND f.district_id IN (${marks}) AND s.commodity_code='RICE'`, ids);
 }
 export async function getSetupOptionsListGpsDevices(marks, ids) {
-  return rows(pool, `SELECT v.id,v.registration_no,v.miller_id,v.capacity_g,m.name miller_name,(SELECT i.imei FROM gps_devices linked_device JOIN imeis i ON i.id=linked_device.imei_id WHERE linked_device.vehicle_id=v.id AND linked_device.active=1 ORDER BY linked_device.id DESC LIMIT 1) imei,EXISTS(SELECT 1 FROM gps_devices d WHERE d.vehicle_id=v.id AND d.active=1) gps_active FROM vehicles v JOIN facilities m ON m.id=v.miller_id WHERE m.district_id IN (${marks}) ORDER BY v.id DESC LIMIT 200`, ids);
+  return rows(pool, `SELECT v.id,v.registration_no,v.transporter_name,v.transporter_contact_no,v.district_id,v.capacity_g,(SELECT i.imei FROM gps_devices linked_device JOIN imeis i ON i.id=linked_device.imei_id WHERE linked_device.vehicle_id=v.id AND linked_device.active=1 ORDER BY linked_device.id DESC LIMIT 1) imei,EXISTS(SELECT 1 FROM gps_devices d WHERE d.vehicle_id=v.id AND d.active=1) gps_active FROM vehicles v WHERE v.district_id IN (${marks}) ORDER BY v.id DESC LIMIT 200`, ids);
 }
 export async function getSetupOptionsListVehicleTypes() {
   return rows(pool, 'SELECT id,name FROM vehicle_types WHERE active=1 ORDER BY name');
@@ -99,21 +99,20 @@ export async function addTestRiceInsertTestStockEntries(connection, data, amount
 }
 
 export function lockSelectedDepot(connection, storeId) {
-  return one(connection, 'SELECT id,api_id,store_type,store_id,store_name,district_id,rgi_block_code,lat,lng,c_by,c_date,d_by,d_date,status,radius,capacity,dealer_name,License_no,fast_tag,weighbridge FROM tbl_store_location_master WHERE id=? AND status=1 AND store_type IN (1,2) FOR UPDATE', [storeId]);
+  return one(connection, 'SELECT id,api_id,store_type,store_id,store_name,district_id,lat,lng,c_by,c_date,d_by,d_date,status,radius,capacity,dealer_name,License_no,fast_tag,weighbridge FROM tbl_store_location_master WHERE id=? AND status=1 AND store_type IN (1,2) FOR UPDATE', [storeId]);
 }
 export function findDepotFacility(connection, storeId) {
-  return one(connection, 'SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE core_store_id=? FOR UPDATE', [storeId], false);
+  return one(connection, 'SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE core_store_id=? FOR UPDATE', [storeId], false);
 }
 export async function depotLocationMasters(connection) {
   return {
     districts: new Map((await rows(connection, 'SELECT id,district_name FROM tbl_district_master')).map(row => [Number(row.id), row])),
-    blocks: await rows(connection, 'SELECT id,district_id,rgi_block_code,block_name FROM tbl_block_master')
   };
 }
 export function insertDepotFacility(connection, data) {
   return insert(connection, 'facilities', data);
 }
 
-export function findSelectedMillerVehicle(connection, vehicleId, millerId) {
-  return one(connection, 'SELECT id FROM vehicles WHERE id=? AND miller_id=? AND active=1 FOR UPDATE', [vehicleId, millerId], true, {status: 400, code: 'INVALID_VEHICLE', message: 'Select an active vehicle belonging to the selected Miller'});
+export function findSelectedVehicle(connection,vehicleId,districtIds) {
+  return one(connection, 'SELECT id,district_id FROM vehicles WHERE id=? AND district_id IN ('+districtIds.map(()=>'?').join(',')+') AND active=1 FOR UPDATE', [vehicleId,...districtIds], true, {status:400,code:'INVALID_VEHICLE',message:'Select an active vehicle in your assigned districts'});
 }

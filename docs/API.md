@@ -6,7 +6,7 @@ Base URL: `http://127.0.0.1:3015/api/v1`. All request/response bodies are JSON. 
 
 Application APIs accept the HttpOnly `accessToken` cookie or `Authorization: Bearer <token>` after login. An explicitly supplied Authorization header takes precedence. Tokens are random, expiring server-side sessions; only their hashes are stored. Passwords use salted scrypt. User deactivation takes effect on the next authenticated request. Password changes invalidate all current sessions, including refresh credentials.
 
-Protected routes use the service's separate `src/middlewares/verifyJWT.js` middleware, exported as `auth` for existing routes. Despite the shared middleware name with the core backend, CMR tokens remain opaque session tokens, not JWTs. This middleware fetches the active CMR user on every request and sets `req.user` with `id`, `user_id`, `name`, `email`, `role`, `miller_id`, `transporter_id`, and `facility_id`; `req.tokenHash` identifies the current session. Mobile clients can send `Device: mobile` (or an okhttp User-Agent) with `X-Auth-Token: <CMR token>` instead of a cookie. Core-backend JWTs and users are not accepted. Refresh still requires the CMR refresh cookie.
+Protected routes use the service's separate `src/middlewares/verifyJWT.js` middleware, exported as `auth` for existing routes. Despite the shared middleware name with the core backend, CMR tokens remain opaque session tokens, not JWTs. This middleware fetches the active CMR user on every request and sets `req.user` with `id`, `user_id`, `name`, `email`, `role`, `miller_id` and `facility_id`; `req.tokenHash` identifies the current session. Mobile clients can send `Device: mobile` (or an okhttp User-Agent) with `X-Auth-Token: <CMR token>` instead of a cookie. Core-backend JWTs and users are not accepted. Refresh still requires the CMR refresh cookie.
 
 Login sets HttpOnly `accessToken` and `refreshToken` cookies scoped to `/api/v1`, and retains the existing `data.token` response for Postman. Access defaults to 15 minutes (`ACCESS_TOKEN_MINUTES`); refresh defaults to an absolute seven days (`REFRESH_SESSION_DAYS`). Browser cookie storage lasts until refresh expiry, while SQL independently enforces the shorter access expiry. `POST /refresh-token` or `/auth/refresh` renews access using the refresh cookie and returns `{ok:true,status:200,token,data:{token,expires_at}}`. Refresh credentials remain stable until absolute expiry or revocation, allowing concurrent refresh retries; a matching access cookie also retains its token identity. Refresh does not extend the absolute refresh lifetime. Only a refresh cookie can renew access; a bearer token alone cannot.
 
@@ -45,9 +45,9 @@ The core system's existing module workflow was used as a reference: role assignm
 | PATCH `/module-permissions` | CMR ADMIN: `{role:"MILLER",modules:[{key,can_view,can_add,can_edit}]}`; requires idempotency key |
 | GET `/profile` | Current CMR account and its mill details |
 | PATCH `/profile` | Update own `name` and/or `email`; requires idempotency key |
-| GET `/miller-master-options?district_id=...` | Miller dropdowns for districts, blocks, vehicle types, own transporters and own vehicles |
+| GET `/miller-master-options?district_id=...` | Miller dropdowns for districts, vehicle types and the shared vehicle fleet |
 
-Module keys are `dashboard`, `transporters`, `vehicles`, `gps-devices`, `stocks`, `ledger`, and `reconciliation`. Seeded MILLER assignments enable views and master creation/editing; report/dashboard assignments are read-only. CMR ADMIN users can change them in the portal's Module assignment tab. Assignments apply to the MILLER role across all millers. Missing or disabled permissions deny mapped operational API actions with HTTP 403 `MODULE_FORBIDDEN`; add/edit also require view access. Existing ownership and business checks still apply. Profile, password and logout remain account capabilities independent of these operational module assignments. There are no hard-delete permissions or endpoints.
+Module keys are `dashboard`, `vehicles`, `gps-devices`, `stocks`, `ledger`, and `reconciliation`. Seeded MILLER assignments enable views and master creation/editing; report/dashboard assignments are read-only. CMR ADMIN users can change them in the portal's Module assignment tab. Assignments apply to the MILLER role across all millers. Missing or disabled permissions deny mapped operational API actions with HTTP 403 `MODULE_FORBIDDEN`; add/edit also require view access. Existing ownership and business checks still apply. Profile, password and logout remain account capabilities independent of these operational module assignments. There are no hard-delete permissions or endpoints.
 
 | Action | Admin | SFC operator | Miller | Transporter |
 |---|---|---|---|---|
@@ -77,17 +77,17 @@ Module keys are `dashboard`, `transporters`, `vehicles`, `gps-devices`, `stocks`
 | GET | `/auth/me` | Current identity |
 | POST | `/auth/logout` | Revoke current token |
 | POST | `/auth/password` | `{current_password,new_password}`; log in again afterwards |
-| POST | `/users` | Admin: `{name,email,password,role,miller_id?,transporter_id?}` |
+| POST | `/users` | Admin: `{name,email,password,role,miller_id?,facility_id?}` |
 | GET | `/users` | Admin; up to 200 users |
 | PATCH | `/users/:id/status` | Admin: `{active:false}`; cannot deactivate self |
 
-Minimum password length is 12. `ADMIN`/`OPERATOR` accounts have null entity scopes; `MILLER` requires `miller_id`; `TRANSPORTER` requires both a matching miller and transporter.
+Minimum password length is 12. `ADMIN`/`OPERATOR` accounts have null entity scopes; `MILLER` requires `miller_id`; `TRANSPORTER` is an independent login role with null facility/Miller scope.
 
 ## Registration and master data
 
 ### Current DM setup and direct vehicles
 
-Core DM users open **Masters → CMR setup** in the shared frontend. The page reuses the existing core login, with server-side DM district validation. CMR setup provides depot assignment, CMR order creation, direct Miller vehicle/GPS registration, and an optional test-rice entry tab. It uses the core Users module's existing Add-page permission for frontend routing; CMR independently verifies the active DM and district scope.
+Core DM users open **Masters → CMR setup** in the shared frontend. The page reuses the existing core login, with server-side DM district validation. CMR setup provides depot assignment, CMR order creation, independent vehicle/GPS registration, and an optional test-rice entry tab. It uses the core Users module's existing Add-page permission for frontend routing; CMR independently verifies the active DM and district scope.
 
 All following routes use `/api/v1/core/dm` and a verified core access bearer token:
 
@@ -96,7 +96,7 @@ All following routes use `/api/v1/core/dm` and a verified core access bearer tok
 | GET `/options` | Scoped millers, receiving depots, assignments, orders, rice balances, vehicles and vehicle types |
 | POST `/assignments` | `{miller_id,season_id,store_id}` |
 | POST `/orders` | `{miller_id,season_id,destination_id,order_no,rice_quantity,due_date}`; requires an active assignment |
-| POST `/vehicles` | `{miller_id,vehicle_type_id,registration_no,capacity,imei,provider}`; creates a direct vehicle and GPS device atomically |
+| POST `/vehicles` | `{transporter_name,transporter_contact_no,district_id,vehicle_type_id,registration_no,capacity,imei_id}`; creates a direct vehicle and GPS device atomically |
 | POST `/test-rice` | `{miller_id,season_id,reference,quantity}`; enabled only by `ENABLE_CMR_TEST_SETUP=true` |
 
 POST requests require `Idempotency-Key`. Source millers and receiving depots must be within the DM's assigned districts. Test rice uses a unique reference, `test_stock_entries` and a `TEST_RICE` ledger entry; it does not pretend to be procurement or milling production. The environment example defaults this feature to disabled. It is enabled in the local testing configuration for the requested interim workflow.
@@ -107,7 +107,7 @@ Migration `019_direct_miller_vehicles.sql` adds `vehicles.miller_id`, backfills 
 
 ### Combined Miller registration
 
-`POST /millers/register` requires a CMR ADMIN session and `Idempotency-Key`. Send `{facility: {...}, user: {name,email}}` without a facility `code`. The backend generates a unique `MILL-<UUID>` code and returns it as `miller_code`; client-supplied codes are rejected. Existing codes remain unchanged. The remaining `facility` fields follow the facility creation schema with `kind: "MILLER"`, numeric `district_id` and `block_id`, and explicit capacity units. The backend sets the initial Miller password to `123456789` and stores its salted hash; the registration request must not include a password. Facility creation, login creation, and idempotency recording share one transaction; either all succeed or none do. The response contains `id` (user ID), `facility_id`, `miller_id`, `miller_code`, `email`, and `role`.
+`POST /millers/register` requires a CMR ADMIN session and `Idempotency-Key`. Send `{facility: {...}, user: {name,email}}` without a facility `code`. The backend generates a unique `MILL-<UUID>` code and returns it as `miller_code`; client-supplied codes are rejected. Existing codes remain unchanged. The remaining `facility` fields follow the facility creation schema with `kind: "MILLER"`, numeric `district_id`, and explicit capacity units. The backend sets the initial Miller password to `123456789` and stores its salted hash; the registration request must not include a password. Facility creation, login creation, and idempotency recording share one transaction; either all succeed or none do. The response contains `id` (user ID), `facility_id`, `miller_id`, `miller_code`, `email`, and `role`.
 
 The frontend Add User page switches to the CMR registration form when Miller is selected. Other user types continue through the core service. The Miller form reuses the district objects already loaded on the Add User page (`{id,district_name}`), preselects the DM's district, and immediately requests location options using `district_id` to retrieve the matching blocks. A single assigned district is read-only. Multiple assigned districts remain selectable; backend authorization always checks the current core assignments.
 
@@ -271,7 +271,7 @@ Errors use `{ok:false,error:{code,message},request_id}`. Common statuses:
 
 Lists return `{page,limit,total}` under `pagination`. Fetch pages until all records are retrieved; do not assume the first page is a full export. Unknown JSON body fields are rejected to expose mapping mistakes. Date-only fields use `YYYY-MM-DD`; timestamps require a timezone. Backdated records update current inventory, not a reconstructed historic balance.
 
-Migration `017_cmr_scheme_stores.sql` adds `core_store_location_id` to shipments and nullable `facilities.core_store_id`. Its original shipment `scheme_type` column is replaced by `scheme_id` in migration 039. Core store IDs are independent of CMR facility IDs. An active core store must match the order destination by explicit `core_store_id`, or by an unambiguous exact store code plus district and facility kind. ADMIN/OPERATOR can link a receiving facility using `PATCH /facilities/:id` with `{core_store_id:<core store ID>}` and an idempotency key; the backend validates the active core store district/type. A store without a matching CMR facility/order remains visible but cannot submit until provisioned and assigned. No receiving facilities, capacities or geofences are guessed or created from source store metadata. Migration `018_store_location_master.sql` creates the local `tbl_store_location_master` table if missing, matching the imported source schema and preserving existing records. Store dropdowns and validation use the CMR database pool; store lookup no longer requires a core database connection. Import authoritative records separately, preserving source IDs.
+Migration `017_cmr_scheme_stores.sql` adds `core_store_location_id` to shipments and nullable `facilities.core_store_id`. Its original shipment `scheme_type` column was replaced by `scheme_id` in migration 039, then by direct `scheme_code` storage in migration 071. Core store IDs are independent of CMR facility IDs. An active core store must match the order destination by explicit `core_store_id`, or by an unambiguous exact store code plus district and facility kind. ADMIN/OPERATOR can link a receiving facility using `PATCH /facilities/:id` with `{core_store_id:<core store ID>}` and an idempotency key; the backend validates the active core store district/type. A store without a matching CMR facility/order remains visible but cannot submit until provisioned and assigned. No receiving facilities, capacities or geofences are guessed or created from source store metadata. Migration `018_store_location_master.sql` creates the local `tbl_store_location_master` table if missing, matching the imported source schema and preserving existing records. Store dropdowns and validation use the CMR database pool; store lookup no longer requires a core database connection. Import authoritative records separately, preserving source IDs.
 
 DM Paddy setup uses the existing core DM session and district restrictions:
 - `GET /api/v1/core/dm/paddy/options`: active PACS/LAMPS, Millers, seasons and the latest 200 mappings within the DM districts.
@@ -353,10 +353,30 @@ GET /api/v1/paddy/lifting-summary?season_id=1&page=1&limit=20&scheme_code=SCMR
 
 Requires PACS/LAMPS login (cookie or Bearer token), not an integration API key. season_id is required; scheme_code is optional. Source is always the logged-in facility; a caller cannot select another source.
 
-Response: {ok:true, quantity_scope:"SOURCE_SEASON_SCHEME", data:[{source_id, source_name, source_code, season_id, scheme_id, scheme_code, miller_id, miller_name, miller_address, target_g, source_lifted_g, pending_g, lifted_g}], totals:{target_g,lifted_g,pending_g}, pagination:{page,limit,total}}.
+Response: {ok:true, quantity_scope:"SOURCE_SEASON_SCHEME", data:[{source_id, source_name, source_code, season_id, scheme_code, miller_id, miller_name, miller_address, target_g, source_lifted_g, pending_g, lifted_g}], totals:{target_g,lifted_g,pending_g}, pagination:{page,limit,total}}.
 
 Each row represents an active mapped miller and a procurement scheme. target_g is total procured PADDY at the source for the selected season/scheme. source_lifted_g includes all destinations, including historical/inactive mappings; pending_g = target_g - source_lifted_g. lifted_g on a row is that miller's lifted quantity. Only DISPATCHED, IN_TRANSIT, ARRIVED and DELIVERED shipments count as lifted; PLANNED and CANCELLED do not. Planned reservations do not reduce pending. Pending is not a promise of available unreserved stock.
 
 Target and pending are shared source quantities repeated on miller rows. Never sum those rows for cards: use totals, which includes all source procurement schemes even if they have no active mapped miller. totals.lifted_g is source-wide. An empty procurement scheme has no summary rows. Pagination counts miller/scheme rows. All quantity fields are grams; divide by 100000 to display QTL. No SQL schema changes are required.
 
 For the Lifting tab use GET /api/v1/shipments?leg=PADDY&season_id=1&page=1&limit=20, with optional scheme_code, miller_id and status filters. Render shipment_no, scheme_code, quantity_g, source_name, destination_name, registration_no, display_status and status_at. GET /api/v1/shipments/:id returns details, events and lots. Move individual shipments off the Paddy summary tab. Frontend must reload both tabs after lifting actions and season/scheme changes.
+
+
+Location fields after migration 068: block_id and block dropdowns are removed from the API. Use district_id for facilities, Miller/PACS registration, farmers, transporters, IMEIs and GPS devices. Shipment location is copied from its source district. Requests containing block_id are rejected by strict schemas. Migration 069 removes the unused tbl_block_master, and migration 070 removes the temporary retired_block_locations archive and its historical values. The district master and store location source data remain intact.
+
+
+Migration 071 removes the schemes and commodities master tables and all /schemes and /commodities CRUD endpoints. Earlier master-ID storage descriptions above are historical and superseded. Procurement, stocks, stock_ledger and shipments now store scheme_code and commodity_code directly; no scheme_id or commodity_id is returned. List filters use scheme_code and commodity_code (commodity remains a supported alias on stock/ledger/procurement reports). Existing balances remain unique by facility_id, season_id, scheme_code and commodity_code. CMR options return code/name entries without numeric master IDs. Scheme code syntax is validated directly; commodity is PADDY or RICE.
+
+
+Migration 072 removes procurement_references while retaining procurement_corrections. Current references remain unique in procurement.external_ref. Import retry detection, reference ownership checks and procurement searches also match old_external_ref/new_external_ref in correction history, so corrected references cannot create duplicate stock. Corrections and their stock-ledger links remain unchanged. Migration stops if a legacy reference is not covered by the current record or correction history.
+
+
+Vehicle registration after migration 073: the transporters master table and /transporters CRUD endpoints are removed. POST /vehicles requires transporter_name, transporter_contact_no, district_id, vehicle_type_id, registration_no and capacity. miller_id and transporter_id are not accepted or stored on vehicles. ADMIN, OPERATOR, MILLER, PACS, LAMPS and TRANSPORTER accounts can register vehicles. Active registered vehicles are shared for lifting/CMR selection; shipment Miller/facility scopes remain enforced. Vehicle/GPS edits by ordinary accounts are creator-scoped, while Core DM management is district-scoped. GPS tracking requires vehicle creation or participation in an associated shipment. Transporter login accounts remain available without master IDs. Legacy vehicle contacts that were never recorded remain NULL until corrected.
+
+Core DM POST /core/dm/vehicles accepts {vehicle_id,imei_id} to map a selected vehicle, or the independent POST /vehicles fields plus imei_id to create and map a new one. Both the vehicle district and selected IMEI must be within assigned DM districts.
+
+
+PACS/LAMPS procurement visibility: GET /procurements and GET /procurements/available-lots now accept PACS/LAMPS sessions. Their source facility is always taken from the account facility_id; requesting another facility returns 403. They only see PADDY rows. List responses include unreserved_g; available-lots returns rows with available_g > reserved_g and includes external_ref/receipt_no for selection. These read permissions do not grant correction access. ADMIN/OPERATOR access and Miller route-mapping checks remain in place.
+
+
+Paddy/CMR lifting report filters: season_id and scheme_code are optional on GET /paddy/lifting-summary and GET /reports/lifting-summary, and on shipment report GET /shipments. Omitting them includes all seasons and schemes within account scope; either filter may be supplied independently. Paddy totals remain source-scoped and grouped internally by season/scheme before aggregation. Postman report Params keep these filters disabled by default. Shipment submit/dropdown prerequisites are unchanged.

@@ -30,9 +30,7 @@ export function errorHandler(err, req, res, next) {
     code = 'DUPLICATE_RECORD';
     message = 'Unique code, reference, device, vehicle or active vehicle assignment already exists.';
     const path = (req.originalUrl || req.url || '').split('?')[0];
-    if (req.method === 'POST' && /\/(schemes|commodities)\/?$/.test(path)) {
-      message = path.replace(/\/$/, '').endsWith('/schemes') ? 'Scheme with this code already exists.' : 'Commodity with this code already exists.';
-    }
+
     if (['POST', 'PATCH'].includes(req.method) && /\/imeis(?:\/\d+)?\/?$/.test(path)) {
       message = 'IMEI already exists.';
     }

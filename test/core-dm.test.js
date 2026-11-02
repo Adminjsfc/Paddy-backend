@@ -12,7 +12,6 @@ test('Paddy setup restricts facility kinds and district access', async () => {
     email: 'pacs@test.invalid',
     address: 'Test address',
     district_id: 364,
-    block_id: 1,
     latitude: 23,
     longitude: 85,
     capacity: {
@@ -174,32 +173,32 @@ test('Core DM identity is checked against active database records and district s
 });
 
 test('DM maps a selected active vehicle and IMEI without inserting another vehicle', async () => {
-  const { registerMillerVehicle } = await import('../src/services/dm-setup.service.js');
+  const { registerVehicleWithGps } = await import('../src/services/dm-setup.service.js');
   const writes = [];
   const db = { async execute(sql, args) {
-    if (sql.includes(' FROM facilities ')) return [[{ id: 7, kind: 'MILLER', district_id: 364, block_id: 1 }]];
-    if (sql.includes('SELECT id FROM vehicles WHERE')) {
-      assert.deepEqual(args, [9, 7]);
-      return [[{ id: 9 }]];
+    if (sql.includes(' FROM facilities ')) return [[{ id: 7, kind: 'MILLER', district_id: 364}]];
+    if (sql.includes('FROM vehicles WHERE')) {
+      assert.deepEqual(args, [9, 364]);
+      return [[{ id: 9, district_id:364 }]];
     }
-    if (sql.includes('FROM vehicles v ')) return [[{ id: 9, miller_id: 7 }]];
-    if (sql.startsWith('SELECT id FROM')) return [[{ id: 1 }]];
+    if (sql.includes('FROM vehicles v ')) return [[{ id: 9, district_id:364 }]];
+    if (sql.startsWith('SELECT id FROM')||sql.includes('FROM imeis')) return [[{ id: 1, district_id:364 }]];
     writes.push(sql);
     if (sql.startsWith('INSERT INTO gps_devices')) return [{ insertId: 11 }];
     if (sql.startsWith('UPDATE')) return [{ affectedRows: 1 }];
     throw Error('Unexpected SQL: ' + sql);
   } };
-  const result = await registerMillerVehicle(db, { miller_id: 7, vehicle_id: 9, imei_id: 1 }, { user: { role: 'CORE_DM', district_ids: [364] } });
+  const result = await registerVehicleWithGps(db, { vehicle_id: 9, imei_id: 1 }, { user: { role: 'CORE_DM', district_ids: [364] } });
   assert.deepEqual(result, { id: 9, device_id: 11 });
   assert(!writes.some(sql => sql.startsWith('INSERT INTO vehicles')));
 });
 
-test('DM rejects a vehicle that does not belong to the selected Miller', async () => {
-  const { registerMillerVehicle } = await import('../src/services/dm-setup.service.js');
+test('DM rejects a vehicle outside assigned districts', async () => {
+  const { registerVehicleWithGps } = await import('../src/services/dm-setup.service.js');
   const db = { async execute(sql) {
     if (sql.includes('FROM facilities')) return [[{ id: 7, kind: 'MILLER', district_id: 364 }]];
     if (sql.startsWith('SELECT')) return [[]];
     throw Error('Unexpected write');
   } };
-  await assert.rejects(registerMillerVehicle(db, { miller_id: 7, vehicle_id: 9, imei_id: 1 }, { user: { district_ids: [364] } }), error => error.code === 'INVALID_VEHICLE');
+  await assert.rejects(registerVehicleWithGps(db, { miller_id: 7, vehicle_id: 9, imei_id: 1 }, { user: { district_ids: [364] } }), error => error.code === 'INVALID_VEHICLE');
 });

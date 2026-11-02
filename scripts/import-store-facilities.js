@@ -23,16 +23,10 @@ try {
     await c.beginTransaction();
     inTransaction = true;
   }
-  const stores = await rows(c, 'SELECT id,store_id,store_name,store_type,district_id,rgi_block_code,lat,lng,radius,capacity,status FROM tbl_store_location_master WHERE store_type IN (1,2) ORDER BY id');
+  const stores = await rows(c, 'SELECT id,store_id,store_name,store_type,district_id,lat,lng,radius,capacity,status FROM tbl_store_location_master WHERE store_type IN (1,2) ORDER BY id');
   const districtRows = await rows(c, 'SELECT id,district_name FROM tbl_district_master');
-  const blockRows = await rows(c, 'SELECT id,district_id,rgi_block_code,block_name FROM tbl_block_master');
   const facilities = await rows(c, 'SELECT id,code,kind,district_id,core_store_id FROM facilities' + (apply ? ' FOR UPDATE' : ''));
-  const districts = new Map(districtRows.map(row => [Number(row.id), row])),
-    blocks = new Map();
-  for (const block of blockRows) if (block.rgi_block_code != null) {
-    const key = `${block.district_id}:${block.rgi_block_code}`;
-    blocks.set(key, [...(blocks.get(key) || []), block]);
-  }
+  const districts = new Map(districtRows.map(row => [Number(row.id), row]));
   const byLink = new Map(facilities.filter(row => row.core_store_id != null).map(row => [Number(row.core_store_id), row]));
   const byCode = new Map(facilities.map(row => [row.code, row]));
   const codeCounts = new Map();
@@ -81,7 +75,6 @@ try {
     }
     const normalized = storeFacilityData(store, {
       districts,
-      blocks,
       code,
       capacityUnit,
       radiusUnit

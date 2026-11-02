@@ -11,11 +11,11 @@ import * as S from '../src/validators/schemas.js';
 const c = await pool.getConnection();
 try {
   await c.beginTransaction();
-  const miller = await one(c, "SELECT f.* FROM facilities f JOIN tbl_district_master d ON d.id=f.district_id AND d.status=1 JOIN tbl_block_master b ON b.id=f.block_id AND b.district_id=f.district_id WHERE f.kind='MILLER' AND f.active=1 LIMIT 1");
+  const miller = await one(c, "SELECT f.* FROM facilities f JOIN tbl_district_master d ON d.id=f.district_id AND d.status=1 WHERE f.kind='MILLER' AND f.active=1 LIMIT 1");
   const type = await one(c, 'SELECT id FROM vehicle_types WHERE active=1 LIMIT 1');
   const user = { role: 'ADMIN' };
   const suffix = crypto.randomBytes(5).toString('hex').toUpperCase();
-  const identity = S.imeiMaster.parse({ imei: String(BigInt('0x' + suffix)).padStart(15, '0'), provider: 'ROLLBACK IMEI VALIDATION', district_id: miller.district_id, block_id: miller.block_id });
+  const identity = S.imeiMaster.parse({ imei: String(BigInt('0x' + suffix)).padStart(15, '0'), provider: 'ROLLBACK IMEI VALIDATION', district_id: miller.district_id});
   const imei = await createMaster(c, 'imeis', identity, user);
   assert.equal(imei.mapping_status, null);
   assert.equal(imei.status_updated_at, null);
@@ -25,8 +25,8 @@ try {
   assert.equal(initial.mapping_status, null);
   assert.equal(initial.status_updated_at, null);
   await assert.rejects(createMaster(c, 'imeis', identity, user), { code: 'ER_DUP_ENTRY' });
-  const vehicle = await createMaster(c, 'vehicles', S.vehicle.parse({ miller_id: miller.id, vehicle_type_id: type.id, registration_no: 'VAL' + suffix, capacity: { value: 10, unit: 'MT' } }), user);
-  const assignment = S.device.parse({ imei_id: imei.id, vehicle_id: vehicle.id, district_id: miller.district_id, block_id: miller.block_id });
+  const vehicle = await createMaster(c, 'vehicles', S.vehicle.parse({ transporter_name:'Validation transporter',transporter_contact_no:'9999999999',district_id:miller.district_id, vehicle_type_id: type.id, registration_no: 'VAL' + suffix, capacity: { value: 10, unit: 'MT' } }), user);
+  const assignment = S.device.parse({ imei_id: imei.id, vehicle_id: vehicle.id, district_id: miller.district_id});
   assert.equal(vehicle.mapping_status, null);
   assert.equal(vehicle.status_updated_at, null);
   const device = await createMaster(c, 'gps-devices', assignment, user);
@@ -37,7 +37,7 @@ try {
   assert.equal(mappedVehicle.mapping_status, 'MAPPED');
   assert(mappedVehicle.status_updated_at);
   assert.equal(mapped.district_id, miller.district_id);
-  assert.equal(mapped.block_id, miller.block_id);
+  assert.equal('block_id' in mapped, false);
   await assert.rejects(createMaster(c, 'gps-devices', assignment, user), { code: 'ER_DUP_ENTRY' });
   const deviceContext = { user, params: { id: device.id } };
   await assert.rejects(setMasterStatus(c, { active: false }, imeiContext, 'imeis'), { code: 'IMEI_IN_USE' });
@@ -59,7 +59,7 @@ try {
   const editedVehicle = await one(c, 'SELECT mapping_status,status_updated_at FROM vehicles WHERE id=?', [vehicle.id]);
   assert.equal(editedVehicle.mapping_status, 'MAPPED');
   assert.equal(editedVehicle.status_updated_at.getTime(), mappedVehicle.status_updated_at.getTime());
-  await updateMasterProfile(c, { district_id: miller.district_id, block_id: miller.block_id }, deviceContext, profilePatches['gps-devices'], 'gps-devices');
+  await updateMasterProfile(c, { district_id: miller.district_id}, deviceContext, profilePatches['gps-devices'], 'gps-devices');
   await setMasterStatus(c, { active: false }, deviceContext, 'gps-devices');
   const unmapped = await one(c, 'SELECT * FROM imeis WHERE id=?', [imei.id]);
   assert.equal(unmapped.mapping_status, 'AVAILABLE');

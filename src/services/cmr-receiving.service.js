@@ -104,7 +104,6 @@ export async function listShipments(context) {
     args.push(status);
   }
   const base = `FROM shipment_details s JOIN facilities f ON f.id=s.destination_id JOIN facilities m ON m.id=s.miller_id JOIN vehicles v ON v.id=s.vehicle_id
-    JOIN schemes sc ON sc.id=s.scheme_id JOIN commodities co ON co.id=s.commodity_id
     JOIN seasons se ON se.id=s.season_id LEFT JOIN cmr_receipts r ON r.shipment_id=s.id WHERE ${filter}`;
   const count = await repository.listShipmentsCountRecords(base, args);
   const data = await repository.listShipmentsListRecords(base, limit, offset, args);
@@ -133,7 +132,6 @@ export async function listStock(context) {
       offset
     } = pageParams(context.query);
   const base = `FROM cmr_receipt_stacks st JOIN cmr_receipts r ON r.id=st.receipt_id JOIN shipment_details s ON s.id=r.shipment_id
-    JOIN schemes sc ON sc.id=s.scheme_id
     JOIN facilities f ON f.id=s.destination_id JOIN facilities m ON m.id=s.miller_id JOIN seasons se ON se.id=s.season_id
     WHERE r.decision='ACCEPTED' AND ${scope.sql}`;
   const count = await repository.listStockCountRecords(base, scope);

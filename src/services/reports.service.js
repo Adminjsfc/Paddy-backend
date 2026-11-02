@@ -40,12 +40,12 @@ export async function listStocks(context) {
     filter += ' AND s.facility_id=?';
     args.push(context.user.facility_id);
   }
-  for (const f of ['season_id', 'facility_id', 'scheme_id', 'commodity_id', 'status']) if (context.query[f]) {
+  for (const f of ['season_id', 'facility_id', 'status', 'commodity_code']) if (context.query[f]) {
     filter += ` AND s.${f}=?`;
     args.push(String(context.query[f]));
   }
-  for(const [key,column] of [['scheme_code','sc.code'],['commodity','co.code']])if(context.query[key]){filter+=` AND ${column}=?`;args.push(String(context.query[key]));}
-  const base = `FROM stocks s JOIN schemes sc ON sc.id=s.scheme_id JOIN commodities co ON co.id=s.commodity_id JOIN facilities f ON f.id=s.facility_id WHERE 1=1${filter}`;
+  for(const [key,column] of [['scheme_code','s.scheme_code'],['commodity','s.commodity_code']])if(context.query[key]){filter+=` AND ${column}=?`;args.push(String(context.query[key]));}
+  const base = `FROM stocks s JOIN facilities f ON f.id=s.facility_id WHERE 1=1${filter}`;
   const count = await repository.listStocksCountRecords(base, args);
   const data = await repository.listStocksListRecords(base, limit, offset, args);
   return {
@@ -87,11 +87,11 @@ export async function listLedger(context) {
     filter += ' AND l.facility_id=?';
     args.push(context.user.facility_id);
   }
-  for (const f of ['season_id', 'facility_id', 'scheme_id', 'commodity_id', 'status']) if (context.query[f]) {
+  for (const f of ['season_id', 'facility_id', 'status']) if (context.query[f]) {
     filter += ` AND l.${f}=?`;
     args.push(String(context.query[f]));
   }
-  for(const [key,column] of [['scheme_code','sc.code'],['commodity','co.code']])if(context.query[key]){filter+=` AND ${column}=?`;args.push(String(context.query[key]));}
+  for(const [key,column] of [['scheme_code','l.scheme_code'],['commodity','l.commodity_code']])if(context.query[key]){filter+=` AND ${column}=?`;args.push(String(context.query[key]));}
   const count = await repository.listLedgerCountStockLedger(filter, args);
   return {
     body: {
@@ -241,7 +241,12 @@ export async function listAvailableLots(context) {
   const effects = {
     headers: []
   };
-  const facilityId = id.parse(Number(context.query.facility_id)),
+  const sourceAccount=['PACS','LAMPS'].includes(context.user.role);
+  if(sourceAccount) {
+    ensure(context.user.facility_id,'PACS/LAMPS facility is required','FORBIDDEN',403);
+    ensure(context.query.facility_id===undefined||Number(context.query.facility_id)===Number(context.user.facility_id),'Cannot view another facility procurement','FORBIDDEN',403);
+  }
+  const facilityId = id.parse(Number(sourceAccount?context.user.facility_id:context.query.facility_id)),
     seasonId = id.parse(Number(context.query.season_id));
   if (context.user.role === 'MILLER') await repository.listAvailableLotsFindRouteTags(facilityId, context, seasonId);
   const {
@@ -250,9 +255,9 @@ export async function listAvailableLots(context) {
       offset
     } = pageParams(context.query),
     args = [facilityId, seasonId];
-  let filter = 'FROM procurement p JOIN schemes sc ON sc.id=p.scheme_id JOIN commodities co ON co.id=p.commodity_id WHERE p.facility_id=? AND p.season_id=? AND p.available_g>p.reserved_g';
-  if(context.query.scheme_code){filter+=' AND sc.code=?';args.push(code.parse(context.query.scheme_code));}
-  for(const field of ['scheme_id','commodity_id'])if(context.query[field]){filter+=` AND p.${field}=?`;args.push(id.parse(Number(context.query[field])));}
+  let filter = "FROM procurement p WHERE p.facility_id=? AND p.season_id=? AND p.commodity_code='PADDY' AND p.available_g>p.reserved_g";
+  if(context.query.scheme_code){filter+=' AND p.scheme_code=?';args.push(code.parse(context.query.scheme_code));}
+  for(const field of ['commodity_code'])if(context.query[field]){filter+=` AND p.${field}=?`;args.push(String(context.query[field]));}
   const count = await repository.listAvailableLotsCountRecords(filter, args);
   return {
     body: {

@@ -38,7 +38,7 @@ The SQL runner applies the versioned file once, guarded by a MySQL advisory lock
 
 ### Location master prerequisites
 
-Migration `008a_location_masters.sql` creates `tbl_district_master` and `tbl_block_master` if missing, before migration `009` references them. It also runs on existing installations and preserves imported tables and data using `CREATE TABLE IF NOT EXISTS`. It does not alter incompatible existing tables or seed district/block records. Import authoritative district and block data using the original source IDs before registering facilities or using core DM district assignments. Do not invent replacement IDs.
+Migration `008a_location_masters.sql` creates `tbl_district_master` and `tbl_block_master` if missing, before migration `009` references them. It also runs on existing installations and preserves imported tables and data using `CREATE TABLE IF NOT EXISTS`. It does not alter incompatible existing tables or seed district/block records. For the current service, import authoritative district data using the original source IDs before registering facilities or using core DM district assignments. Migration 068 removes operational block fields, and migration 069 drops tbl_block_master. Older migrations temporarily create and reference the block master during a fresh schema installation. Do not invent replacement IDs.
 
 Both tables must use InnoDB and have an indexed, signed `INT` column named `id`, matching the foreign key columns in migrations `009` and `012`. If the source uses a different type or signedness, review and align the referencing column definitions before migration. The API also expects district fields `id_old`, `district_name`, `status`, and block fields `district_id`, `block_name`, `rgi_block_code`.
 

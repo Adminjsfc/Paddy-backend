@@ -37,9 +37,10 @@ test('Mapped PACS overview requires a scoped Miller and validates filters',async
   await assert.rejects(listMappedSources({user:{role:'MILLER',miller_id:1},query:{limit:201}}));
 });
 
-test('Lifting vehicles must be active and belong to the mapped Miller',()=>{
-  assert.doesNotThrow(()=>validateMappedVehicle({active:1,owner_miller_id:3},3));
-  for(const vehicle of [null,{active:0,owner_miller_id:3},{active:1,owner_miller_id:4}])
+test('Lifting accepts any active registered vehicle without Miller ownership',()=>{
+  assert.doesNotThrow(()=>validateMappedVehicle({active:1},3));
+  assert.doesNotThrow(()=>validateMappedVehicle({active:1,created_by:99},3));
+  for(const vehicle of [null,{active:0}])
     assert.throws(()=>validateMappedVehicle(vehicle,3),e=>e.code==='INVALID_VEHICLE');
 });
 

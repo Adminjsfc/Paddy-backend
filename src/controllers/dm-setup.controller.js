@@ -33,12 +33,7 @@ export const addTestRice = mutation(z.object({
   reference: z.string().trim().min(1).max(110),
   quantity
 }).strict(), (connection, data, req) => service.addTestRice(connection, data, requestContext(req)));
-export const registerMillerVehicle = mutation(z.union([
-z.object({ miller_id: id, vehicle_id: id, imei_id: id }).strict(),
-z.object({
-  miller_id: id,
-  vehicle_type_id: id,
-  registration_no: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{5,20}$/),
-  capacity: quantity,
-  imei_id: id
-}).strict()]), (connection, data, req) => service.registerMillerVehicle(connection, data, requestContext(req)));
+export const registerVehicleWithGps = mutation(z.union([
+  z.object({vehicle_id:id,imei_id:id}).strict(),
+  S.vehicle.extend({imei_id:id})
+]), (connection,data,req)=>service.registerVehicleWithGps(connection,data,requestContext(req)));

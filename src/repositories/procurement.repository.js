@@ -6,30 +6,31 @@ export async function activeSeasonFindSeasons(connection, byCode, idOrCode) {
 export async function pushProcurementFindProcurement(connection, data) {
   return findProcurementReference(connection,data.external_ref);
 }
-function findProcurementReference(connection,externalRef) {
-  return one(connection,`SELECT p.id,p.external_ref,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.moisture_percent,p.receipt_no,p.created_at,p.scheme_id,p.commodity_id,sc.code scheme_code,co.code commodity_code,se.code season_code,
-    f.code facility_code,farmer.code farmer_code FROM procurement_references r
-    JOIN procurement p ON p.id=r.procurement_id JOIN schemes sc ON sc.id=p.scheme_id
-    JOIN commodities co ON co.id=p.commodity_id JOIN seasons se ON se.id=p.season_id
+function findProcurementReference(connection,externalRef,lock=false) {
+  return one(connection,`SELECT p.id,p.external_ref,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.moisture_percent,p.receipt_no,p.created_at,p.scheme_code,p.commodity_code,se.code season_code,
+    f.code facility_code,farmer.code farmer_code FROM procurement p JOIN seasons se ON se.id=p.season_id
     JOIN facilities f ON f.id=p.facility_id LEFT JOIN farmers farmer ON farmer.id=p.farmer_id
-    WHERE r.external_ref=?`,[externalRef],false);
+    LEFT JOIN procurement_corrections correction ON correction.procurement_id=p.id
+      AND (correction.old_external_ref=? OR correction.new_external_ref=?)
+    WHERE p.external_ref=? OR correction.id IS NOT NULL LIMIT 1${lock?' FOR UPDATE':''}`,[externalRef,externalRef,externalRef],false);
 }
 export async function pushProcurementFindFarmers(connection, data) {
   return one(connection, 'SELECT id FROM farmers WHERE code=? AND active=1', [data.farmer_code],true,{code:'FARMER_NOT_FOUND',message:`farmer_code=${data.farmer_code}: not found or inactive.`});
 }
 export async function pushProcurementFindFacilities(connection, data) {
-  return one(connection, "SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE code=? AND kind IN ('PACS','LAMPS') AND active=1 FOR UPDATE", [data.facility_code],true,{code:'PADDY_SOURCE_NOT_FOUND',message:`facility_code=${data.facility_code}: active PACS/LAMPS not found.`});
+  return one(connection, "SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE code=? AND kind IN ('PACS','LAMPS') AND active=1 FOR UPDATE", [data.facility_code],true,{code:'PADDY_SOURCE_NOT_FOUND',message:`facility_code=${data.facility_code}: active PACS/LAMPS not found.`});
 }
 export async function pushProcurementFindProcurement2(connection, data) {
-  return findProcurementReference(connection,data.external_ref);
+  return findProcurementReference(connection,data.external_ref,true);
 }
 export const findProcurementForCorrection=(connection,id,lock=false)=>one(connection,
-  `SELECT p.id,p.external_ref,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.moisture_percent,p.receipt_no,p.created_at,p.scheme_id,p.commodity_id,sc.code scheme_code FROM procurement p JOIN schemes sc ON sc.id=p.scheme_id WHERE p.id=?${lock?' FOR UPDATE':''}`,
+  `SELECT p.id,p.external_ref,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.moisture_percent,p.receipt_no,p.created_at,p.scheme_code,p.commodity_code FROM procurement p WHERE p.id=?${lock?' FOR UPDATE':''}`,
   [id],true,{code:'PROCUREMENT_NOT_FOUND',message:`procurement_id=${id}: not found.`});
-export const reserveProcurementReference=(connection,externalRef,id)=>rows(connection,
-  'INSERT INTO procurement_references(external_ref,procurement_id) VALUES (?,?) ON DUPLICATE KEY UPDATE external_ref=VALUES(external_ref)',[externalRef,id]);
 export const procurementReferenceOwner=(connection,externalRef)=>one(connection,
-  'SELECT procurement_id FROM procurement_references WHERE external_ref=? FOR UPDATE',[externalRef]);
+  `SELECT p.id procurement_id FROM procurement p
+   LEFT JOIN procurement_corrections correction ON correction.procurement_id=p.id
+     AND (correction.old_external_ref=? OR correction.new_external_ref=?)
+   WHERE p.external_ref=? OR correction.id IS NOT NULL LIMIT 1 FOR UPDATE`,[externalRef,externalRef,externalRef],false);
 export const insertProcurementCorrection=(connection,data)=>insert(connection,'procurement_corrections',data);
 export const saveProcurementCorrection=(connection,id,externalRef,quantity,available)=>rows(connection,
   'UPDATE procurement SET external_ref=?,quantity_g=?,available_g=? WHERE id=?',[externalRef,quantity,available,id]);
@@ -37,8 +38,8 @@ export async function pushProcurementInsertProcurement(connection, data, digest,
   return insert(connection, 'procurement', {
     external_ref: data.external_ref,
     payload_hash: digest,
-    scheme_id: masters.scheme_id,
-    commodity_id: masters.commodity_id,
+    scheme_code: masters.scheme_code,
+    commodity_code: masters.commodity_code,
     season_id: season.id,
     farmer_id: farmer?.id ?? null,
     facility_id: f.id,
@@ -80,10 +81,10 @@ export async function pushOrderInsertCmrOrders(connection, data, digest, season,
   });
 }
 export async function listProcurementsCountProcurement(filter, args) {
-  return one(pool, `SELECT COUNT(p.id) AS total FROM procurement p JOIN schemes sc ON sc.id=p.scheme_id JOIN commodities co ON co.id=p.commodity_id WHERE 1=1${filter}`, args);
+  return one(pool, `SELECT COUNT(p.id) AS total FROM procurement p WHERE 1=1${filter}`, args);
 }
 export async function listProcurementsListProcurement(filter, limit, offset, args) {
-  return rows(pool, `SELECT p.id,p.external_ref,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.moisture_percent,p.receipt_no,p.created_at,p.scheme_id,p.commodity_id,sc.code scheme_code,sc.scheme_name,co.code commodity,co.commodity_name,f.name farmer_name,c.name facility_name FROM procurement p JOIN schemes sc ON sc.id=p.scheme_id JOIN commodities co ON co.id=p.commodity_id LEFT JOIN farmers f ON f.id=p.farmer_id JOIN facilities c ON c.id=p.facility_id WHERE 1=1${filter} ORDER BY p.procured_at DESC,p.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT p.id,p.external_ref,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.available_g-p.reserved_g unreserved_g,p.moisture_percent,p.receipt_no,p.created_at,p.scheme_code,p.commodity_code,p.commodity_code commodity,f.name farmer_name,c.name facility_name FROM procurement p LEFT JOIN farmers f ON f.id=p.farmer_id JOIN facilities c ON c.id=p.facility_id WHERE 1=1${filter} ORDER BY p.procured_at DESC,p.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function listCmrOrdersCountCmrOrders(filter, args) {
   return one(pool, `SELECT COUNT(o.id) AS total FROM cmr_orders o WHERE 1=1${filter}`, args);
@@ -104,7 +105,7 @@ export async function cancelCmrOrderUpdateCmrOrders(connection, o) {
   return rows(connection, "UPDATE cmr_orders SET status='CANCELLED' WHERE id=?", [o.id]);
 }
 export async function recordMillingBatchFindFacilities(connection, data) {
-  return one(connection, "SELECT id,code,kind,name,address,district_id,block_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND kind='MILLER' AND active=1", [data.miller_id]);
+  return one(connection, "SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND kind='MILLER' AND active=1", [data.miller_id]);
 }
 export async function recordMillingBatchFindMillingBatches(connection, miller, start, end) {
   return one(connection, 'SELECT COALESCE(SUM(paddy_consumed_g),0) AS amount FROM milling_batches WHERE miller_id=? AND milled_at>=? AND milled_at<?', [miller.id, start, end]);

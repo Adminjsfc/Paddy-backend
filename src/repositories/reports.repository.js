@@ -1,13 +1,13 @@
 import { pool } from "../config/database.js";
 import { rows, one } from "../repositories/database.js";
 export async function dashboardVehicles(millerId,seasonId,{limit,offset}) {
-  const args=[...(seasonId?[seasonId]:[]),millerId];
-  const base=`FROM vehicles v LEFT JOIN transporters t ON t.id=v.transporter_id
+  const args=[millerId,...(seasonId?[seasonId]:[]),millerId];
+  const base=`FROM vehicles v
     LEFT JOIN vehicle_types vt ON vt.id=v.vehicle_type_id LEFT JOIN gps_devices d ON d.vehicle_id=v.id
     LEFT JOIN imeis i ON i.id=d.imei_id
-    LEFT JOIN shipment_details s ON s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')${seasonId?' AND s.season_id=?':''}
+    LEFT JOIN shipment_details s ON s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED') AND s.miller_id=?${seasonId?' AND s.season_id=?':''}
     LEFT JOIN facilities source ON source.id=s.source_id LEFT JOIN facilities destination ON destination.id=s.destination_id
-    WHERE COALESCE(v.miller_id,t.miller_id)=?`;
+    WHERE EXISTS (SELECT 1 FROM shipment_details assigned WHERE assigned.vehicle_id=v.id AND assigned.miller_id=?)`;
   const totals=await one(pool,`SELECT COUNT(v.id) total,SUM(v.active=1) active,SUM(v.active=0) inactive,
     SUM(d.id IS NOT NULL AND d.active=1) gps_enabled,SUM(s.id IS NOT NULL) assigned_trips ${base}`,args);
   const data=await rows(pool,`SELECT v.id,v.registration_no,v.capacity_g,v.active,vt.name vehicle_type,
@@ -36,13 +36,13 @@ export async function listStocksCountRecords(base, args) {
   return one(pool, `SELECT COUNT(s.id) total ${base}`, args);
 }
 export async function listStocksListRecords(base, limit, offset, args) {
-  return rows(pool, `SELECT s.id,s.facility_id,s.season_id,s.on_hand_g,s.reserved_g,s.scheme_id,s.commodity_id,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,sc.code scheme_code,sc.scheme_name,co.code commodity,co.commodity_name,f.name,f.kind,CASE WHEN s.status=1 THEN s.on_hand_g-s.reserved_g ELSE 0 END available_g ${base} ORDER BY s.facility_id,s.season_id,s.scheme_id,s.commodity_id LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT s.id,s.facility_id,s.season_id,s.on_hand_g,s.reserved_g,s.scheme_code,s.commodity_code,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,s.commodity_code commodity,f.name,f.kind,CASE WHEN s.status=1 THEN s.on_hand_g-s.reserved_g ELSE 0 END available_g ${base} ORDER BY s.facility_id,s.season_id,s.scheme_code,s.commodity_code LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function listLedgerCountStockLedger(filter, args) {
-  return one(pool, `SELECT COUNT(l.id) total FROM stock_ledger l JOIN schemes sc ON sc.id=l.scheme_id JOIN commodities co ON co.id=l.commodity_id WHERE 1=1${filter}`, args);
+  return one(pool, `SELECT COUNT(l.id) total FROM stock_ledger l WHERE 1=1${filter}`, args);
 }
 export async function listLedgerListStockLedger(filter, limit, offset, args) {
-  return rows(pool, `SELECT l.id,l.facility_id,l.season_id,l.on_hand_delta_g,l.reserved_delta_g,l.reference_type,l.reference_id,l.created_at,l.scheme_id,l.commodity_id,l.created_by,l.updated_at,l.updated_by,l.created_by_actor,l.updated_by_actor,l.status,sc.code scheme_code,co.code commodity FROM stock_ledger l JOIN schemes sc ON sc.id=l.scheme_id JOIN commodities co ON co.id=l.commodity_id WHERE 1=1${filter} ORDER BY l.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT l.id,l.facility_id,l.season_id,l.on_hand_delta_g,l.reserved_delta_g,l.reference_type,l.reference_id,l.created_at,l.scheme_code,l.commodity_code,l.created_by,l.updated_at,l.updated_by,l.created_by_actor,l.updated_by_actor,l.status,l.commodity_code commodity FROM stock_ledger l WHERE 1=1${filter} ORDER BY l.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function getMillerReconciliationFindFacilities(millerId) {
   return one(pool, "SELECT id,code,name,recovery_percent FROM facilities WHERE id=? AND kind='MILLER'", [millerId]);
@@ -65,7 +65,7 @@ export async function getMillerReconciliationFindCmrOrders(millerId, seasonId) {
   return one(pool, "SELECT COALESCE(SUM(rice_quantity_g),0) ordered_rice_g,COALESCE(SUM(committed_g),0) order_committed_g,COALESCE(SUM(delivered_g),0) order_delivered_g FROM cmr_orders WHERE miller_id=? AND season_id=? AND status<>'CANCELLED'", [millerId, seasonId]);
 }
 export async function getMillerReconciliationListStocks(millerId, seasonId) {
-  return rows(pool, 'SELECT s.id,s.facility_id,s.season_id,s.on_hand_g,s.reserved_g,s.scheme_id,s.commodity_id,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,sc.code scheme_code,co.code commodity,CASE WHEN s.status=1 THEN s.on_hand_g-s.reserved_g ELSE 0 END available_g FROM stocks s JOIN schemes sc ON sc.id=s.scheme_id JOIN commodities co ON co.id=s.commodity_id WHERE s.facility_id=? AND s.season_id=?', [millerId, seasonId]);
+  return rows(pool, 'SELECT s.id,s.facility_id,s.season_id,s.on_hand_g,s.reserved_g,s.scheme_code,s.commodity_code,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,s.commodity_code commodity,CASE WHEN s.status=1 THEN s.on_hand_g-s.reserved_g ELSE 0 END available_g FROM stocks s WHERE s.facility_id=? AND s.season_id=?', [millerId, seasonId]);
 }
 export async function listStoreAssignmentsCountRecords(base, args) {
   return one(pool, `SELECT COUNT(a.id) total ${base}`, args);
@@ -92,5 +92,5 @@ export async function listAvailableLotsCountRecords(filter, args) {
   return one(pool, `SELECT COUNT(p.id) total ${filter}`, args);
 }
 export async function listAvailableLotsListRecords(filter, limit, offset, args) {
-  return rows(pool, `SELECT p.id,p.facility_id,p.season_id,p.scheme_id,p.commodity_id,sc.code scheme_code,co.code commodity,p.procured_at,p.available_g-p.reserved_g unreserved_g ${filter} ORDER BY p.procured_at,p.id LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT p.id,p.external_ref,p.receipt_no,p.facility_id,p.season_id,p.scheme_code,p.commodity_code,p.commodity_code commodity,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.available_g-p.reserved_g unreserved_g ${filter} ORDER BY p.procured_at,p.id LIMIT ${limit} OFFSET ${offset}`, args);
 }

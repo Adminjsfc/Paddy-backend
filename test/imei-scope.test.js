@@ -12,7 +12,7 @@ test('DM cannot add or move an IMEI outside assigned districts', async () => {
   const db = { async execute(sql, args) {
     assert.match(sql, /district_id IN \(\?\)/);
     assert.deepEqual(args, [12, 364]);
-    return [[{ id: 12, district_id: 364, block_id: 1 }]];
+    return [[{ id: 12, district_id: 364}]];
   } };
   await assert.rejects(createMaster(db, 'imeis', { district_id: 365 }, user), error => error.code === 'DISTRICT_FORBIDDEN');
   await assert.rejects(updateMasterProfile(db, { district_id: 365 }, context, null, 'imeis'), error => error.code === 'DISTRICT_FORBIDDEN');

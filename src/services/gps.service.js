@@ -110,6 +110,7 @@ export async function getVehicleLocation(context) {
   };
   const v = await repository.getVehicleLocationFindVehicles(context);
   vehicleAccess(context.user, v);
+  await repository.requireVehicleTrackingAccess(context.user,v);
   const data = await repository.getVehicleLocationFindGpsDevices(v);
   data.stale = !data.last_gps_at || Date.now() - new Date(data.last_gps_at).getTime() > Number(process.env.GPS_STALE_MINUTES || 15) * 60000;
   return {
@@ -127,6 +128,7 @@ export async function getVehicleHistory(context) {
   };
   const v = await repository.getVehicleHistoryFindVehicles(context);
   vehicleAccess(context.user, v);
+  await repository.requireVehicleTrackingAccess(context.user,v);
   const from = S.gps.shape.gps_at.parse(context.query.from),
     to = S.gps.shape.gps_at.parse(context.query.to);
   ensure(to > from && to - from <= 7 * 86400000, 'History window must be positive and at most 7 days', 'VALIDATION', 400);

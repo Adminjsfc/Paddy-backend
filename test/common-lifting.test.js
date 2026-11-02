@@ -8,7 +8,7 @@ import {importProcurements} from '../src/services/procurement.service.js';
 
 test('Procurement import identifies the only the missing field and supplied value',async()=>{
  const record={external_ref:'MISSING-MASTER',scheme_code:'SCMR',commodity_code:'PADDY',season_code:'KMS',facility_code:'LAMPS-REAL-CODE',procured_at:new Date('2026-01-02T10:00:00Z'),quantity:{value:200,unit:'QTL'},receipt_no:'TEST',moisture_percent:null};
- for(const [table,errorCode,field] of [['schemes','SCHEME_NOT_FOUND','scheme_code'],['commodities','COMMODITY_NOT_FOUND','commodity_code'],['seasons','SEASON_NOT_FOUND','season_code'],['facilities','PADDY_SOURCE_NOT_FOUND','facility_code']]){
+ for(const [table,errorCode,field] of [['seasons','SEASON_NOT_FOUND','season_code'],['facilities','PADDY_SOURCE_NOT_FOUND','facility_code']]){
   const connection={execute:async(sql)=>{
    if(sql.includes('FROM procurement')||sql.includes('FROM '+table))return [[]];
    if(sql.includes('FROM seasons'))return [[{id:1,start_date:'2026-01-01',end_date:'2026-12-31'}]];
@@ -64,17 +64,16 @@ function database({mapped=true,stock=2000000,lots=2000000}={}) {
   if(sql.includes('FROM shipment_routes'))return [[{id:9,status:1,source_lat:23,source_lng:85,destination_lat:23,destination_lng:85,
    encoded_polyline:'_p~iF~ps|U_ulLnnqC_mqNvxq`@',geometry:{type:'LineString',coordinates:[[85,23],[85.01,23.01]]},distance_km:1.2,duration_minutes:3,created_at:new Date()}]];
   if(sql.includes('JOIN shipment_routes r'))return [[{distance_km:1.2,duration_minutes:3}]];
-  if(sql.includes('FROM schemes')||sql.includes('FROM commodities'))return [[{id:1}]];
   if(sql.includes(' FROM seasons '))return [[{id:2,recovery_percent:68}]];
   if(sql==='SELECT id FROM facilities WHERE id=? FOR UPDATE')return [[{id:args[0]}]];
-  if(sql.includes(' FROM facilities '))return [[{id:args[0],kind:args[0]===153?'PACS':'MILLER',district_id:1,block_id:1,latitude:23,longitude:85,radius_m:200}]];
+  if(sql.includes(' FROM facilities '))return [[{id:args[0],kind:args[0]===153?'PACS':'MILLER',district_id:1,latitude:23,longitude:85,radius_m:200}]];
   if(sql.includes('FROM route_tags'))return [mapped?[{id:1}]:[]];
-  if(sql.includes('FROM vehicles'))return [[{id:4,vehicle_type_id:7,miller_id:3,active:1,transporter_active:1,capacity_g:3000000}]];
+  if(sql.includes('FROM vehicles'))return [[{id:4,vehicle_type_id:7,district_id:1,created_by:99,active:1,capacity_g:3000000}]];
   if(sql.includes('FROM gps_devices'))return [[{id:1}]];
   if(sql.includes('FROM shipment_details'))return [[]];
   if(sql.includes(' FROM stocks '))return [[{id:1,status:1,on_hand_g:stock,reserved_g:0}]];
   if(sql.startsWith('SELECT p.id,p.available_g'))return [[{id:8,available_g:lots,reserved_g:0}]];
-  if(sql.includes('FROM procurement p '))return [[{id:8,facility_id:153,season_id:2,scheme_id:1,commodity_id:1,scheme_code:'SCMR',commodity:'PADDY',available_g:lots,reserved_g:0}]];
+  if(sql.includes('FROM procurement p '))return [[{id:8,facility_id:153,season_id:2,scheme_code:'SCMR',commodity_code:'PADDY',commodity:'PADDY',available_g:lots,reserved_g:0}]];
   if(sql.startsWith('INSERT')||sql.startsWith('UPDATE'))return [{insertId:20}];
   throw new Error('Unexpected query: '+sql);
  }};
@@ -87,10 +86,10 @@ test('PACS and Miller create PADDY from mapped procurement stock without a relea
   assert.equal(result.status,'PLANNED');
   assert.equal(result.trip_status,0);assert.equal(result.trip_started_at,null);assert.equal(result.trip_completed_at,null);
   assert.equal(result.quantity_g,1000000);
-  assert.equal(result.scheme_id,1);assert.equal(result.commodity_id,1);assert.equal(result.vehicle_type_id,7);
+  assert.equal(result.scheme_code,'SCMR');assert.equal(result.commodity_code,'PADDY');assert.equal(result.vehicle_type_id,7);
   const saved=queries.find(q=>q.sql.startsWith('INSERT INTO shipments '));
-  assert(saved.sql.includes('scheme_id')&&saved.sql.includes('commodity_id')&&saved.sql.includes('vehicle_type_id'));
-  assert(!/scheme_code|scheme_type|commodity_type|submitted_vehicle_type/.test(saved.sql));
+  assert(saved.sql.includes('scheme_code')&&saved.sql.includes('commodity_code')&&saved.sql.includes('vehicle_type_id'));
+  assert(!/scheme_id|commodity_id|scheme_type|commodity_type|submitted_vehicle_type/.test(saved.sql));
   assert(queries.some(q=>q.sql.startsWith('INSERT INTO shipment_lots')&&q.args.includes(8)));
   assert(queries.some(q=>q.sql.startsWith('UPDATE procurement SET reserved_g')));
   assert(!queries.some(q=>/release_order/.test(q.sql)));
