@@ -103,7 +103,7 @@ export async function listShipments(context) {
     filter += ' AND COALESCE(r.decision,s.status)=?';
     args.push(status);
   }
-  const base = `FROM shipment_details s JOIN facilities f ON f.id=s.destination_id JOIN facilities m ON m.id=s.miller_id JOIN vehicles v ON v.id=s.vehicle_id
+  const base = `FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id JOIN facilities f ON f.id=sr.destination_id JOIN facilities m ON m.id=s.miller_id JOIN vehicles v ON v.id=s.vehicle_id
     JOIN seasons se ON se.id=s.season_id LEFT JOIN cmr_receipts r ON r.shipment_id=s.id WHERE ${filter}`;
   const count = await repository.listShipmentsCountRecords(base, args);
   const data = await repository.listShipmentsListRecords(base, limit, offset, args);
@@ -131,8 +131,8 @@ export async function listStock(context) {
       limit,
       offset
     } = pageParams(context.query);
-  const base = `FROM cmr_receipt_stacks st JOIN cmr_receipts r ON r.id=st.receipt_id JOIN shipment_details s ON s.id=r.shipment_id
-    JOIN facilities f ON f.id=s.destination_id JOIN facilities m ON m.id=s.miller_id JOIN seasons se ON se.id=s.season_id
+  const base = `FROM cmr_receipt_stacks st JOIN cmr_receipts r ON r.id=st.receipt_id JOIN shipments s ON s.id=r.shipment_id JOIN shipment_routes sr ON sr.id=s.route_id
+    JOIN facilities f ON f.id=sr.destination_id JOIN facilities m ON m.id=s.miller_id JOIN seasons se ON se.id=s.season_id
     WHERE r.decision='ACCEPTED' AND ${scope.sql}`;
   const count = await repository.listStockCountRecords(base, scope);
   const data = await repository.listStockListRecords(base, limit, offset, scope);

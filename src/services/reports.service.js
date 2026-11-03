@@ -249,25 +249,12 @@ export async function listAvailableLots(context) {
   const facilityId = id.parse(Number(sourceAccount?context.user.facility_id:context.query.facility_id)),
     seasonId = id.parse(Number(context.query.season_id));
   if (context.user.role === 'MILLER') await repository.listAvailableLotsFindRouteTags(facilityId, context, seasonId);
-  const {
-      page,
-      limit,
-      offset
-    } = pageParams(context.query),
-    args = [facilityId, seasonId];
-  let filter = "FROM procurement p WHERE p.facility_id=? AND p.season_id=? AND p.commodity_code='PADDY' AND p.available_g>p.reserved_g";
-  if(context.query.scheme_code){filter+=' AND p.scheme_code=?';args.push(code.parse(context.query.scheme_code));}
-  for(const field of ['commodity_code'])if(context.query[field]){filter+=` AND p.${field}=?`;args.push(String(context.query[field]));}
-  const count = await repository.listAvailableLotsCountRecords(filter, args);
+  const args = [facilityId, seasonId];
+  const filter = "FROM procurement p WHERE p.facility_id=? AND p.season_id=? AND p.commodity_code='PADDY' AND p.available_g>p.reserved_g";
   return {
     body: {
       ok: true,
-      data: await repository.listAvailableLotsListRecords(filter, limit, offset, args),
-      pagination: {
-        page,
-        limit,
-        total: count.total
-      }
+      data: await repository.listAvailableLotsListRecords(filter, args)
     },
     status: 200,
     ...effects

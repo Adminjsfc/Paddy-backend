@@ -2,7 +2,9 @@ import * as repository from "../repositories/millers.repository.js";
 import crypto from 'node:crypto';
 import { ensure, id, passwordHash } from "../utils/core.js";
 import { createMaster } from "./masters.service.js";
+import { ensureUniqueUserPhone } from './user-phone.service.js';
 export async function registerMiller(connection, data, actor) {
+  await ensureUniqueUserPhone(connection, data.facility.phone);
   const code = `MILL-${crypto.randomUUID().toUpperCase()}`;
   const facility = await createMaster(connection, 'facilities', {
     ...data.facility,

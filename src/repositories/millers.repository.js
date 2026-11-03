@@ -4,6 +4,7 @@ export async function registerMillerInsertUsers(connection, data, facility, acto
   return insert(connection, 'users', {
     name: data.user.name,
     email: data.user.email,
+    phone: data.facility.phone ?? null,
     password_hash: encodedPassword,
     role: 'MILLER',
     miller_id: facility.id,

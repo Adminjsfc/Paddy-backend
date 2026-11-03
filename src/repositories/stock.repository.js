@@ -10,7 +10,7 @@ export function lockBalance(connection, facilityId, seasonId, masters) {
   return one(connection, 'SELECT id,on_hand_g,reserved_g,status FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code=? AND commodity_code=? FOR UPDATE', [facilityId, seasonId, masters.scheme_code,masters.commodity_code]);
 }
 export function findCapacity(connection, facilityId) {
-  return one(connection, 'SELECT capacity_g FROM facilities WHERE id=?', [facilityId]);
+  return one(connection, 'SELECT capacity_value,capacity_unit FROM facilities WHERE id=?', [facilityId]);
 }
 export function totalOnHand(connection, facilityId) {
   return one(connection, 'SELECT COALESCE(SUM(on_hand_g),0) AS amount FROM stocks WHERE facility_id=?', [facilityId]);

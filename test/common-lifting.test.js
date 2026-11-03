@@ -56,7 +56,7 @@ test('Expected completion accepts offset timestamps and trip actuals remain serv
  assert.throws(()=>shipment.parse({...body(),expected_completion_at:'2026-10-22 18:30:00'}));
  for(const field of ['trip_status','trip_started_at','trip_completed_at'])assert.throws(()=>shipment.parse({...body(),[field]:1}));
 });
-function database({mapped=true,stock=2000000,lots=2000000}={}) {
+function database({mapped=true,stock=2000000,lots=2000000,capacityKg=3000,capacityUnit='KG'}={}) {
  const queries=[];
  const connection={execute:async(sql,args)=>{
   queries.push({sql,args});
@@ -68,9 +68,9 @@ function database({mapped=true,stock=2000000,lots=2000000}={}) {
   if(sql==='SELECT id FROM facilities WHERE id=? FOR UPDATE')return [[{id:args[0]}]];
   if(sql.includes(' FROM facilities '))return [[{id:args[0],kind:args[0]===153?'PACS':'MILLER',district_id:1,latitude:23,longitude:85,radius_m:200}]];
   if(sql.includes('FROM route_tags'))return [mapped?[{id:1}]:[]];
-  if(sql.includes('FROM vehicles'))return [[{id:4,vehicle_type_id:7,district_id:1,created_by:99,active:1,capacity_g:3000000}]];
+  if(sql.includes('FROM vehicles'))return [[{id:4,vehicle_type_id:7,district_id:1,created_by:99,active:1,capacity_value:capacityKg,capacity_unit:capacityUnit}]];
   if(sql.includes('FROM gps_devices'))return [[{id:1}]];
-  if(sql.includes('FROM shipment_details'))return [[]];
+  if(sql.includes('FROM shipments'))return [[]];
   if(sql.includes(' FROM stocks '))return [[{id:1,status:1,on_hand_g:stock,reserved_g:0}]];
   if(sql.startsWith('SELECT p.id,p.available_g'))return [[{id:8,available_g:lots,reserved_g:0}]];
   if(sql.includes('FROM procurement p '))return [[{id:8,facility_id:153,season_id:2,scheme_code:'SCMR',commodity_code:'PADDY',commodity:'PADDY',available_g:lots,reserved_g:0}]];
@@ -79,8 +79,8 @@ function database({mapped=true,stock=2000000,lots=2000000}={}) {
  }};
  return {connection,queries};
 }
-test('PACS and Miller create PADDY from mapped procurement stock without a release order',async()=>{
- for(const user of [{role:'PACS',facility_id:153},{role:'LAMPS',facility_id:153},{role:'MILLER',miller_id:3}]){
+test('PACS and LAMPS create PADDY from mapped procurement stock without a release order',async()=>{
+ for(const user of [{role:'PACS',facility_id:153},{role:'LAMPS',facility_id:153}]){
   const {connection,queries}=database();
   const result=await createShipment(connection,body(),{user:{...user,id:1}});
   assert.equal(result.status,'PLANNED');
@@ -101,8 +101,35 @@ test('PACS cannot create CMR or lift another facility stock',async()=>{
   await assert.rejects(createShipment(connection,data,{user}),e=>e.status===403);
 });
 
+test('Shipment creation enforces PACS/LAMPS for Paddy and Miller for CMR before database access',async()=>{
+ const connection={execute:async()=>assert.fail('Unauthorized creation must not query the database')};
+ for(const role of ['MILLER','ADMIN','OPERATOR','DRIVER','TRANSPORTER']){
+  await assert.rejects(createShipment(connection,body(),{user:{role,miller_id:3}}),e=>e.status===403&&e.message==='Only PACS/LAMPS can create Paddy shipments.');
+ }
+ for(const role of ['PACS','LAMPS','ADMIN','OPERATOR','DRIVER','TRANSPORTER']){
+  await assert.rejects(createShipment(connection,{...body(),leg:'CMR'},{user:{role,facility_id:153}}),e=>e.status===403&&e.message==='Only Miller can create CMR shipments.');
+ }
+});
+
+test('Vehicle capacity stored in kg accepts the exact load and rejects one gram over',async()=>{
+ const context={user:{role:'PACS',facility_id:153,id:1}};
+ const exact=database({capacityKg:1000});
+ assert.equal((await createShipment(exact.connection,body(),context)).quantity_g,1000000);
+ const below=database({capacityKg:999.999});
+ await assert.rejects(createShipment(below.connection,body(),context),e=>e.code==='VEHICLE_OVERLOAD');
+ assert(!below.queries.some(q=>q.sql.startsWith('INSERT INTO shipments')));
+});
+
+test('MT vehicle capacity is compared correctly against QTL shipment quantities',async()=>{
+ const context={user:{role:'PACS',facility_id:153,id:1}};
+ const exact=database({capacityKg:1,capacityUnit:'MT'});
+ assert.equal((await createShipment(exact.connection,body(),context)).quantity_g,1000000);
+ const below=database({capacityKg:0.999999,capacityUnit:'MT'});
+ await assert.rejects(createShipment(below.connection,body(),context),e=>e.code==='VEHICLE_OVERLOAD');
+});
+
 test('Shipment auto-creates and links driver accounts using the original creator scope',async()=>{
- for(const user of [{id:1,role:'PACS',facility_id:153},{id:2,role:'LAMPS',facility_id:153},{id:3,role:'MILLER',miller_id:3}]){
+ for(const user of [{id:1,role:'PACS',facility_id:153},{id:2,role:'LAMPS',facility_id:153}]){
   const {connection,queries}=database();
   const execute=connection.execute;
   connection.execute=async(sql,args)=>sql.includes('FROM users WHERE phone=')?[[]]:execute(sql,args);
@@ -124,7 +151,7 @@ test('Dispatch links an existing driver using saved shipment contact without iss
  const execute=connection.execute;
  connection.execute=async(sql,args)=>{
   if(sql.includes('FROM users WHERE phone='))return [[{id:55,name:'Saved Driver',phone:'9999999999',role:'DRIVER',active:1}]];
-  if(sql.startsWith('SELECT s.') && sql.includes('FROM shipment_details s'))return [[{id:20,leg:'PADDY',status:'PLANNED',miller_id:3,source_id:153,season_id:2,vehicle_id:4,quantity_g:1000000,scheme_code:'SCMR',driver_name:'Saved Driver',driver_phone:'9999999999'}]];
+  if(sql.startsWith('SELECT s.') && sql.includes('FROM shipments s'))return [[{id:20,leg:'PADDY',status:'PLANNED',miller_id:3,source_id:153,season_id:2,vehicle_id:4,quantity_g:1000000,scheme_code:'SCMR',driver_name:'Saved Driver',driver_phone:'9999999999'}]];
   if(sql.startsWith('SELECT active FROM facilities'))return [[{active:1}]];
   if(sql.includes('FROM shipment_lots'))return [[]];
   if(sql.includes(' FROM stocks '))return [[{id:1,status:1,on_hand_g:2000000,reserved_g:1000000}]];

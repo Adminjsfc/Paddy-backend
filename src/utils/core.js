@@ -42,6 +42,22 @@ export function grams(q, allowZero = false) {
 }
 export const recoveryGrams = (g, p) => Number((BigInt(g) * BigInt(Math.round(Number(p) * 100)) + 5000n) / 10000n);
 export const kg = g => Number((Number(g) / 1000).toFixed(3));
+export function capacityFields(quantity, daily = false) {
+  if (quantity) grams(quantity);
+  return {
+    [daily ? 'milling_capacity_value_per_day' : 'capacity_value']: quantity ? Number(quantity.value) : null,
+    [daily ? 'milling_capacity_unit' : 'capacity_unit']: quantity?.unit ?? null
+  };
+}
+export function capacityGrams(record, daily = false) {
+  const value = record[daily ? 'milling_capacity_value_per_day' : 'capacity_value'];
+  const unit = record[daily ? 'milling_capacity_unit' : 'capacity_unit'];
+  if (value == null) return null;
+  const factor = {KG: 1000, QTL: 100000, MT: 1000000}[unit];
+  const result = Math.round(Number(value) * factor);
+  ensure(Number.isSafeInteger(result) && result >= 0, 'Invalid stored capacity', 'INVALID_CAPACITY', 500);
+  return result;
+}
 export function canonical(v) {
   if (v instanceof Date) return v.toISOString();
   if (Array.isArray(v)) return v.map(canonical);
@@ -118,7 +134,7 @@ export function scopedWhere(user, alias = 's') {
   if (user.role === 'DRIVER') return {sql:` AND ${alias}.driver_user_id=?`,params:[user.id]};
   if(['PACS','LAMPS'].includes(user.role)) {
     ensure(user.facility_id,'PACS/LAMPS facility is required','FORBIDDEN',403);
-    return {sql:` AND ${alias}.leg='PADDY' AND ${alias}.source_id=?`,params:[user.facility_id]};
+    return {sql:` AND ${alias}.leg='PADDY' AND EXISTS (SELECT 1 FROM shipment_routes scope_route WHERE scope_route.id=${alias}.route_id AND scope_route.source_id=?)`,params:[user.facility_id]};
   }
   if (user.role === 'MILLER') return {
     sql: ` AND ${alias}.miller_id=?`,

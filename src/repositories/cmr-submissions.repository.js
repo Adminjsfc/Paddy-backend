@@ -45,17 +45,17 @@ export async function getSubmissionOptionsFindStocks(context, seasonId, scheme) 
   return one(pool, "SELECT s.id,s.scheme_code,s.commodity_code,s.status,s.on_hand_g,s.reserved_g,CASE WHEN s.status=1 THEN s.on_hand_g-s.reserved_g ELSE 0 END available_g FROM stocks s WHERE s.facility_id=? AND s.season_id=? AND s.commodity_code='RICE' AND s.scheme_code=?", [context.user.miller_id, seasonId, scheme], false);
 }
 export async function listEligibleVehiclesListVehicles(context) {
-  return rows(pool, `SELECT v.id,v.registration_no,v.capacity_g,vt.name vehicle_type,1 gps_active,0 busy
+  return rows(pool, `SELECT v.id,v.registration_no,v.capacity_value,v.capacity_unit,vt.name vehicle_type,1 gps_active,0 busy
     FROM vehicles v JOIN vehicle_types vt ON vt.id=v.vehicle_type_id
-    WHERE v.active=1 AND v.capacity_g>0
+    WHERE v.active=1 AND v.capacity_value>0
       AND EXISTS(SELECT 1 FROM gps_devices d WHERE d.vehicle_id=v.id AND d.active=1)
-      AND NOT EXISTS(SELECT 1 FROM shipment_details s WHERE s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED'))
+      AND NOT EXISTS(SELECT 1 FROM shipments s WHERE s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED'))
     ORDER BY v.registration_no`, []);
 }
 export async function getVehicleFindGpsDevices(registration, context) {
-  return one(pool, `SELECT v.id,v.registration_no,v.capacity_g,vt.name vehicle_type,v.transporter_name,v.transporter_contact_no,v.district_id,
+  return one(pool, `SELECT v.id,v.registration_no,v.capacity_value,v.capacity_unit,vt.name vehicle_type,v.transporter_name,v.transporter_contact_no,v.district_id,
     EXISTS(SELECT 1 FROM gps_devices d WHERE d.vehicle_id=v.id AND d.active=1) gps_active,
-    EXISTS(SELECT 1 FROM shipment_details s WHERE s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')) busy
+    EXISTS(SELECT 1 FROM shipments s WHERE s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')) busy
     FROM vehicles v JOIN vehicle_types vt ON vt.id=v.vehicle_type_id
     WHERE v.registration_no=? AND v.active=1`, [registration]);
 }

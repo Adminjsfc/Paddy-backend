@@ -15,7 +15,7 @@ export async function updateModulePermissionsExecuteModulePermissions(connection
 }
 export async function getProfileFindFacilities(user) {
   return one(pool, `SELECT f.id,f.code,f.name,f.address,f.phone,f.contact_name,f.district_id,
-    d.district_name,f.capacity_g,f.milling_capacity_g_per_day,f.recovery_percent
+    d.district_name,f.capacity_value,f.capacity_unit,f.milling_capacity_value_per_day,f.milling_capacity_unit,f.recovery_percent
     FROM facilities f LEFT JOIN tbl_district_master d ON d.id=f.district_id WHERE f.id=?`, [user.miller_id]);
 }
 export async function updateProfileUpdateUsers(connection, fields, data, context) {

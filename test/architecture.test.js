@@ -28,3 +28,9 @@ test('Backend layers keep HTTP and database responsibilities separate',()=>{
     if(layer==='repositories')assert(!imports.some(value=>value==='express'||/\/services\/|\/controllers\/|\/routes\/|\/middlewares\//.test(value)),`${file}: repositories must not depend on higher layers`);
   }
 });
+
+test('Runtime queries do not depend on removed shipment views',()=>{
+  for(const file of files(fileURLToPath(root))){
+    assert(!/\b(?:shipment_details|shipments_ist)\b/.test(fs.readFileSync(file,'utf8')),`${file}: use base tables instead of removed views`);
+  }
+});

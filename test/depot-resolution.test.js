@@ -24,7 +24,7 @@ test('Valid selected store creates only its own linked facility', async () => {
   assert.equal(result.id, 900);
   assert.equal(result.core_store_id, 38);
   assert.equal(result.radius_m, 200);
-  assert.equal(result.capacity_g, 10000000);
+  assert.equal(result.capacity_value, 10);
   assert.equal(db.writes.length, 1);
 });
 test('Foreign districts, invalid store details and mixed ID domains are rejected without writes', async () => {

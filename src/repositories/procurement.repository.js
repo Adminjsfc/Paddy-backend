@@ -18,7 +18,7 @@ export async function pushProcurementFindFarmers(connection, data) {
   return one(connection, 'SELECT id FROM farmers WHERE code=? AND active=1', [data.farmer_code],true,{code:'FARMER_NOT_FOUND',message:`farmer_code=${data.farmer_code}: not found or inactive.`});
 }
 export async function pushProcurementFindFacilities(connection, data) {
-  return one(connection, "SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE code=? AND kind IN ('PACS','LAMPS') AND active=1 FOR UPDATE", [data.facility_code],true,{code:'PADDY_SOURCE_NOT_FOUND',message:`facility_code=${data.facility_code}: active PACS/LAMPS not found.`});
+  return one(connection, "SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_value,capacity_unit,milling_capacity_value_per_day,milling_capacity_unit,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE code=? AND kind IN ('PACS','LAMPS') AND active=1 FOR UPDATE", [data.facility_code],true,{code:'PADDY_SOURCE_NOT_FOUND',message:`facility_code=${data.facility_code}: active PACS/LAMPS not found.`});
 }
 export async function pushProcurementFindProcurement2(connection, data) {
   return findProcurementReference(connection,data.external_ref,true);
@@ -105,7 +105,7 @@ export async function cancelCmrOrderUpdateCmrOrders(connection, o) {
   return rows(connection, "UPDATE cmr_orders SET status='CANCELLED' WHERE id=?", [o.id]);
 }
 export async function recordMillingBatchFindFacilities(connection, data) {
-  return one(connection, "SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_g,milling_capacity_g_per_day,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND kind='MILLER' AND active=1", [data.miller_id]);
+  return one(connection, "SELECT id,code,kind,name,address,district_id,latitude,longitude,radius_m,capacity_value,capacity_unit,milling_capacity_value_per_day,milling_capacity_unit,recovery_percent,contact_name,phone,active,created_by,created_by_core_user_id,created_by_user_type,created_at,updated_by,updated_at,core_store_id FROM facilities WHERE id=? AND kind='MILLER' AND active=1", [data.miller_id]);
 }
 export async function recordMillingBatchFindMillingBatches(connection, miller, start, end) {
   return one(connection, 'SELECT COALESCE(SUM(paddy_consumed_g),0) AS amount FROM milling_batches WHERE miller_id=? AND milled_at>=? AND milled_at<?', [miller.id, start, end]);

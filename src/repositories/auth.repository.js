@@ -1,6 +1,9 @@
 import { pool } from "../config/database.js";
 import { one, rows, insert } from "../repositories/database.js";
 import { hash } from "../utils/core.js";
+export function findUserByPhone(connection, phone) {
+  return one(connection, 'SELECT id FROM users WHERE phone=?', [phone], false);
+}
 export async function loginFindUsers(data) {
   const identifier = data.phone ?? data.email;
   return identifier.includes('@')
@@ -30,7 +33,7 @@ export async function changePasswordFindUsers(context) {
   return one(pool, 'SELECT password_hash FROM users WHERE id=?', [context.user.id]);
 }
 export async function queryUpdateUsers(connection, encoded, context) {
-  return rows(connection, 'UPDATE users SET password_hash=?,updated_by=?,updated_at=? WHERE id=?', [encoded, context.user.id, new Date(), context.user.id]);
+  return rows(connection, 'UPDATE users SET password_hash=?,password=NULL,updated_by=?,updated_at=? WHERE id=?', [encoded, context.user.id, new Date(), context.user.id]);
 }
 export async function queryDeleteSessions(connection, context) {
   return rows(connection, 'DELETE FROM sessions WHERE user_id=?', [context.user.id]);

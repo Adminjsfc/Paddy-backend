@@ -15,5 +15,5 @@ export const completePlan=(connection,id,route,actorId)=>rows(connection,
 export const findShipment=(connection,id)=>one(connection,
   `SELECT r.id,r.source_id,r.destination_id,r.encoded_polyline,r.geometry,r.distance_km,r.duration_minutes,
    r.created_at,r.updated_at,r.created_by,r.updated_by,r.status
-   FROM shipment_details s JOIN shipment_routes r ON r.id=s.route_id
+   FROM shipments s JOIN shipment_routes r ON r.id=s.route_id
    WHERE s.id=?`,[id],false);

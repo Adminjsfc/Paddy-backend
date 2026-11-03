@@ -188,7 +188,7 @@ Master push creates records; it does not silently upsert or overwrite existing c
 | Method/path | Body or filters |
 |---|---|
 | GET `/procurements` | Filters: season_id, facility_id, farmer_id, external_ref, page, limit; SFC roles only. Farmer data is optional. |
-| GET `/procurements/available-lots` | Required facility_id and season_id; returns IDs/available quantities without farmer PII; tagged millers allowed |
+| GET `/procurements/available-lots` | Dropdown: season_id required; source from PACS/LAMPS login, facility_id required for Miller/Admin; all available Paddy lots across schemes, no pagination |
 | GET `/cmr-orders` | Filters: season_id, miller_id, status, external_ref, page, limit |
 | PATCH `/cmr-orders/:id` | rice_quantity and/or due_date, plus reason; admin/operator |
 | POST `/cmr-orders/:id/cancel` | reason; only with zero commitments and deliveries |
@@ -318,9 +318,9 @@ Migration: `020_cmr_receiving.sql`. Rollback-only database validation: `node --e
 
 LAMPS/PACS registration now requires `email` in the existing `POST /api/v1/core/dm/paddy/facilities` payload. It creates the facility and its linked user atomically. The account uses the facility name (or contact person), matching PACS/LAMPS role, and `facility_id`. Default password is `123456789`, stored as a salted scrypt hash. Duplicate login emails fail the transaction. The response additionally includes `user_id`, `email`, and `role`. Existing facility-only records do not gain login accounts automatically.
 
-Paddy lifting uses eUparjan procurement stock and an active season-specific PACS/LAMPS-to-Miller route mapping. No Paddy release order is required or accepted. PACS/LAMPS users may create PADDY shipments only from their own facility. Available procurement lots are reserved automatically (oldest first) unless explicit lots are supplied; dispatch deducts stock and lots. CMR continues to require its existing CMR order and matching scheme rice stock.
+Paddy lifting uses eUparjan procurement stock and an active season-specific PACS/LAMPS-to-Miller route mapping. No Paddy release order is required or accepted. Only PACS/LAMPS users may create PADDY shipments, and only from their own facility. Miller users cannot create PADDY shipments; only Miller users may create CMR shipments. Available procurement lots are reserved automatically (oldest first) unless explicit lots are supplied; dispatch deducts stock and lots. CMR continues to require its existing CMR order and matching scheme rice stock.
 
-PACS/LAMPS lookups: GET /api/v1/paddy/lifting-facility returns the logged-in source; GET /api/v1/paddy/lifting-millers?season_id=... lists active mapped millers; GET /api/v1/paddy/lifting-vehicles?miller_id=...&season_id=... returns that mapped miller's active vehicles. The former /paddy/release-orders endpoint and RO seed command have been removed. Migration 036 removes paddy_release_orders and shipments.release_order_id. Nonempty historical RO records and links are moved to archive tables before removal.
+PACS/LAMPS source_id comes from login data.user.facility_id; no source lookup endpoint is needed. GET /api/v1/paddy/lifting-millers?season_id=... lists active mapped millers; GET /api/v1/paddy/lifting-vehicles?miller_id=...&season_id=... returns shared active vehicles after validating the selected Miller mapping. The former /paddy/release-orders endpoint and RO seed command have been removed. Migration 036 removes paddy_release_orders and shipments.release_order_id. Nonempty historical RO records and links are moved to archive tables before removal.
 
 Paddy mapped-source and lifting-summary responses report procured_g, on_hand_g, reserved_g, available_g and lifted_g; liftable_g and remaining_g use unreserved stock. Source stock is shared across mapped millers, not a separate allotment per miller. CMR summary fields retain their existing meaning.
 
@@ -387,3 +387,33 @@ GET /paddy/lifting-summary now returns one receipt per row. Its actual primary k
 ### Report date display
 
 Only `/reports/*`, `/paddy/lifting-summary` and `GET /shipments` (Paddy/CMR shipment reports) format response dates for display. Timestamps display Indian Standard Time (UTC+05:30) as `DD-MM-YYYY hh:mm:ss AM/PM`, for example `02-11-2026 03:25:40 PM`. Date-only strings display as `DD-MM-YYYY`; null dates remain null. Login, master data, dropdowns, shipment detail and mutation responses retain their existing ISO format. Request formats and database storage are unchanged. Parse report display dates explicitly before converting them to ISO for requests.
+
+### User mobile uniqueness
+
+`POST /users` accepts an optional `phone` (null or omitted remains supported). Local and Core DM Miller registration store `facility.phone` on the Miller user account as well. Registration rejects an existing user mobile, including inactive accounts, with HTTP 409 and `MOBILE_ALREADY_EXISTS`: `Mobile number already registered.` The existing `uq_users_phone` constraint also prevents simultaneous duplicate inserts. Driver contact reuse continues to link the existing driver account instead of creating a duplicate. Shared transporter contacts on vehicles are unchanged.
+
+### Capacity value and unit
+
+Migration 076 stores capacity as `capacity_value` and `capacity_unit`; daily milling capacity uses `milling_capacity_value_per_day` and `milling_capacity_unit`. Input bodies retain `capacity: {value, unit}` and `milling_capacity_per_day: {value, unit}`. The submitted KG/QTL/MT value and unit are preserved: 20 MT stores value 20 and unit MT. API responses expose the value and unit columns. Existing normalized capacity records are represented in MT without changing their physical weight. Internal capacity checks normalize to grams to compare against stock and shipment weights; they do not change the stored capacity unit. Postman capacity examples retain their original MT inputs.
+
+### Shipment driver input fields
+
+Paddy and CMR shipment forms use typed driver_name and driver_phone inputs, not a driver dropdown or driver ID. No prior GET /drivers call is required. The backend saves the submitted contact details and links/creates the driver account by mobile as part of the existing shipment flow. Driver account management remains a separate API. SFC_CMR Postman shipment dropdown folders omit driver lookup requests; shipment submit bodies contain the manual driver inputs.
+
+Available-lot dropdown: `GET /procurements/available-lots?season_id=...` returns all eligible PADDY lots across schemes without pagination. Do not send scheme_code, page or limit. Miller/Admin requests also supply facility_id. Rows retain scheme_code so the selected lot and eventual shipment use the same scheme; one shipment cannot mix schemes.
+
+### Postman receiving sections
+
+SFC_CMR collection groups receiving separately from shipment creation/dispatch. `Paddy Receiving - Miller` has pending ARRIVED Paddy list, shipment detail, POST /shipments/:id/deliver and DELIVERED Paddy report; use miller_token. `CMR Receiving - SFC FCI` has scoped receiver shipment list, detail, POST /core/receiving/shipments/:id/receive and received stock/stack report; use core_receiver_token for an assigned AGM/Lifting Incharge (core user_type 4/8). Set cmr_receiving_decision to ACCEPTED or REJECTED. A rejection requires its reason in remarks. The shipment list status filter can show ARRIVED, ACCEPTED or REJECTED.
+
+Shipment creation roles are enforced before business database queries: POST /shipments allows only PACS/LAMPS for leg=PADDY and only MILLER for leg=CMR. POST /cmr/submissions remains Miller-only. Other roles receive 403. Paddy receiving by Miller and CMR receiving by assigned Core receiver are separate operations.
+
+### Driver initial password column
+
+Migration 077 adds nullable users.password for the initial password of newly created drivers, as requested. Driver creation writes both that readable initial password and the separate password_hash used by login. Existing drivers are reused without resetting credentials. Old user rows keep password=NULL because their passwords cannot be recovered from hashes. Changing a password clears the stored initial password to prevent showing a stale credential. Login, user lists and driver lists do not expose users.password; initial_password remains available on the creation response. Database readers can see this column, so backups and database access also contain readable initial credentials.
+
+### Local Postman integration credentials
+
+Run `npm run postman:sync` after changing local EUPARJAN_API_KEY/GPS_API_KEY. The command updates only SFC_CMR collection/environment and logs no credentials. Local integration requests use the synced collection fallback at local_api_origin, including when no environment is selected or an old environment key is present. Remote targets use only environment credentials; local fallback keys are never applied to remote origins or another port. The procurement request also contains its own header script so it does not depend solely on the collection script. Exports now contain local integration credentials and must remain private. Authentication was verified against the local server using an empty payload, without creating procurement data.
+
+New drivers now receive the fixed initial password `1234567890`. It remains a string in API credentials and users.password. All newly created drivers use this same default unless an explicit password is supplied via POST /drivers. Newly created drivers store the initial value in users.password and return it in driver_account.initial_password; login still verifies password_hash. Existing driver passwords are unchanged. Explicitly supplied passwords on POST /drivers are preserved.

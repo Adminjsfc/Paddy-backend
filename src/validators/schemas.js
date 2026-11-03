@@ -161,6 +161,7 @@ export const gpsBatch = z.object({
 export const user = z.object({
   name,
   email: z.email().max(190).transform(v => v.toLowerCase()),
+  phone: phone.nullable().optional(),
   password: z.string().min(12).max(128),
   role: z.enum(['ADMIN', 'OPERATOR', 'PACS', 'LAMPS', 'MILLER', 'TRANSPORTER']),
   miller_id: nullable(id),

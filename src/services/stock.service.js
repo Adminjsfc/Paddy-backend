@@ -1,3 +1,4 @@
+import {capacityGrams} from '../utils/core.js';
 import { ensure, actor } from "../utils/core.js";
 import * as repository from '../repositories/stock.repository.js';
 export async function stock(connection, facilityId, seasonId, commodity, dh, dr, type, ref, schemeCode, user) {
@@ -13,7 +14,7 @@ export async function stock(connection, facilityId, seasonId, commodity, dh, dr,
   if (dh > 0) {
     const f = await repository.findCapacity(connection, facilityId);
     const total = await repository.totalOnHand(connection, facilityId);
-    ensure(Number(total.amount) + dh <= f.capacity_g, 'Facility storage capacity exceeded', 'CAPACITY_EXCEEDED');
+    ensure(Number(total.amount) + dh <= capacityGrams(f), 'Facility storage capacity exceeded', 'CAPACITY_EXCEEDED');
   }
   await repository.updateBalance(connection, s.id, dh, dr, audit);
   await repository.insertLedger(connection, {

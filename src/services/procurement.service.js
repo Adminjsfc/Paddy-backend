@@ -1,3 +1,4 @@
+import {capacityGrams} from '../utils/core.js';
 import {requireStockMasters} from '../repositories/stock-masters.repository.js';
 import * as repository from "../repositories/procurement.repository.js";
 import { stock } from "./stock.service.js";
@@ -256,12 +257,12 @@ export async function recordMillingBatch(connection, data, context) {
     expected = recoveryGrams(paddy, recovery),
     rice = data.rice_quantity ? grams(data.rice_quantity) : expected;
   ensure(rice > 0 && rice <= paddy, 'Produced rice must be positive and cannot exceed consumed paddy');
-  if (miller.milling_capacity_g_per_day) {
+  if (miller.milling_capacity_value_per_day) {
     const day = new Date(data.milled_at.getTime() + 19800000).toISOString().slice(0, 10);
     const start = new Date(day + 'T00:00:00+05:30'),
       end = new Date(start.getTime() + 86400000);
     const total = await repository.recordMillingBatchFindMillingBatches(connection, miller, start, end);
-    ensure(Number(total.amount) + paddy <= miller.milling_capacity_g_per_day, 'Daily paddy milling capacity exceeded', 'MILLING_CAPACITY_EXCEEDED');
+    ensure(Number(total.amount) + paddy <= capacityGrams(miller, true), 'Daily paddy milling capacity exceeded', 'MILLING_CAPACITY_EXCEEDED');
   }
   const id = await repository.recordMillingBatchInsertMillingBatches(connection, data, miller, season, paddy, rice, expected, recovery);
   await stock(connection, miller.id, season.id, 'PADDY', -paddy, 0, 'MILLING', id, data.scheme_code, context.user);

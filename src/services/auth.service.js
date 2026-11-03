@@ -1,4 +1,5 @@
 import * as repository from "../repositories/auth.repository.js";
+import { ensureUniqueUserPhone } from './user-phone.service.js';
 import { transaction } from "../utils/transaction.js";
 import { cookieToken } from "../middlewares/browser-session.js";
 import { ensure, hash, token, passwordHash, verifyPassword } from "../utils/core.js";
@@ -30,6 +31,7 @@ export async function login(context) {
   effects.cookies = [raw, refresh, refreshExpires];
   const {
     password_hash,
+    password: storedPassword,
     ...safe
   } = u;
   return {
@@ -137,6 +139,7 @@ export async function changePassword(context) {
   };
 }
 export async function createUser(connection, data, context) {
+  await ensureUniqueUserPhone(connection, data.phone);
   if (data.role === 'MILLER') {
     ensure(data.miller_id, 'miller_id is required', 'VALIDATION',400);
     await repository.createUserFindFacilities(connection,data);

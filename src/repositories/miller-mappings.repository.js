@@ -10,7 +10,7 @@ export async function listMappings(millerId,type,seasonId,{limit,offset}) {
     WHERE f.kind IN (${type==='PACS'?"'PACS','LAMPS'":"'SFC_GODOWN','FCI'"})${seasonId?' AND a.season_id=?':''}`;
   const count=await one(pool,`SELECT COUNT(a.id) total ${base}`,args);
   const data=await rows(pool,`SELECT a.id mapping_id,a.season_id,a.created_at mapped_at,se.name season_name,
-    f.id,f.code,f.name,f.kind,f.address,f.active,f.contact_name,f.phone,f.latitude,f.longitude,f.radius_m,f.capacity_g,
+    f.id,f.code,f.name,f.kind,f.address,f.active,f.contact_name,f.phone,f.latitude,f.longitude,f.radius_m,f.capacity_value,f.capacity_unit,
     d.district_name ${base} ORDER BY f.name,a.season_id DESC,a.id LIMIT ${limit} OFFSET ${offset}`,args);
   return {data,total:count.total};
 }

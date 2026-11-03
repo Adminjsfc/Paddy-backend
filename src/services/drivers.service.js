@@ -1,5 +1,6 @@
 import * as repository from '../repositories/drivers.repository.js';
-import {ensure, passwordHash, token} from '../utils/core.js';
+import {ensure, passwordHash} from '../utils/core.js';
+import {driverPassword} from '../utils/driver-password.js';
 
 export function ownerFacility(user) {
   ensure(['PACS','LAMPS','MILLER'].includes(user.role), 'Only PACS/LAMPS and millers can manage drivers', 'FORBIDDEN', 403);
@@ -11,11 +12,11 @@ export async function ensureDriver(connection, data, context, facilityId = owner
   let driver = await repository.findByPhone(connection, data.phone);
   let password;
   if (!driver) {
-    password = data.password ?? token();
+    password = data.password ?? driverPassword();
     try {
       const id = await repository.create(connection, {
         name:data.name, phone:data.phone, email:`${data.phone}@drivers.invalid`, role:'DRIVER',
-        password_hash:await passwordHash(password), created_by:context.user.id ?? null, facility_id:facilityId
+        password_hash:await passwordHash(password), password, created_by:context.user.id ?? null, facility_id:facilityId
       });
       driver = {id,name:data.name,phone:data.phone,role:'DRIVER',active:1,facility_id:facilityId};
     } catch (error) {

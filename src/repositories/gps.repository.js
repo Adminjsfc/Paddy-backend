@@ -4,7 +4,7 @@ import {ensure,scopedWhere} from '../utils/core.js';
 export async function requireVehicleTrackingAccess(user,vehicle) {
   if(['ADMIN','OPERATOR'].includes(user.role)||Number(vehicle.created_by)===Number(user.id)&&user.id)return;
   const scope=scopedWhere(user);
-  const assigned=await one(pool,'SELECT s.id FROM shipment_details s WHERE s.vehicle_id=?'+scope.sql+' LIMIT 1',[vehicle.id,...scope.params],false);
+  const assigned=await one(pool,'SELECT s.id FROM shipments s WHERE s.vehicle_id=?'+scope.sql+' LIMIT 1',[vehicle.id,...scope.params],false);
   ensure(assigned,'Vehicle tracking access denied','FORBIDDEN',403);
 }
 export async function ingestPacketFindGpsDevices(connection, p) {
@@ -14,7 +14,7 @@ export async function ingestPacketFindGpsPackets(connection, data, p) {
   return one(connection, 'SELECT id,latitude,longitude FROM gps_packets WHERE device_id=? AND gps_at=?', [data.id, p.gps_at], false);
 }
 export async function ingestPacketFindShipments(connection, data) {
-  return one(connection, "SELECT id,status,trip_status,dispatched_at,trip_started_at,trip_completed_at,last_gps_at,source_lat,source_lng,source_radius_m,destination_lat,destination_lng,destination_radius_m,source_geofence,destination_geofence FROM shipment_details WHERE vehicle_id=? AND status IN ('DISPATCHED','IN_TRANSIT','ARRIVED') FOR UPDATE", [data.vehicle_id], false);
+  return one(connection, "SELECT id,status,trip_status,dispatched_at,trip_started_at,trip_completed_at,last_gps_at,source_lat,source_lng,source_radius_m,destination_lat,destination_lng,destination_radius_m,source_geofence,destination_geofence FROM shipments WHERE vehicle_id=? AND status IN ('DISPATCHED','IN_TRANSIT','ARRIVED') FOR UPDATE", [data.vehicle_id], false);
 }
 export async function ingestPacketInsertGpsPackets(connection, data, p, result) {
   return insert(connection, 'gps_packets', {
@@ -35,13 +35,13 @@ export async function ingestPacketUpdateShipments(connection, change, p, s) {
   return rows(connection, 'UPDATE shipments SET status=?,source_geofence=?,destination_geofence=?,last_gps_at=?,trip_status=?,trip_started_at=?,trip_completed_at=?,expected_completion_at=CASE WHEN ? THEN TIMESTAMPADD(MINUTE,(SELECT r.duration_minutes FROM shipment_routes r WHERE r.id=shipments.route_id),trip_started_at) ELSE expected_completion_at END WHERE id=?', [change.status, change.source, change.destination, p.gps_at, change.trip_status, change.trip_started_at, change.trip_completed_at, change.events.includes('DEPARTED'), s.id]);
 }
 export async function getVehicleLocationFindVehicles(context) {
-  return one(pool, 'SELECT v.id,v.transporter_name,v.transporter_contact_no,v.district_id,v.vehicle_type_id,v.registration_no,v.capacity_g,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at FROM vehicles v WHERE v.id=?', [context.params.id]);
+  return one(pool, 'SELECT v.id,v.transporter_name,v.transporter_contact_no,v.district_id,v.vehicle_type_id,v.registration_no,v.capacity_value,v.capacity_unit,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at FROM vehicles v WHERE v.id=?', [context.params.id]);
 }
 export async function getVehicleLocationFindGpsDevices(v) {
   return one(pool, 'SELECT d.vehicle_id,d.imei_id,d.district_id,i.imei,i.provider,d.active,d.last_gps_at,d.latitude,d.longitude,d.speed_kph FROM gps_devices d JOIN imeis i ON i.id=d.imei_id WHERE d.vehicle_id=?', [v.id]);
 }
 export async function getVehicleHistoryFindVehicles(context) {
-  return one(pool, 'SELECT v.id,v.transporter_name,v.transporter_contact_no,v.district_id,v.vehicle_type_id,v.registration_no,v.capacity_g,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at FROM vehicles v WHERE v.id=?', [context.params.id]);
+  return one(pool, 'SELECT v.id,v.transporter_name,v.transporter_contact_no,v.district_id,v.vehicle_type_id,v.registration_no,v.capacity_value,v.capacity_unit,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at FROM vehicles v WHERE v.id=?', [context.params.id]);
 }
 export async function getVehicleHistoryCountRecords(filter, args) {
   return one(pool, `SELECT COUNT(p.id) total ${filter}`, args);
@@ -51,5 +51,5 @@ export async function getVehicleHistoryListRecords(filter, limit, offset, args) 
 }
 
 export async function ingestPacketFindBoundShipment(connection,device,shipmentId) {
-  return one(connection,'SELECT id,status,trip_status,dispatched_at,trip_started_at,trip_completed_at,last_gps_at,source_lat,source_lng,source_radius_m,destination_lat,destination_lng,destination_radius_m,source_geofence,destination_geofence FROM shipment_details WHERE id=? AND vehicle_id=? FOR UPDATE',[shipmentId,device.vehicle_id]);
+  return one(connection,'SELECT id,status,trip_status,dispatched_at,trip_started_at,trip_completed_at,last_gps_at,source_lat,source_lng,source_radius_m,destination_lat,destination_lng,destination_radius_m,source_geofence,destination_geofence FROM shipments WHERE id=? AND vehicle_id=? FOR UPDATE',[shipmentId,device.vehicle_id]);
 }

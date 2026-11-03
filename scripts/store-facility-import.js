@@ -1,4 +1,4 @@
-import { grams } from "../src/utils/core.js";
+import { capacityFields } from "../src/utils/core.js";
 export function storeFacilityData(store, {
   districts,
   code,
@@ -17,7 +17,7 @@ export function storeFacilityData(store, {
   if (coordinates.some(value => value == null || String(value).trim() === '') || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || latitude === 0 && longitude === 0) problems.push('Coordinates missing or invalid');
   let capacity;
   try {
-    capacity = grams({
+    capacity = capacityFields({
       value: String(store.capacity ?? '').trim(),
       unit: capacityUnit
     });
@@ -45,7 +45,7 @@ export function storeFacilityData(store, {
       latitude: Number(latitude.toFixed(7)),
       longitude: Number(longitude.toFixed(7)),
       radius_m: Math.round(radius),
-      capacity_g: capacity,
+      ...capacity,
       active: Number(store.status),
       core_store_id: Number(store.id),
       created_by: null

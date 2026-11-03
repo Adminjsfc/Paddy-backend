@@ -14,7 +14,7 @@ const c = await pool.getConnection(),
 try {
   await c.beginTransaction();
   const base = await one(c, "SELECT * FROM facilities WHERE kind='MILLER' AND active=1 LIMIT 1");
-  const dest = await one(c, "SELECT * FROM facilities WHERE core_store_id IS NOT NULL AND kind IN ('FCI','SFC_GODOWN') AND active=1 AND capacity_g>1000000 ORDER BY capacity_g DESC LIMIT 1");
+  const dest = await one(c, "SELECT * FROM facilities WHERE core_store_id IS NOT NULL AND kind IN ('FCI','SFC_GODOWN') AND active=1 AND capacity_value * CASE capacity_unit WHEN 'KG' THEN 1000 WHEN 'QTL' THEN 100000 WHEN 'MT' THEN 1000000 END >1000000 ORDER BY capacity_value * CASE capacity_unit WHEN 'KG' THEN 1000 WHEN 'QTL' THEN 100000 WHEN 'MT' THEN 1000000 END DESC LIMIT 1");
   const season = await one(c, 'SELECT id FROM seasons WHERE active=1 LIMIT 1');
   const type = await one(c, 'SELECT id FROM vehicle_types WHERE active=1 LIMIT 1');
   const actor = {

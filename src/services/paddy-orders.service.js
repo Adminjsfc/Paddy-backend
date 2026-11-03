@@ -36,9 +36,3 @@ export async function liftingVehicles(context) {
   ensure(await repository.mappedMiller(sourceId,millerId,seasonId),'Miller is not mapped to your facility for this season','FORBIDDEN',403);
   return {body:{ok:true,data:await repository.mappedVehicles(millerId)}};
 }
-export async function liftingFacility(context) {
-  ensure(['PACS','LAMPS'].includes(context.user.role)&&context.user.facility_id,'PACS/LAMPS facility is required','FORBIDDEN',403);
-  const facility=await repository.facility(context.user.facility_id);
-  ensure(facility,'Active source facility is required','FORBIDDEN',403);
-  return {body:{ok:true,data:facility}};
-}

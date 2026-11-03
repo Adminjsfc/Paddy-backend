@@ -15,7 +15,7 @@ import {receivingSchema} from '../src/validators/cmr-receiving.schema.js';
 if (!process.env.DB_NAME?.endsWith('_test')) throw new Error('Use a migrated DB_NAME ending in _test');
 const suffix = crypto.randomBytes(4).toString('hex'),
   ids = {};
-let server, url, admin, millerToken, otherToken, transporterToken;
+let server, url, admin, millerToken, pacsToken, otherToken, transporterToken;
 const pass = 'Only-for-integration-tests-2026';
 const key = () => crypto.randomUUID();
 const at = minutes => new Date(Date.now() + minutes * 60000).toISOString();
@@ -25,7 +25,7 @@ const qty = (value, unit = 'KG') => ({
 });
 const code = name => `${name}-${suffix}`;
 async function request(method, path, body, {
-  auth = admin,
+  auth = method === 'POST' && path === '/shipments' ? (body?.leg === 'PADDY' ? pacsToken : millerToken) : admin,
   apiKey,
   idem = key(),
   status
@@ -78,7 +78,7 @@ after(async () => {
   await pool.end();
 });
 test('Shipment schema keeps master IDs and meaningful CMR metadata',async()=>{
-  const fields=new Set((await rows(pool,'SHOW COLUMNS FROM shipment_details')).map(row=>row.Field));
+  const fields=new Set((await rows(pool,'SHOW COLUMNS FROM shipments')).map(row=>row.Field));
   for(const field of ['scheme_code','commodity_code','vehicle_type_id','submitted_on','cmr_lot_count','trip_status','trip_started_at','trip_completed_at','expected_completion_at'])assert(fields.has(field));
   for(const field of ['scheme_id','commodity_id','scheme_type','commodity_type','submitted_vehicle_type','submitted_count'])assert(!fields.has(field));
 });
@@ -136,6 +136,11 @@ test('Create masters, users and scoped transport registrations', async () => {
     miller_id
   });
   millerToken = await login(code('miller') + '@test.invalid');
+  await request('POST', '/users', {
+    name: 'PACS shipment creator', email: code('pacs') + '@test.invalid', password: pass,
+    role: 'PACS', facility_id: ids.pacs
+  });
+  pacsToken = await login(code('pacs') + '@test.invalid');
   otherToken = await login(code('other') + '@test.invalid');
   await request('POST', '/users', {
     name: 'Transport user',
@@ -251,15 +256,15 @@ test('Reserve paddy, reject over-allocation and protect cross-miller data', asyn
     status: 409
   });
   ids.paddy = (await request('POST', '/shipments', paddy('PADDY'), {
-    auth: millerToken
+    auth:pacsToken
   })).data.id;
-  const driver=await one(pool,'SELECT driver_name,driver_phone FROM shipment_details WHERE id=?',[ids.paddy]);
+  const driver=await one(pool,'SELECT driver_name,driver_phone FROM shipments WHERE id=?',[ids.paddy]);
   assert.deepEqual(driver,{driver_name:'Paddy Test Driver',driver_phone:'9999999999'});
   const planned=(await request('GET',`/shipments/${ids.paddy}`)).data;
   assert.equal(planned.trip_status,0);assert.equal(planned.trip_started_at,null);assert.equal(planned.trip_completed_at,null);
   assert(planned.expected_completion_at);
   const stored=await one(pool,`SELECT s.scheme_code,s.commodity_code,s.vehicle_type_id
-    FROM shipment_details s WHERE s.id=?`,[ids.paddy]);
+    FROM shipments s WHERE s.id=?`,[ids.paddy]);
   assert.equal(stored.scheme_code,'SCMR');assert.equal(stored.commodity_code,'PADDY');
   assert.equal(stored.vehicle_type_id,(await one(pool,'SELECT vehicle_type_id FROM vehicles WHERE id=?',[ids.vehicle1])).vehicle_type_id);
   const listed=await request('GET',`/shipments?scheme_code=${stored.scheme_code}&commodity_code=${stored.commodity_code}`,undefined,{auth:millerToken});
@@ -285,7 +290,7 @@ test('Reserve paddy, reject over-allocation and protect cross-miller data', asyn
   }, {
     auth: transporterToken
   });
-  const dispatchedDriver=await one(pool,'SELECT driver_name,driver_phone FROM shipment_details WHERE id=?',[ids.paddy]);
+  const dispatchedDriver=await one(pool,'SELECT driver_name,driver_phone FROM shipments WHERE id=?',[ids.paddy]);
   assert.deepEqual(dispatchedDriver,driver);
   assert.equal(dispatch.data.trip_status,0);assert.equal(dispatch.data.trip_started_at,null);
   assert.equal(dispatch.data.expected_completion_at,planned.expected_completion_at);
@@ -577,18 +582,18 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
   assert(!Object.hasOwn(stored,'commodity'));
   const listed=await request('GET',`/procurements?scheme_code=${schemeMaster.code}&commodity_code=${commodityMaster.code}`);
   assert(listed.data.some(row=>row.id===procurementId&&row.scheme_code==='CCMR'&&row.commodity==='PADDY'));
-  const lots=await request('GET',`/procurements/available-lots?facility_id=${ids.pacs}&season_id=${ids.season}&scheme_code=${schemeMaster.code}`);
+  const lots=await request('GET',`/procurements/available-lots?facility_id=${ids.pacs}&season_id=${ids.season}`);
   assert(lots.data.some(row=>row.id===procurementId&&row.scheme_code===schemeMaster.code));
   const ccBody={...paddy('CCMR-TOO-MUCH',ids.vehicle1,301),scheme_code:'CCMR'};
-  const denied=await request('POST','/shipments',ccBody,{auth:millerToken,status:409});
+  const denied=await request('POST','/shipments',ccBody,{auth:pacsToken,status:409});
   assert.equal(denied.error.code,'INSUFFICIENT_STOCK');
   await request('POST','/shipments',{
     ...ccBody,shipment_no:code('CROSS-SCHEME-LOT'),quantity:qty(100),
     lots:[{procurement_id:ids.procurement,quantity:qty(100)}]
-  },{auth:millerToken,status:400});
+  },{auth:pacsToken,status:400});
   const reservation=(await request('POST','/shipments',{
     ...ccBody,shipment_no:code('CCMR-CANCEL'),quantity:qty(200)
-  },{auth:millerToken})).data.id;
+  },{auth:pacsToken})).data.id;
   const reservedAudit=await one(pool,'SELECT * FROM stocks WHERE id=?',[stockAudit.id]);
   assert.equal(reservedAudit.id,stockAudit.id);
   assert.equal(reservedAudit.created_by_actor,'integration');
@@ -600,12 +605,12 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
   await rows(pool,'UPDATE stocks SET status=0 WHERE id=?',[stockAudit.id]);
   const inactive=await request('POST','/shipments',{
     ...ccBody,shipment_no:code('INACTIVE-BALANCE'),quantity:qty(100)
-  },{auth:millerToken,status:409});
+  },{auth:pacsToken,status:409});
   assert.equal(inactive.error.code,'STOCK_INACTIVE');
   await rows(pool,'UPDATE stocks SET status=1 WHERE id=?',[stockAudit.id]);
   const trip=(await request('POST','/shipments',{
     ...ccBody,shipment_no:code('CCMR-PADDY-TRIP'),quantity:qty(200)
-  },{auth:millerToken})).data.id;
+  },{auth:pacsToken})).data.id;
   const links=await rows(pool,'SELECT * FROM shipment_lots WHERE shipment_id=?',[trip]);
   assert.equal(links.length,1);
   assert.equal(links[0].procurement_id,procurementId);
@@ -693,7 +698,7 @@ test('Procurement corrections update reference/quantity once, preserve retries a
   await request('PATCH',`/procurements/${procurementId}`,{quantity:qty(150),reason:'Unauthorized Miller correction'},{auth:millerToken,status:403});
   const trip=(await request('POST','/shipments',{
     ...paddy('CORRECTION-RESERVATION',ids.vehicle1,60),lots:[{procurement_id:procurementId,quantity:qty(60)}]
-  },{auth:millerToken})).data.id;
+  },{auth:pacsToken})).data.id;
   const reserved=await request('PATCH',path,{quantity:qty(50),reason:'Below reservation'},{apiKey,status:409});
   assert.equal(reserved.error.code,'PROCUREMENT_QUANTITY_IN_USE');assert.match(reserved.error.message,/60 QTL|0.6 QTL/);
   await request('PATCH',`/procurements/${procurementId}`,{quantity:qty(180),reason:'Correct remaining purchase weight'});

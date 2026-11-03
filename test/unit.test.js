@@ -7,6 +7,11 @@ import * as S from "../src/validators/schemas.js";
 import { normalizeMqtt } from "../src/services/gps.service.js";
 import { millerRegistrationSchema } from "../src/validators/millers.schema.js";
 import { registerMiller } from "../src/services/millers.service.js";
+import { createUser } from '../src/services/auth.service.js';
+import { ensureUniqueUserPhone } from '../src/services/user-phone.service.js';
+import { errorHandler } from '../src/middlewares/errors.js';
+import {capacityFields,capacityGrams} from '../src/utils/core.js';
+import {stock} from '../src/services/stock.service.js';
 import { visibility } from '../src/services/masters.service.js';
 import { secondPrecision, dateJsonReplacer, secondsJsonReplacer } from '../src/utils/datetime.js';
 import { respond, respondReport } from '../src/utils/http.js';
@@ -32,7 +37,8 @@ test('All operational roles register independent vehicles with validated distric
     await createMaster(db,'vehicles',data,{role,id:5});
     assert.equal(saved.transporter_name,data.transporter_name);assert.equal(saved.transporter_contact_no,data.transporter_contact_no);
     assert.equal(saved.district_id,3);assert.equal(saved.created_by,5);
-    assert.equal(saved.capacity_g,10000000);
+    assert.equal(saved.capacity_value,10);
+    assert.equal(saved.capacity_unit,'MT');
   }
 });
 
@@ -259,6 +265,70 @@ test('Miller registration hashes the backend default password and links the acco
   assert.notEqual(account.password_hash, '123456789');
   assert.equal(await verifyPassword('123456789', account.password_hash), true);
 });
+test('User and Miller registration reject duplicate mobile numbers before inserting records', async () => {
+  const queries=[];
+  const connection={execute:async(sql,args)=>{queries.push({sql,args});return [[{id:7}]];}};
+  const duplicate=e=>e.status===409&&e.code==='MOBILE_ALREADY_EXISTS';
+  await assert.rejects(createUser(connection,{role:'OPERATOR',phone:'9999999999'},{user:{id:1}}),duplicate);
+  await assert.rejects(registerMiller(connection,{facility:{phone:'9999999999'}},{id:1}),duplicate);
+  assert.equal(queries.length,2);
+  assert(queries.every(q=>q.sql==='SELECT id FROM users WHERE phone=?'));
+  assert(queries.every(q=>q.args[0]==='9999999999'));
+});
+
+test('Mobile validation permits missing contacts and saves unique mobile numbers on user and Miller accounts', async () => {
+  const writes=[];
+  const connection={execute:async(sql,args)=>{
+    if(sql==='SELECT id FROM users WHERE phone=?')return [[]];
+    if(sql.startsWith('SELECT'))return [[{id:1}]];
+    writes.push({sql,args});return [{insertId:52}];
+  }};
+  await ensureUniqueUserPhone({execute:()=>assert.fail('No lookup for missing phone')},null);
+  const user=S.user.parse({name:'Operator',email:'operator@test.invalid',password:'TestPassword123',role:'OPERATOR',phone:'9999999999'});
+  assert.equal(S.user.safeParse({...user,phone:'invalid'}).success,false);
+  await createUser(connection,user,{user:{id:1}});
+  const data=millerRegistrationSchema.parse({facility:{kind:'MILLER',name:'Mill',address:'Mill address',district_id:1,latitude:23,longitude:85,capacity:{value:10,unit:'MT'},phone:'8888888888'},user:{name:'Miller',email:'miller@test.invalid'}});
+  await registerMiller(connection,data,{id:1});
+  const numbers=writes.filter(q=>q.sql.startsWith('INSERT INTO users')).map(q=>q.args[q.sql.match(/\(([^)]+)\)/)[1].split(',').indexOf('phone')]);
+  assert.deepEqual(numbers,['9999999999','8888888888']);
+});
+
+test('Concurrent duplicate mobile registration produces a clear conflict without exposing SQL', () => {
+  let status,body;
+  const response={status(value){status=value;return this;},json(value){body=value;}};
+  errorHandler({code:'ER_DUP_ENTRY',sqlMessage:"Duplicate entry '9999999999' for key 'users.uq_users_phone'"},{method:'POST',url:'/api/v1/millers',requestId:'test'},response,()=>assert.fail());
+  assert.equal(status,409);
+  assert.equal(body.error.code,'MOBILE_ALREADY_EXISTS');
+  assert.equal(body.error.message,'Mobile number already registered.');
+});
+
+test('Capacity preserves input value and unit while checks compare the same weight',()=>{
+  for(const q of [{value:10,unit:'MT'},{value:1,unit:'QTL'},{value:'0.001',unit:'KG'}]){
+    const fields=capacityFields(q);
+    assert.equal(fields.capacity_value,Number(q.value));
+    assert.equal(fields.capacity_unit,q.unit);
+    assert.equal(capacityGrams(fields),grams(q));
+  }
+  assert.deepEqual(capacityFields(null,true),{milling_capacity_value_per_day:null,milling_capacity_unit:null});
+  assert.equal(capacityGrams({capacity_value:0.000001,capacity_unit:'MT'}),1);
+});
+
+test('Storage capacity in kg is checked against gram stock across all seasons',async()=>{
+  let changed=false;
+  const connection={execute:async(sql)=>{
+    if(sql.startsWith('SELECT id,on_hand_g'))return [[{id:1,on_hand_g:500,reserved_g:0,status:1}]];
+    if(sql.startsWith('SELECT capacity_value'))return [[{capacity_value:1.001,capacity_unit:'KG'}]];
+    if(sql.startsWith('SELECT COALESCE(SUM(on_hand_g)'))return [[{amount:1000}]];
+    if(sql.startsWith('UPDATE stocks'))changed=true;
+    return [{insertId:1}];
+  }};
+  await stock(connection,1,1,'PADDY',1,0,'TEST',1,'SCMR',{id:1,role:'ADMIN'});
+  assert(changed);
+  changed=false;
+  await assert.rejects(stock(connection,1,1,'PADDY',2,0,'TEST',1,'SCMR',{id:1,role:'ADMIN'}),e=>e.code==='CAPACITY_EXCEEDED');
+  assert.equal(changed,false);
+});
+
 test('100 QTL paddy yields 68 QTL rice at configurable 68%', () => {
   assert.equal(grams({
     value: 100,

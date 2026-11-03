@@ -6,7 +6,7 @@ const options={districts:new Map([[355,{district_name:'BOKARO'}]]),code:'BKR01',
 test('Store import maps kinds, units and district without requiring block data',()=>{
   const result=storeFacilityData(store,options);
   assert.deepEqual(result.problems,[]);
-  assert.equal(result.data.kind,'SFC_GODOWN');assert.equal(result.data.capacity_g,1000000000);
+  assert.equal(result.data.kind,'SFC_GODOWN');assert.equal(result.data.capacity_value,1000);
   assert.equal(result.data.radius_m,200);assert.equal('block_id' in result.data,false);assert.equal(result.data.core_store_id,38);
   assert.equal(result.data.address,'BERMO GODOWN, BOKARO');
   assert.equal(result.data.created_by,null);

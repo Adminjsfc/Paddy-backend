@@ -56,7 +56,7 @@ try {
         district_id: miller.district_id,
         vehicle_type_id: type.id,
         registration_no: 'JH01CMR0001',
-        capacity_g: 10000000
+        capacity_value: 10, capacity_unit: 'MT'
       })
     };
     const device = await one(c, 'SELECT id FROM gps_devices WHERE vehicle_id=?', [vehicle.id], false);

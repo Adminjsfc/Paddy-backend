@@ -47,8 +47,8 @@ export async function listMappedSources(millerId,seasonId,{limit,offset},schemeC
     COALESCE(st.on_hand_g,0) on_hand_g,COALESCE(st.reserved_g,0) reserved_g,
     CASE WHEN st.status=1 THEN st.on_hand_g-st.reserved_g ELSE 0 END available_g,
     COALESCE((SELECT SUM(p.quantity_g) FROM procurement p WHERE p.facility_id=f.id AND p.season_id=m.season_id AND p.scheme_code=st.scheme_code),0) procured_g,
-    COALESCE((SELECT SUM(l.quantity_g) FROM shipment_details l
-      WHERE l.source_id=f.id AND l.destination_id=m.destination_id AND l.season_id=m.season_id
+    COALESCE((SELECT SUM(l.quantity_g) FROM shipments l JOIN shipment_routes lr ON lr.id=l.route_id
+      WHERE lr.source_id=f.id AND lr.destination_id=m.destination_id AND l.season_id=m.season_id
       AND l.scheme_code=st.scheme_code AND l.leg='PADDY' AND l.status IN ('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED')),0) lifted_g
     FROM (SELECT DISTINCT source_id,destination_id,season_id FROM route_tags WHERE active=1 AND destination_id=?${seasonId?' AND season_id=?':''}) m
     JOIN facilities f ON f.id=m.source_id AND f.kind IN ('PACS','LAMPS')
@@ -69,9 +69,7 @@ export const mappedMillers=(sourceId,seasonId)=>rows(pool,`SELECT DISTINCT f.id 
 export const mappedMiller=(sourceId,millerId,seasonId)=>one(pool,`SELECT r.id FROM route_tags r
  JOIN facilities f ON f.id=r.destination_id AND f.kind='MILLER' AND f.active=1
  WHERE r.source_id=? AND r.destination_id=? AND r.season_id=? AND r.active=1 LIMIT 1`,[sourceId,millerId,seasonId],false);
-export const mappedVehicles=()=>rows(pool,`SELECT v.id,v.registration_no,v.capacity_g,v.transporter_name,v.transporter_contact_no,v.district_id FROM vehicles v
+export const mappedVehicles=()=>rows(pool,`SELECT v.id,v.registration_no,v.capacity_value,v.capacity_unit,v.transporter_name,v.transporter_contact_no,v.district_id FROM vehicles v
  WHERE v.active=1 ORDER BY v.registration_no`);
-export const lockVehicle=(connection,registration)=>one(connection,`SELECT v.id,v.transporter_name,v.transporter_contact_no,v.district_id,v.vehicle_type_id,v.registration_no,v.capacity_g,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at
+export const lockVehicle=(connection,registration)=>one(connection,`SELECT v.id,v.transporter_name,v.transporter_contact_no,v.district_id,v.vehicle_type_id,v.registration_no,v.capacity_value,v.capacity_unit,v.active,v.created_by,v.created_at,v.updated_by,v.updated_at,v.mapping_status,v.status_updated_at
  FROM vehicles v WHERE v.registration_no=? FOR UPDATE`,[registration],false);
-export const facility=id=>one(pool,`SELECT f.id,f.name,f.district_id,d.district_name FROM facilities f
- LEFT JOIN tbl_district_master d ON d.id=f.district_id WHERE f.id=? AND f.active=1`,[id]);

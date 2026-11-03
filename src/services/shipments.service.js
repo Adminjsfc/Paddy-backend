@@ -1,3 +1,4 @@
+import {capacityGrams} from '../utils/core.js';
 import {requireStockMasters} from '../repositories/stock-masters.repository.js';
 import * as repository from "../repositories/shipments.repository.js";
 import { pool } from "../config/database.js";
@@ -20,6 +21,8 @@ export async function transport(connection, vehicleId, user) {
   return v;
 }
 export async function createShipment(connection, data, context, submission = {}) {
+  ensure(data.leg === 'PADDY' ? ['PACS','LAMPS'].includes(context.user.role) : context.user.role === 'MILLER',
+    data.leg === 'PADDY' ? 'Only PACS/LAMPS can create Paddy shipments.' : 'Only Miller can create CMR shipments.', 'FORBIDDEN', 403);
   const driverOwnerId = ['PACS','LAMPS'].includes(context.user.role) ? context.user.facility_id : data.miller_id;
   if (['PACS','LAMPS'].includes(context.user.role)) {
     ensure(data.leg==='PADDY','leg must be PADDY for PACS/LAMPS.','FORBIDDEN',403);
@@ -41,7 +44,7 @@ export async function createShipment(connection, data, context, submission = {})
   const activeVehicle = await repository.createShipmentFindShipments(connection, v);
   ensure(!activeVehicle, 'Vehicle already has an active shipment', 'VEHICLE_BUSY', 409);
   const qty = grams(data.quantity);
-  ensure(qty <= v.capacity_g, 'Vehicle loading capacity exceeded', 'VEHICLE_OVERLOAD');
+  ensure(qty <= capacityGrams(v), 'Vehicle loading capacity exceeded', 'VEHICLE_OVERLOAD');
   let order = null;
   if (data.leg === 'CMR') {
     ensure(data.order_id && data.lots.length === 0, 'CMR requires order_id and must not include procurement lots', 'VALIDATION', 400);

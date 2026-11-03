@@ -18,16 +18,19 @@ function database(existing) {
     return [{insertId:42}];
   }}};
 }
-test('New driver receives a hashed random password and creator facility ownership', async () => {
+test('New driver stores its initial password and separate login hash with creator facility ownership', async () => {
   for (const user of [context.user,{id:3,role:'LAMPS',facility_id:154},{id:4,role:'MILLER',miller_id:15}]) {
     const {connection,queries}=database();
     const result=await ensureDriver(connection,data,{user});
     assert.equal(result.created,true);
+    assert.equal(result.initial_password,'1234567890');
     assert.equal(result.id,42);
     assert.equal(result.facility_id,user.miller_id ?? user.facility_id);
     const saved=queries.find(q=>q.sql.startsWith('INSERT INTO users'));
     assert(await verifyPassword(result.initial_password,saved.args[4]));
-    assert(!saved.args.includes(result.initial_password));
+    const fields=saved.sql.match(/\(([^)]+)\)/)[1].split(',');
+    assert.equal(saved.args[fields.indexOf('password')],result.initial_password);
+    assert.notEqual(saved.args[fields.indexOf('password_hash')],result.initial_password);
     assert.equal(saved.args.at(-1),user.miller_id ?? user.facility_id);
     const owner=queries.find(q=>q.sql.startsWith('INSERT INTO driver_owners'));
     assert.deepEqual(owner.args,[42,user.miller_id ?? user.facility_id,user.id]);
@@ -41,6 +44,13 @@ test('Existing driver is reused without resetting credentials or exposing a pass
   assert.equal(result.facility_id,999);
   assert(!Object.hasOwn(result,'initial_password'));
   assert(!queries.some(q=>/INSERT INTO users|UPDATE users/.test(q.sql)));
+});
+
+test('Explicit driver password is preserved instead of using the default password',async()=>{
+  const {connection}=database();
+  const password='CustomDriverPassword123';
+  const result=await ensureDriver(connection,{...data,password},context);
+  assert.equal(result.initial_password,password);
 });
 test('Inactive and non-driver contacts cannot be repurposed as drivers', async () => {
   for (const existing of [{role:'MILLER',active:1},{role:'DRIVER',active:0}]) {
@@ -84,13 +94,14 @@ test('Driver mobile login verifies password and issues an existing-style session
   const queries=[];
   t.mock.method(pool,'execute',async (sql,args)=>{
     queries.push({sql,args});
-    if(sql.startsWith('SELECT')) return [[{id:42,...data,role:'DRIVER',active:1,password_hash:encoded}]];
+    if(sql.startsWith('SELECT')) return [[{id:42,...data,role:'DRIVER',active:1,password_hash:encoded,password}]];
     return [{insertId:1}];
   });
   const result=await authenticate({body:{phone:data.phone,password}});
   assert.equal(result.body.data.user.role,'DRIVER');
   assert.equal(result.body.data.token.length,64);
   assert(!Object.hasOwn(result.body.data.user,'password_hash'));
+  assert(!Object.hasOwn(result.body.data.user,'password'));
   assert.match(queries[0].sql,/phone=\? AND role='DRIVER'/);
   assert.deepEqual(queries[0].args,[data.phone]);
   assert(queries.some(q=>q.sql.startsWith('INSERT INTO sessions')));

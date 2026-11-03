@@ -51,6 +51,10 @@ export function errorHandler(err, req, res, next) {
         message = 'A facility is already linked to this core store.';
       }
     }
+    if (/\buq_users_phone\b/.test(err.sqlMessage || err.message || '')) {
+      code = 'MOBILE_ALREADY_EXISTS';
+      message = 'Mobile number already registered.';
+    }
   }
   if (['ER_NO_REFERENCED_ROW_2', 'ER_CHECK_CONSTRAINT_VIOLATED'].includes(err.code)) {
     status = 409;

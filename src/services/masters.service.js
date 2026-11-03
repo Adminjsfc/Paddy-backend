@@ -1,5 +1,5 @@
 import * as repository from "../repositories/masters.repository.js";
-import { ensure, grams, millerAccess, vehicleAccess, scopedWhere, pageParams } from "../utils/core.js";
+import { ensure, capacityFields, capacityGrams, millerAccess, vehicleAccess, scopedWhere, pageParams } from "../utils/core.js";
 import { readSelectedStore } from "./store-locations.service.js";
 export async function ensureLocation(connection, districtId) {
   await repository.ensureLocationFindTblDistrictMaster(connection, districtId);
@@ -19,9 +19,9 @@ export async function createMaster(connection, type, d, user) {
     data.created_by_core_user_id = user.core_user_id ?? null;
     data.created_by_user_type = user.core_user_type ?? null;
     await ensureLocation(connection, d.district_id);
-    data.capacity_g = grams(d.capacity);
+    Object.assign(data, capacityFields(d.capacity));
     delete data.capacity;
-    data.milling_capacity_g_per_day = d.milling_capacity_per_day ? grams(d.milling_capacity_per_day) : null;
+    Object.assign(data, capacityFields(d.milling_capacity_per_day, true));
     delete data.milling_capacity_per_day;
   }
   if (type === 'farmers') await ensureLocation(connection, d.district_id);
@@ -31,7 +31,7 @@ export async function createMaster(connection, type, d, user) {
     if (user.role === 'CORE_DM') ensure(user.district_ids?.includes(Number(d.district_id)), 'District is outside your DM assignment', 'DISTRICT_FORBIDDEN', 403);
     data.mapping_status = null;
     data.status_updated_at = null;
-    data.capacity_g = grams(d.capacity);
+    Object.assign(data, capacityFields(d.capacity));
     delete data.capacity;
     await repository.createMasterFindVehicleTypes(connection, d);
   }
@@ -105,7 +105,7 @@ export function visibility(type, u, write=false) {
   if (type === 'gps-devices') {
     if (write) return {sql:' AND x.created_by=?',args:[u.id]};
     const scope = scopedWhere(u);
-    return {sql:' AND (x.created_by=? OR x.vehicle_id IN (SELECT v.id FROM vehicles v WHERE v.created_by=?) OR x.vehicle_id IN (SELECT s.vehicle_id FROM shipment_details s WHERE 1=1'+scope.sql+'))',args:[u.id,u.id,...scope.params]};
+    return {sql:' AND (x.created_by=? OR x.vehicle_id IN (SELECT v.id FROM vehicles v WHERE v.created_by=?) OR x.vehicle_id IN (SELECT s.vehicle_id FROM shipments s WHERE 1=1'+scope.sql+'))',args:[u.id,u.id,...scope.params]};
   }
   ensure(false,'Master access denied','FORBIDDEN',403);
 
@@ -258,13 +258,13 @@ export async function updateFacility(connection, data, context) {
     ...data
   };
   if (data.capacity) {
-    update.capacity_g = grams(data.capacity);
+    Object.assign(update, capacityFields(data.capacity));
     delete update.capacity;
     const s = await repository.updateFacilityFindStocks(connection, f);
-    ensure(update.capacity_g >= s.total, 'Capacity is less than current stock');
+    ensure(capacityGrams(update) >= Number(s.total), 'Capacity is less than current stock');
   }
   if ('milling_capacity_per_day' in data) {
-    update.milling_capacity_g_per_day = data.milling_capacity_per_day ? grams(data.milling_capacity_per_day) : null;
+    Object.assign(update, capacityFields(data.milling_capacity_per_day, true));
     delete update.milling_capacity_per_day;
   }
   if ('district_id' in data) await ensureLocation(connection, update.district_id ?? f.district_id);
@@ -273,7 +273,7 @@ export async function updateFacility(connection, data, context) {
     ensure(['FCI', 'SFC_GODOWN'].includes(f.kind), 'Only receiving stores can link to a core store', 'INVALID_STORE', 400);
     await readSelectedStore(coreStoreId, update.district_id ?? f.district_id, f.kind === 'FCI' ? 'CCMR' : 'SCMR');
   }
-  ensure(f.kind === 'MILLER' || !update.recovery_percent && !update.milling_capacity_g_per_day, 'Milling settings only apply to millers', 'VALIDATION', 400);
+  ensure(f.kind === 'MILLER' || !update.recovery_percent && !update.milling_capacity_value_per_day, 'Milling settings only apply to millers', 'VALIDATION', 400);
   update.updated_by = context.user.id ?? null;
   update.updated_at = new Date();
   await repository.updateFacilityUpdateFacilities(connection, update, f);
@@ -348,10 +348,10 @@ export async function updateMasterProfile(connection, data, context, schema, typ
     ...data
   };
   if (data.capacity) {
-    update.capacity_g = grams(data.capacity);
+    Object.assign(update, capacityFields(data.capacity));
     delete update.capacity;
     const s = await repository.updateMasterProfileFindShipments(connection, record);
-    ensure(!s.max_load || update.capacity_g >= s.max_load, 'Capacity is below active shipment load');
+    ensure(!s.max_load || capacityGrams(update) >= Number(s.max_load), 'Capacity is below active shipment load');
   }
   if (type === 'vehicles' && data.vehicle_type_id) await repository.updateMasterProfileFindVehicleTypes(connection, data);
   if ('district_id' in data) await ensureLocation(connection, update.district_id ?? record.district_id);

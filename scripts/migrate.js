@@ -1,4 +1,6 @@
 import fs from 'node:fs/promises';
+import {capacityKg} from './capacity-kg-migration.js';
+import {capacityUnits} from './capacity-units-migration.js';
 import {removeBlockLocation} from './remove-block-location.js';
 import {removeSchemeCommodityMasters} from './remove-scheme-commodity-masters.js';
 import {independentVehicles} from './independent-vehicles-migration.js';
@@ -36,6 +38,8 @@ try {
     if(filename==='068_remove_block_location.sql')await removeBlockLocation(c);
     if(filename==='071_remove_scheme_commodity_masters.sql')await removeSchemeCommodityMasters(c);
     if(filename==='073_independent_vehicle_registration.sql')await independentVehicles(c);
+    if(filename==='075_capacity_kilograms.sql')await capacityKg(c);
+    if(filename==='076_preserve_capacity_units.sql')await capacityUnits(c);
     if(filename==='072_remove_procurement_references.sql') {
       const [uncovered]=await c.query(`SELECT r.external_ref FROM procurement_references r
         JOIN procurement p ON p.id=r.procurement_id

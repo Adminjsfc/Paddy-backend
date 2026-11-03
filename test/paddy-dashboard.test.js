@@ -12,15 +12,15 @@ test('PACS and LAMPS procurement and available lots are limited to their own Pad
     for(const role of ['PACS','LAMPS'])for(const read of [listProcurements,listAvailableLots])for(const facility_id of [undefined,'153']) {
       calls.length=0;
       await read({user:{role,facility_id:153},query:{season_id:'2',scheme_code:'SCMR',...(facility_id?{facility_id}:{})}});
-      assert.equal(calls.length,2);
+      assert.equal(calls.length,read===listAvailableLots?1:2);
       for(const {sql,args} of calls) {
         assert.match(sql,/p.facility_id=\?/);assert.match(sql,/p.commodity_code='PADDY'/);
-        assert.deepEqual(args.map(String),['153','2','SCMR']);
+        assert.deepEqual(args.map(String),read===listAvailableLots?['153','2']:['153','2','SCMR']);
         assert.equal((sql.match(/\?/g)||[]).length,args.length);
         assert.doesNotMatch(sql,/FROM route_tags/);
       }
-      assert.match(calls[1].sql,/unreserved_g/);
-      if(read===listAvailableLots)assert.match(calls[1].sql,/p.available_g>p.reserved_g/);
+      assert.match(calls.at(-1).sql,/unreserved_g/);
+      if(read===listAvailableLots)assert.match(calls[0].sql,/p.available_g>p.reserved_g/);
     }
     calls.length=0;
     for(const role of ['PACS','LAMPS'])for(const read of [listProcurements,listAvailableLots]){
@@ -38,6 +38,19 @@ test('Miller available procurement still requires a source mapping',async()=>{
     await assert.rejects(listAvailableLots({user:{role:'MILLER',miller_id:3},query:{facility_id:'153',season_id:'2'}}),e=>e.status===404);
     assert.equal(calls.length,1);assert.match(calls[0].sql,/FROM route_tags/);assert.deepEqual(calls[0].args,[153,3,2]);
   }finally{pool.execute=original;}
+});
+
+test('Available Paddy dropdown returns all lots across schemes without pagination',async t=>{
+  const records=Array.from({length:75},(_,index)=>({id:index+1,scheme_code:index%2?'SCMR':'CCMR'}));
+  const calls=[];
+  t.mock.method(pool,'execute',async(sql,args)=>{calls.push({sql,args});return [records];});
+  const {body}=await listAvailableLots({user:{role:'PACS',facility_id:153},query:{season_id:'2',scheme_code:'SCMR',page:'1',limit:'50'}});
+  assert.equal(body.data.length,75);
+  assert(body.data.some(row=>row.scheme_code==='CCMR'));
+  assert.equal(Object.hasOwn(body,'pagination'),false);
+  assert.equal(calls.length,1);
+  assert.deepEqual(calls[0].args,[153,2]);
+  assert.doesNotMatch(calls[0].sql,/\bLIMIT\b|\bOFFSET\b|p\.scheme_code=\?/);
 });
 
 test('Paddy report returns procurement records once even when several Millers are mapped',async()=>{
@@ -165,7 +178,7 @@ test('Paddy overview uses procurement stock and counts all dispatched trips with
     for(const {sql,args} of calls){
       assert.doesNotMatch(sql,/release_order/);
       assert.match(sql,/FROM procurement/);
-      assert.match(sql,/l.destination_id=m.destination_id/);
+      assert.match(sql,/lr.destination_id=m.destination_id/);
       assert.deepEqual(args,[3,2]);
     }
     assert.match(calls[1].sql,/available_g liftable_g/);

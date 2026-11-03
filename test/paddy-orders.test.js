@@ -50,7 +50,7 @@ test('Common shipment schema supports both legs and scopes PACS to its PADDY sou
  assert.equal(grams(shipmentSchema.parse(body).quantity),1012500);
  assert.equal(shipmentSchema.parse({...body,leg:'CMR',order_id:5}).order_id,5);
  assert.throws(()=>shipmentSchema.parse({...body,lifted_g:0}));
- assert.deepEqual(scopedWhere({role:'PACS',facility_id:153}),{sql:" AND s.leg='PADDY' AND s.source_id=?",params:[153]});
+ assert.deepEqual(scopedWhere({role:'PACS',facility_id:153}),{sql:" AND s.leg='PADDY' AND EXISTS (SELECT 1 FROM shipment_routes scope_route WHERE scope_route.id=s.route_id AND scope_route.source_id=?)",params:[153]});
  assert.throws(()=>scopedWhere({role:'LAMPS'}),e=>e.status===403);
  assert.throws(()=>shipmentSchema.parse({...body,release_order_id:1}));
 });
