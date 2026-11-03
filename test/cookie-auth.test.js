@@ -29,6 +29,8 @@ test('Browser cookie login, refresh, origin checks and revocation', async () => 
     email: 'admin@test.invalid',
     name: 'Admin',
     role: 'ADMIN',
+    district_id: null,
+    district_name: null,
     active: 1,
     password_hash: await passwordHash('test-password-123')
   };
@@ -92,6 +94,8 @@ test('Browser cookie login, refresh, origin checks and revocation', async () => 
     const login = await response.json();
     assert.equal(login.status, 200);
     assert.equal(login.data.user.password_hash, undefined);
+    assert.equal(login.data.user.district_id, null);
+    assert.equal(login.data.user.district_name, null);
     const cookies = response.headers.getSetCookie();
     assert.equal(cookies.length, 2);
     for (const cookie of cookies) {
@@ -114,6 +118,8 @@ test('Browser cookie login, refresh, origin checks and revocation', async () => 
     })).json();
     assert.equal(identity.data.user_id, user.id);
     assert.equal(identity.data.role, 'ADMIN');
+    assert.equal(identity.data.district_id, null);
+    assert.equal(identity.data.district_name, null);
     assert.equal((await call('/auth/me', {
       headers: {
         Device: 'mobile',

@@ -102,7 +102,7 @@ test('Driver mobile login verifies password and issues an existing-style session
   assert.equal(result.body.data.token.length,64);
   assert(!Object.hasOwn(result.body.data.user,'password_hash'));
   assert(!Object.hasOwn(result.body.data.user,'password'));
-  assert.match(queries[0].sql,/phone=\? AND role='DRIVER'/);
+  assert.match(queries[0].sql,/u.phone=\? AND u.role='DRIVER'/);
   assert.deepEqual(queries[0].args,[data.phone]);
   assert(queries.some(q=>q.sql.startsWith('INSERT INTO sessions')));
   await assert.rejects(authenticate({body:{phone:data.phone,password:'wrong'}}),e=>e.status===401);

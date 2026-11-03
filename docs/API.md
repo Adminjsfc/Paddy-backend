@@ -2,6 +2,23 @@
 
 Base URL: `http://127.0.0.1:3015/api/v1`. All request/response bodies are JSON. Postman contains complete runnable request bodies. This document lists the complete exposed route families and important rules.
 
+## Manual trip correction
+
+`POST /shipments/:id/trip-correction` is restricted to ADMIN/OPERATOR and requires authentication plus an `Idempotency-Key`. Use this instead of changing only `trip_status` in SQL. Supply verified actual timestamps with explicit timezone offsets:
+
+```json
+{
+  "trip_status": 1,
+  "dispatched_at": "2026-11-03T17:00:00+05:30",
+  "trip_started_at": "2026-11-03T17:05:00+05:30",
+  "reason": "Corrected from verified dispatch records"
+}
+```
+
+For completion, send `trip_status: 2` and include `trip_completed_at` strictly after start. Start must be strictly after dispatch. Times cannot be in the future beyond the standard API tolerance. Examples are illustrative; use the shipment's actual times.
+
+The endpoint locks the shipment and atomically updates status (IN_TRANSIT/ARRIVED), trip_status, actual timestamps, ETA and geofence flags, with a TRIP_STATUS_CORRECTED event and the standard mutation audit. It preserves the GPS watermark, does not manufacture GPS packets or deliver stock, and rejects planned/terminal shipments and backwards trip transitions. Dispatch PLANNED shipments through the dispatch API first. The trip workers pick up changes on their next refresh. Existing Redis intents with conflicting state remain protected by TRIP_INTENT_CONFLICT and require review; this endpoint does not clear Redis journals or queues.
+
 ## Authentication and retry headers
 
 Application APIs accept the HttpOnly `accessToken` cookie or `Authorization: Bearer <token>` after login. An explicitly supplied Authorization header takes precedence. Tokens are random, expiring server-side sessions; only their hashes are stored. Passwords use salted scrypt. User deactivation takes effect on the next authenticated request. Password changes invalidate all current sessions, including refresh credentials.
@@ -417,3 +434,7 @@ Migration 077 adds nullable users.password for the initial password of newly cre
 Run `npm run postman:sync` after changing local EUPARJAN_API_KEY/GPS_API_KEY. The command updates only SFC_CMR collection/environment and logs no credentials. Local integration requests use the synced collection fallback at local_api_origin, including when no environment is selected or an old environment key is present. Remote targets use only environment credentials; local fallback keys are never applied to remote origins or another port. The procurement request also contains its own header script so it does not depend solely on the collection script. Exports now contain local integration credentials and must remain private. Authentication was verified against the local server using an empty payload, without creating procurement data.
 
 New drivers now receive the fixed initial password `1234567890`. It remains a string in API credentials and users.password. All newly created drivers use this same default unless an explicit password is supplied via POST /drivers. Newly created drivers store the initial value in users.password and return it in driver_account.initial_password; login still verifies password_hash. Existing driver passwords are unchanged. Explicitly supplied passwords on POST /drivers are preserved.
+
+### Login district metadata
+
+POST /auth/login returns data.user.district_id and data.user.district_name for PACS/LAMPS/Miller users, resolved from their linked facility (facility_id, or miller_id as fallback). GET /auth/me returns the same district metadata from the current database link. Accounts without that facility scope return null; this is metadata and does not assign a district permission to Admin/Operator/Driver/Transporter roles. Core DM/receiver assignments are separate. SFC_CMR login response scripts save a non-null linked district into collection district_id/district_name without adding environment variables.

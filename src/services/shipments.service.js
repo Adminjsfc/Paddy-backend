@@ -13,6 +13,22 @@ export async function ownedShipment(connection, context, lock = true) {
   const scope = scopedWhere(context.user);
   return repository.ownedShipmentFindShipments(connection, scope, lock, context);
 }
+export async function correctTripStatus(connection, data, context) {
+  ensure(['ADMIN', 'OPERATOR'].includes(context.user.role), 'Only operators can correct trips', 'FORBIDDEN', 403);
+  const s = await ownedShipment(connection, context);
+  ensure(['DISPATCHED', 'IN_TRANSIT'].includes(s.status), 'Only dispatched or running shipments can be corrected', 'INVALID_TRIP_STATE', 409);
+  ensure(Number(s.trip_status) <= data.trip_status, 'Trip correction cannot move backwards', 'INVALID_TRIP_STATE', 409);
+  await repository.correctTripStatus(connection, s, data);
+  await event(connection, s.id, 'TRIP_STATUS_CORRECTED', new Date(), {
+    actor_id: context.user.id, reason: data.reason,
+    before: { status: s.status, trip_status: s.trip_status, dispatched_at: s.dispatched_at,
+      trip_started_at: s.trip_started_at, trip_completed_at: s.trip_completed_at },
+    after: data
+  });
+  return { id: s.id, status: data.trip_status === 1 ? 'IN_TRANSIT' : 'ARRIVED',
+    trip_status: data.trip_status, dispatched_at: data.dispatched_at,
+    trip_started_at: data.trip_started_at, trip_completed_at: data.trip_completed_at ?? null };
+}
 export async function transport(connection, vehicleId, user) {
   const v = await repository.transportFindVehicles(connection, vehicleId);
   vehicleAccess(user, v);

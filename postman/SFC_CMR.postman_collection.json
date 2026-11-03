@@ -19,7 +19,7 @@
               }
             ],
             "url": "{{base_url}}/auth/login",
-            "description": "",
+            "description": "\n\nLogin returns district_id and district_name from the linked PACS/LAMPS/Miller facility. The response script auto-saves a linked district to collection variables. Unlinked roles return null; Core DM/receiver assignments are separate.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
@@ -80,7 +80,8 @@
                   "const response=pm.response.json();",
                   "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));",
                   "pm.collectionVariables.set(\"token\", response.data.token);",
-                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }"
+                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }",
+                  "{ const loginDistrictResponse = pm.response.json(); if (loginDistrictResponse.ok && loginDistrictResponse.data?.user?.district_id != null) { pm.collectionVariables.set('district_id', loginDistrictResponse.data.user.district_id); pm.collectionVariables.set('district_name', loginDistrictResponse.data.user.district_name || ''); } }"
                 ]
               }
             }
@@ -97,7 +98,7 @@
               }
             ],
             "url": "{{base_url}}/auth/login",
-            "description": "",
+            "description": "\n\nLogin returns district_id and district_name from the linked PACS/LAMPS/Miller facility. The response script auto-saves a linked district to collection variables. Unlinked roles return null; Core DM/receiver assignments are separate.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"miller-{{run_id}}@example.invalid\",\n  \"password\": \"{{demo_password}}\"\n}",
@@ -148,7 +149,8 @@
                   "pm.collectionVariables.set(\"miller_token\", response.data.token);",
                   "// Use the current Miller/PACS/LAMPS login for driver management.",
                   "{ const ownerLogin = pm.response.json(); if (ownerLogin.ok && ownerLogin.data?.token && ['MILLER','PACS','LAMPS'].includes(ownerLogin.data.user?.role)) pm.collectionVariables.set('driver_owner_token', ownerLogin.data.token); }",
-                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }"
+                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }",
+                  "{ const loginDistrictResponse = pm.response.json(); if (loginDistrictResponse.ok && loginDistrictResponse.data?.user?.district_id != null) { pm.collectionVariables.set('district_id', loginDistrictResponse.data.user.district_id); pm.collectionVariables.set('district_name', loginDistrictResponse.data.user.district_name || ''); } }"
                 ]
               }
             }
@@ -165,7 +167,7 @@
               }
             ],
             "url": "{{base_url}}/auth/login",
-            "description": "Use the email and password set when creating the PACS user. Successful login saves the facility ID and token for the lifting requests in this folder. For a different password, replace demo_password with that account password.",
+            "description": "Use the email and password set when creating the PACS user. Successful login saves the facility ID and token for the lifting requests in this folder. For a different password, replace demo_password with that account password.\n\nLogin returns district_id and district_name from the linked PACS/LAMPS/Miller facility. The response script auto-saves a linked district to collection variables. Unlinked roles return null; Core DM/receiver assignments are separate.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{pacs_email}}\",\n  \"password\": \"{{demo_password}}\"\n}",
@@ -221,7 +223,8 @@
                   "}",
                   "// Use the current Miller/PACS/LAMPS login for driver management.",
                   "{ const ownerLogin = pm.response.json(); if (ownerLogin.ok && ownerLogin.data?.token && ['MILLER','PACS','LAMPS'].includes(ownerLogin.data.user?.role)) pm.collectionVariables.set('driver_owner_token', ownerLogin.data.token); }",
-                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }"
+                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }",
+                  "{ const loginDistrictResponse = pm.response.json(); if (loginDistrictResponse.ok && loginDistrictResponse.data?.user?.district_id != null) { pm.collectionVariables.set('district_id', loginDistrictResponse.data.user.district_id); pm.collectionVariables.set('district_name', loginDistrictResponse.data.user.district_name || ''); } }"
                 ]
               }
             }
@@ -238,7 +241,7 @@
               }
             ],
             "url": "{{base_url}}/auth/login",
-            "description": "Use the email and password set when creating the LAMPS user. Successful login saves the facility ID and token for the lifting requests in this folder. For a different password, replace demo_password with that account password.",
+            "description": "Use the email and password set when creating the LAMPS user. Successful login saves the facility ID and token for the lifting requests in this folder. For a different password, replace demo_password with that account password.\n\nLogin returns district_id and district_name from the linked PACS/LAMPS/Miller facility. The response script auto-saves a linked district to collection variables. Unlinked roles return null; Core DM/receiver assignments are separate.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{lamps_email}}\",\n  \"password\": \"{{demo_password}}\"\n}",
@@ -296,7 +299,8 @@
                   "}",
                   "// Use the current Miller/PACS/LAMPS login for driver management.",
                   "{ const ownerLogin = pm.response.json(); if (ownerLogin.ok && ownerLogin.data?.token && ['MILLER','PACS','LAMPS'].includes(ownerLogin.data.user?.role)) pm.collectionVariables.set('driver_owner_token', ownerLogin.data.token); }",
-                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }"
+                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }",
+                  "{ const loginDistrictResponse = pm.response.json(); if (loginDistrictResponse.ok && loginDistrictResponse.data?.user?.district_id != null) { pm.collectionVariables.set('district_id', loginDistrictResponse.data.user.district_id); pm.collectionVariables.set('district_name', loginDistrictResponse.data.user.district_name || ''); } }"
                 ]
               }
             }
@@ -313,7 +317,7 @@
               }
             ],
             "url": "{{base_url}}/auth/login",
-            "description": "Logs in with the transporter account created in request 16A.",
+            "description": "Logs in with the transporter account created in request 16A.\n\nLogin returns district_id and district_name from the linked PACS/LAMPS/Miller facility. The response script auto-saves a linked district to collection variables. Unlinked roles return null; Core DM/receiver assignments are separate.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"transporter-{{run_id}}@example.invalid\",\n  \"password\": \"{{demo_password}}\"\n}",
@@ -362,7 +366,8 @@
                   "const response=pm.response.json();",
                   "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));",
                   "pm.collectionVariables.set(\"transporter_token\", response.data.token);",
-                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }"
+                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }",
+                  "{ const loginDistrictResponse = pm.response.json(); if (loginDistrictResponse.ok && loginDistrictResponse.data?.user?.district_id != null) { pm.collectionVariables.set('district_id', loginDistrictResponse.data.user.district_id); pm.collectionVariables.set('district_name', loginDistrictResponse.data.user.district_name || ''); } }"
                 ]
               }
             }
@@ -383,7 +388,7 @@
               }
             ],
             "url": "{{base_url}}/auth/login",
-            "description": "Uses the password saved by Create driver, or the existing driver password you set. Stores driver_token without overwriting the owner token.",
+            "description": "Uses the password saved by Create driver, or the existing driver password you set. Stores driver_token without overwriting the owner token.\n\nLogin returns district_id and district_name from the linked PACS/LAMPS/Miller facility. The response script auto-saves a linked district to collection variables. Unlinked roles return null; Core DM/receiver assignments are separate.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"phone\": \"{{driver_phone}}\",\n  \"password\": \"{{driver_password}}\"\n}",
@@ -404,7 +409,8 @@
                   "const response=pm.response.json();",
                   "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));",
                   "if(response.ok){pm.collectionVariables.set('driver_token',response.data.token);pm.test('Driver account',()=>pm.expect(response.data.user.role).to.eql('DRIVER'));}",
-                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }"
+                  "{ const currentLoginToken=pm.response.json(); if(currentLoginToken.ok && currentLoginToken.data?.token)pm.collectionVariables.set('token',currentLoginToken.data.token); }",
+                  "{ const loginDistrictResponse = pm.response.json(); if (loginDistrictResponse.ok && loginDistrictResponse.data?.user?.district_id != null) { pm.collectionVariables.set('district_id', loginDistrictResponse.data.user.district_id); pm.collectionVariables.set('district_name', loginDistrictResponse.data.user.district_name || ''); } }"
                 ]
               }
             }
@@ -9034,6 +9040,12 @@
       "type": "string",
       "value": "6c23d51b46baf73a63c0f7feadff713d81887e5ecf252b0c229c93d1fc6f45c8",
       "description": "Local backend credential. Keep this export private. Never used automatically for a remote backend."
+    },
+    {
+      "key": "district_name",
+      "value": "",
+      "type": "string",
+      "description": "Linked district name saved automatically after PACS/LAMPS/Miller login."
     }
   ],
   "event": [

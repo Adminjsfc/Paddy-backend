@@ -6,9 +6,11 @@ export function findUserByPhone(connection, phone) {
 }
 export async function loginFindUsers(data) {
   const identifier = data.phone ?? data.email;
-  return identifier.includes('@')
-    ? one(pool, 'SELECT id,name,email,password_hash,role,miller_id,facility_id,active,created_at,created_by,updated_by,updated_at,phone FROM users WHERE email=?', [identifier], false)
-    : one(pool, "SELECT id,name,email,password_hash,role,miller_id,facility_id,active,created_at,created_by,updated_by,updated_at,phone FROM users WHERE phone=? AND role='DRIVER'", [identifier], false);
+  const select = `SELECT u.id,u.name,u.email,u.password_hash,u.role,u.miller_id,u.facility_id,u.active,u.created_at,u.created_by,u.updated_by,u.updated_at,u.phone,
+    f.district_id,d.district_name FROM users u
+    LEFT JOIN facilities f ON f.id=COALESCE(u.facility_id,u.miller_id) AND u.role IN ('PACS','LAMPS','MILLER')
+    LEFT JOIN tbl_district_master d ON d.id=f.district_id`;
+  return one(pool, `${select} WHERE ${identifier.includes('@') ? 'u.email=?' : "u.phone=? AND u.role='DRIVER'"}`, [identifier], false);
 }
 export async function loginInsertSessions(raw, u, expires, refresh, refreshExpires) {
   return insert(pool, 'sessions', {

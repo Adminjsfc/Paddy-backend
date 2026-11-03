@@ -1,5 +1,14 @@
 import { pool } from "../config/database.js";
 import { rows, one, insert } from "../repositories/database.js";
+export async function correctTripStatus(connection, s, data) {
+  return rows(connection, `UPDATE shipments SET status=?,trip_status=?,dispatched_at=?,
+    trip_started_at=?,trip_completed_at=?,
+    expected_completion_at=TIMESTAMPADD(MINUTE,(SELECT duration_minutes FROM shipment_routes WHERE id=?),?),
+    source_geofence='OUT',destination_geofence=? WHERE id=?`,
+  [data.trip_status === 1 ? 'IN_TRANSIT' : 'ARRIVED', data.trip_status,
+    data.dispatched_at, data.trip_started_at, data.trip_completed_at ?? null,
+    s.route_id, data.trip_started_at, data.trip_status === 2 ? 'IN' : 'UNKNOWN', s.id]);
+}
 export async function ownedShipmentFindShipments(connection, scope, lock, context) {
   return one(connection, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_g,s.accepted_g,s.shortage_g,s.recovery_percent,s.expected_rice_g,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.delivery_receipt,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,sr.source_id,sr.destination_id,vt.name vehicle_type FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id
     LEFT JOIN vehicle_types vt ON vt.id=s.vehicle_type_id WHERE s.id=?${scope.sql}${lock ? ' FOR UPDATE' : ''}`, [context.params.id, ...scope.params]);
