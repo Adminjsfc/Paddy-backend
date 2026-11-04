@@ -285,7 +285,11 @@ export async function listShipments(context) {
     if(String(context.query.exclude_cancelled)==='true')sql+=" AND s.status<>'CANCELLED'";
   }
   const count = await repository.listShipmentsCountShipments(sql, args);
-  const data = await repository.listShipmentsListShipmentEvents(sql, limit, offset, args);
+  const records = await repository.listShipmentsListShipmentEvents(sql, limit, offset, args);
+  const data=records.map(row=>({...row,
+    lifted_quantity_kg:row.dispatched_at?Number(row.quantity_kg):null,
+    received_quantity_kg:row.delivered_at&&row.accepted_kg!=null?Number(row.accepted_kg):null
+  }));
   return {
     body: {
       ok: true,
