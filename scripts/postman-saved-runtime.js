@@ -11,9 +11,8 @@ export function savedDefaults() {
   const url=pm.variables.replaceIn(pm.request.url.toString());
   const cmrDropdownReady=/\/cmr\/submissions(?:\?|$)/.test(url)&&pm.variables.get('cmr_dropdown_ready')==='true';
   if(pm.variables.get('setup_attempted')==='true'&&pm.request.method==='POST'&&!cmrDropdownReady){
-    const order=/\/integrations\/euparjan\/(?:cmr-orders|procurements)(?:\?|$)/.test(url);
     const shipment=/\/(?:cmr\/submissions|shipments)(?:\?|$)/.test(url);
-    if((order||shipment)&&pm.variables.get('setup_ready')!=='true'){
+    if(shipment&&pm.variables.get('setup_ready')!=='true'){
       pm.execution.skipRequest();throw new Error('Load saved setup first: '+(pm.variables.get('setup_missing')||'select a valid mapped setup'));
     }
     if(shipment&&pm.variables.get('setup_shipments_ready')!=='true'){
@@ -21,9 +20,6 @@ export function savedDefaults() {
     }
     if(/\/cmr\/submissions(?:\?|$)/.test(url)&&pm.variables.get('setup_cmr_ready')!=='true'){
       pm.execution.skipRequest();throw new Error('Selected CMR destination needs a linked core store and a free vehicle. Reload saved setup.');
-    }
-    if(/\/integrations\/euparjan\/procurements(?:\?|$)/.test(url)&&pm.variables.get('setup_source_ready')!=='true'){
-      pm.execution.skipRequest();throw new Error('Select a mapped PACS/LAMPS source in saved setup before procurement import.');
     }
   }
 }

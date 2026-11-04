@@ -551,7 +551,7 @@
           ]
         },
         {
-          "name": "02 Import CMR order (source LotNo = order_no)",
+          "name": "02 Import 10 CMR orders (source LotNo = order_no)",
           "request": {
             "method": "POST",
             "header": [
@@ -6595,7 +6595,7 @@
       "name": "10 - Integrations",
       "item": [
         {
-          "name": "Push 100 QTL PACS procurement",
+          "name": "19 Push 10 Paddy RO records",
           "request": {
             "method": "POST",
             "header": [
@@ -6616,7 +6616,7 @@
             "description": "Procurement sync creates Paddy stock; it does not create a lifting shipment. facility_code must be the exact active PACS/LAMPS code returned by facility registration. PACS-{{run_id}} is valid only after registering that demo PACS. Use {{season_code}} and {{scheme_code}} without asterisks. For lifting, use folder 15 POST /shipments with matching facility, season, scheme and mapped Miller. Missing/mismatched values return a specific error code/message.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"PROC-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    }\n  ]\n}",
+              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"PROC-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    },\n    {\n      \"external_ref\": \"PROC-{{run_id}}-02\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}-02\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    },\n    {\n      \"external_ref\": \"PROC-{{run_id}}-03\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}-03\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    },\n    {\n      \"external_ref\": \"PROC-{{run_id}}-04\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}-04\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    },\n    {\n      \"external_ref\": \"PROC-{{run_id}}-05\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}-05\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    },\n    {\n      \"external_ref\": \"PROC-{{run_id}}-06\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}-06\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    },\n    {\n      \"external_ref\": \"PROC-{{run_id}}-07\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}-07\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    },\n    {\n      \"external_ref\": \"PROC-{{run_id}}-08\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}-08\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    },\n    {\n      \"external_ref\": \"PROC-{{run_id}}-09\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}-09\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    },\n    {\n      \"external_ref\": \"PROC-{{run_id}}-10\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}-10\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8017,6 +8017,534 @@
       ]
     },
     {
+      "name": "Push APIs",
+      "description": "X-API-Key and Idempotency-Key required. Direct original-table inserts without required master links. Procurement/CMR samples contain 10 records. No separate testing table or mode. Master IDs remain numeric. Duplicate references and mapping combinations are protected.",
+      "item": [
+        {
+          "name": "01 Procurement - Push 10 RO records",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{operation_key}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{euparjan_api_key}}"
+              }
+            ],
+            "url": "{{paddy_api_url}}/integrations/euparjan/procurements",
+            "description": "Inserts directly into the original table. Related masters and mappings need not exist. Keep valid JSON, field types and quantity/date formats. For a new record change external_ref and RO/order number, season code or mapping IDs. Idempotent retries reuse the same key and body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"PUSH-PROC-1\",\n      \"ro_no\": \"PUSH-RO-1\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-PROC-2\",\n      \"ro_no\": \"PUSH-RO-2\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-PROC-3\",\n      \"ro_no\": \"PUSH-RO-3\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-PROC-4\",\n      \"ro_no\": \"PUSH-RO-4\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-PROC-5\",\n      \"ro_no\": \"PUSH-RO-5\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-PROC-6\",\n      \"ro_no\": \"PUSH-RO-6\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-PROC-7\",\n      \"ro_no\": \"PUSH-RO-7\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-PROC-8\",\n      \"ro_no\": \"PUSH-RO-8\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-PROC-9\",\n      \"ro_no\": \"PUSH-RO-9\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-PROC-10\",\n      \"ro_no\": \"PUSH-RO-10\",\n      \"ro_date\": \"2026-11-01\",\n      \"season_code\": \"PUSH-SEASON\",\n      \"facility_code\": \"PUSH-PACS\",\n      \"miller_id\": 999001,\n      \"district_id\": 999002,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"PADDY\",\n      \"procured_at\": \"2026-11-01T10:00:00Z\",\n      \"quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": []
+        },
+        {
+          "name": "02 CMR - Push 10 orders",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{operation_key}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{euparjan_api_key}}"
+              }
+            ],
+            "url": "{{paddy_api_url}}/integrations/euparjan/cmr-orders",
+            "description": "Inserts directly into the original table. Related masters and mappings need not exist. Keep valid JSON, field types and quantity/date formats. For a new record change external_ref and RO/order number, season code or mapping IDs. Idempotent retries reuse the same key and body.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"PUSH-CMR-1\",\n      \"order_no\": \"PUSH-ORDER-1\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-CMR-2\",\n      \"order_no\": \"PUSH-ORDER-2\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-CMR-3\",\n      \"order_no\": \"PUSH-ORDER-3\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-CMR-4\",\n      \"order_no\": \"PUSH-ORDER-4\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-CMR-5\",\n      \"order_no\": \"PUSH-ORDER-5\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-CMR-6\",\n      \"order_no\": \"PUSH-ORDER-6\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-CMR-7\",\n      \"order_no\": \"PUSH-ORDER-7\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-CMR-8\",\n      \"order_no\": \"PUSH-ORDER-8\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-CMR-9\",\n      \"order_no\": \"PUSH-ORDER-9\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    },\n    {\n      \"external_ref\": \"PUSH-CMR-10\",\n      \"order_no\": \"PUSH-ORDER-10\",\n      \"season_id\": 1,\n      \"miller_id\": 3,\n      \"destination_id\": 4,\n      \"scheme_code\": \"SCMR\",\n      \"commodity_code\": \"RICE\",\n      \"ordered_at\": \"2026-11-01T10:00:00Z\",\n      \"due_date\": \"2026-12-31\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [],
+          "response": [
+            {
+              "name": "26 Push miller CMR order for SFC",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{operation_key}}"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{euparjan_api_key}}"
+                  }
+                ],
+                "url": "{{paddy_api_url}}/integrations/euparjan/cmr-orders",
+                "description": "Original folder: 05 — Milling, CMR order, rice lifting and SFC acceptance\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\npm.collectionVariables.set(\"cmr_order_id\", response.data.records[0].id);\n```",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"CMR-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"MILLER-{{run_id}}\",\n      \"destination_code\": \"SFC-{{run_id}}\",\n      \"order_no\": \"CMR-ORDER-{{run_id}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 6800,\n        \"unit\": \"KG\"\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Example request (not executed)",
+              "code": 200,
+              "header": [],
+              "body": "",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "42 Push central pool FCI order",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{operation_key}}"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{euparjan_api_key}}"
+                  }
+                ],
+                "url": "{{paddy_api_url}}/integrations/euparjan/cmr-orders",
+                "description": "Creates a separate FCI order for future production. Allocate CMR with destination_id=fci_id and order_id=fci_order_id after rice becomes available.\n\nOriginal folder: 06 — Reports, tracking and FCI order example\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\npm.collectionVariables.set(\"fci_order_id\", response.data.records[0].id);\n```",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"FCI-CMR-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"MILLER-{{run_id}}\",\n      \"destination_code\": \"FCI-{{run_id}}\",\n      \"order_no\": \"FCI-ORDER-{{run_id}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Example request (not executed)",
+              "code": 200,
+              "header": [],
+              "body": "",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "03 Season - Push season",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{euparjan_api_key}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{operation_key}}"
+              }
+            ],
+            "url": "{{base_url}}/integrations/euparjan/masters/seasons",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"PUSH-SEASON\",\n  \"name\": \"Push sample season\",\n  \"start_date\": \"2026-01-01\",\n  \"end_date\": \"2026-12-31\",\n  \"recovery_percent\": 68\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Inserts directly into the original table. Related masters and mappings need not exist. Keep valid JSON, field types and quantity/date formats. For a new record change external_ref and RO/order number, season code or mapping IDs. Idempotent retries reuse the same key and body."
+          },
+          "event": []
+        },
+        {
+          "name": "04 PACS LAMPS to Miller - Push tagging",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{euparjan_api_key}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{operation_key}}"
+              }
+            ],
+            "url": "{{base_url}}/integrations/euparjan/masters/route-tags",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"season_id\": 999001,\n  \"source_id\": 999002,\n  \"destination_id\": 999003\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Inserts directly into the original table. Related masters and mappings need not exist. Keep valid JSON, field types and quantity/date formats. For a new record change external_ref and RO/order number, season code or mapping IDs. Idempotent retries reuse the same key and body."
+          },
+          "event": []
+        },
+        {
+          "name": "05 Miller to Depot - Push tagging",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{euparjan_api_key}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{operation_key}}"
+              }
+            ],
+            "url": "{{base_url}}/integrations/euparjan/miller-store-assignments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"season_id\": 999001,\n  \"miller_id\": 999003,\n  \"store_id\": 999004\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Inserts directly into the original table. Related masters and mappings need not exist. Keep valid JSON, field types and quantity/date formats. For a new record change external_ref and RO/order number, season code or mapping IDs. Idempotent retries reuse the same key and body."
+          },
+          "event": []
+        }
+      ]
+    },
+    {
+      "name": "Driver",
+      "description": "Driver login and assigned Paddy trips. Login saves driver_token automatically. All endpoints use session identity; optional driver_id must match it. No integration key or Idempotency-Key needed. Alerts are persisted GPS Offline/ETA Delayed events from monitoring onward; ignition is not currently supported.",
+      "item": [
+        {
+          "name": "01 Driver Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/auth/login",
+            "description": "Set driver_phone and driver_password once. Use the Paddy driver account. Response saves driver_token and driver_id.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{driver_phone}}\",\n  \"password\": \"{{driver_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Driver login succeeded',()=>pm.expect(pm.response.code).to.eql(200));",
+                  "if(pm.response.code===200){const data=pm.response.json().data;pm.test('Driver account',()=>pm.expect(data.user.role).to.eql('DRIVER'));if(data.user.role==='DRIVER'){for(const [key,value] of Object.entries({driver_token:data.token,driver_id:data.user.id})){pm.collectionVariables.set(key,value);if(pm.environment.has(key))pm.environment.set(key,value);}}}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Driver Details",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/driver_detailsList",
+            "description": "Profile and non-cancelled Paddy total_trips. Unavailable identity/document fields are null.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "03 Paddy Trip Summary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/tripsummary_for_driver",
+            "description": "Returns data: total_trips, active_trips, completed_trips. Empty body uses logged-in driver; optional driver_id must match login.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "04 Active Trip",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/active_tripList",
+            "description": "Most recently started active Paddy trip for this login, or data:null. No subtrips.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(pm.response.code===200){const row=pm.response.json().data;if(row){pm.collectionVariables.set('driver_shipment_id',row.id);if(pm.environment.has('driver_shipment_id'))pm.environment.set('driver_shipment_id',row.id);}}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Trip Details and History",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/getTripDetailsForDriver",
+            "description": "Own non-cancelled Paddy trips. Optional trip_id selects one assigned shipment. Optional from_date/to_date use YYYY-MM-DD (UTC date bounds). Page/limit supported. KG, KM and minutes. No subtrips.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"page\": 1,\n  \"limit\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if(pm.response.code===200){const row=pm.response.json().data?.[0];if(row){pm.collectionVariables.set('driver_shipment_id',row.id);if(pm.environment.has('driver_shipment_id'))pm.environment.set('driver_shipment_id',row.id);}else{pm.collectionVariables.unset('driver_shipment_id');if(pm.environment.has('driver_shipment_id'))pm.environment.unset('driver_shipment_id');}}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Alert Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driver_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/alert_report_for_driver",
+            "description": "Own persisted GPS Offline and ETA Delayed alerts. Optional trip_id, from_date/to_date (UTC dates). No historical ignition alerts are fabricated.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"page\": 1,\n  \"limit\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "07 Other Shipment Views",
+          "item": [
+            {
+              "name": "03 My Paddy Trips",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{driver_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/shipments?leg=PADDY&page=1&limit=20",
+                "description": "Only shipments assigned to this driver. Cancelled rows can appear here; summary excludes them. First result saves driver_shipment_id."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if(pm.response.code===200){const row=pm.response.json().data?.[0];if(row){pm.collectionVariables.set('driver_shipment_id',row.id);if(pm.environment.has('driver_shipment_id'))pm.environment.set('driver_shipment_id',row.id);}else{pm.collectionVariables.unset('driver_shipment_id');if(pm.environment.has('driver_shipment_id'))pm.environment.unset('driver_shipment_id');}}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "My Active Paddy Trips",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{driver_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/shipments?leg=PADDY&trip_status=1&exclude_cancelled=true&page=1&limit=20",
+                "description": "Own Paddy shipments with trip_status=1."
+              }
+            },
+            {
+              "name": "My Completed Paddy Trips",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{driver_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/shipments?leg=PADDY&trip_status=2&exclude_cancelled=true&page=1&limit=20",
+                "description": "Own Paddy shipments with trip_status=2."
+              }
+            },
+            {
+              "name": "Selected Paddy Trip Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{driver_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/shipments/{{driver_shipment_id}}",
+                "description": "Run Trip Details and History first or set driver_shipment_id to an assigned shipment."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "PACS LAMPS Mappings",
       "description": "Login as PACS or LAMPS. The backend derives the source facility from the login and lists its mapped Millers.",
       "item": [
@@ -8479,6 +9007,14 @@
     {
       "key": "fci_quantity_kg",
       "value": ""
+    },
+    {
+      "key": "driver_id",
+      "value": ""
+    },
+    {
+      "key": "driver_shipment_id",
+      "value": ""
     }
   ],
   "event": [
@@ -8488,33 +9024,29 @@
         "type": "text/javascript",
         "exec": [
           "// SAVED_SETUP_DEFAULTS_V1",
-          "(function savedDefaults() {",
-          "  function set(key,value){pm.collectionVariables.set(key,value);if(pm.environment.has(key))pm.environment.set(key,value);}",
-          "  function once(key,value){if(!String(pm.variables.get(key)??'').trim())set(key,value);}",
-          "  once('run_id',String(Date.now()));",
-          "  const run=pm.variables.get('run_id');",
-          "  for(const [key,value] of Object.entries({pacs_code:'PACS-'+run,miller_code:'MILLER-'+run,",
-          "    destination_code:'SFC-'+run,fci_code:'FCI-'+run,lamps_code:'LAMPS-'+run,",
-          "    cmr_order_no:'CMR-ORDER-'+run,fci_order_no:'FCI-ORDER-'+run,cmr_quantity_kg:6800,fci_quantity_kg:100,",
-          "    cmr_lot_count:2,stenciling_code:'CMR-STENCIL-'+run}))once(key,value);",
-          "  const url=pm.variables.replaceIn(pm.request.url.toString());",
-          "  const cmrDropdownReady=/\\/cmr\\/submissions(?:\\?|$)/.test(url)&&pm.variables.get('cmr_dropdown_ready')==='true';",
-          "  if(pm.variables.get('setup_attempted')==='true'&&pm.request.method==='POST'&&!cmrDropdownReady){",
-          "    const order=/\\/integrations\\/euparjan\\/(?:cmr-orders|procurements)(?:\\?|$)/.test(url);",
-          "    const shipment=/\\/(?:cmr\\/submissions|shipments)(?:\\?|$)/.test(url);",
-          "    if((order||shipment)&&pm.variables.get('setup_ready')!=='true'){",
-          "      pm.execution.skipRequest();throw new Error('Load saved setup first: '+(pm.variables.get('setup_missing')||'select a valid mapped setup'));",
-          "    }",
-          "    if(shipment&&pm.variables.get('setup_shipments_ready')!=='true'){",
-          "      pm.execution.skipRequest();throw new Error('Load saved setup with one free mapped vehicle before creating a shipment.');",
-          "    }",
-          "    if(/\\/cmr\\/submissions(?:\\?|$)/.test(url)&&pm.variables.get('setup_cmr_ready')!=='true'){",
-          "      pm.execution.skipRequest();throw new Error('Selected CMR destination needs a linked core store and a free vehicle. Reload saved setup.');",
-          "    }",
-          "    if(/\\/integrations\\/euparjan\\/procurements(?:\\?|$)/.test(url)&&pm.variables.get('setup_source_ready')!=='true'){",
-          "      pm.execution.skipRequest();throw new Error('Select a mapped PACS/LAMPS source in saved setup before procurement import.');",
-          "    }",
-          "  }",
+          "(function savedDefaults() {\r",
+          "  function set(key,value){pm.collectionVariables.set(key,value);if(pm.environment.has(key))pm.environment.set(key,value);}\r",
+          "  function once(key,value){if(!String(pm.variables.get(key)??'').trim())set(key,value);}\r",
+          "  once('run_id',String(Date.now()));\r",
+          "  const run=pm.variables.get('run_id');\r",
+          "  for(const [key,value] of Object.entries({pacs_code:'PACS-'+run,miller_code:'MILLER-'+run,\r",
+          "    destination_code:'SFC-'+run,fci_code:'FCI-'+run,lamps_code:'LAMPS-'+run,\r",
+          "    cmr_order_no:'CMR-ORDER-'+run,fci_order_no:'FCI-ORDER-'+run,cmr_quantity_kg:6800,fci_quantity_kg:100,\r",
+          "    cmr_lot_count:2,stenciling_code:'CMR-STENCIL-'+run}))once(key,value);\r",
+          "  const url=pm.variables.replaceIn(pm.request.url.toString());\r",
+          "  const cmrDropdownReady=/\\/cmr\\/submissions(?:\\?|$)/.test(url)&&pm.variables.get('cmr_dropdown_ready')==='true';\r",
+          "  if(pm.variables.get('setup_attempted')==='true'&&pm.request.method==='POST'&&!cmrDropdownReady){\r",
+          "    const shipment=/\\/(?:cmr\\/submissions|shipments)(?:\\?|$)/.test(url);\r",
+          "    if(shipment&&pm.variables.get('setup_ready')!=='true'){\r",
+          "      pm.execution.skipRequest();throw new Error('Load saved setup first: '+(pm.variables.get('setup_missing')||'select a valid mapped setup'));\r",
+          "    }\r",
+          "    if(shipment&&pm.variables.get('setup_shipments_ready')!=='true'){\r",
+          "      pm.execution.skipRequest();throw new Error('Load saved setup with one free mapped vehicle before creating a shipment.');\r",
+          "    }\r",
+          "    if(/\\/cmr\\/submissions(?:\\?|$)/.test(url)&&pm.variables.get('setup_cmr_ready')!=='true'){\r",
+          "      pm.execution.skipRequest();throw new Error('Selected CMR destination needs a linked core store and a free vehicle. Reload saved setup.');\r",
+          "    }\r",
+          "  }\r",
           "})();",
           "const key = pm.variables.get('retry_key') || 'operation-' + pm.variables.replaceIn('{{$guid}}');",
           "pm.variables.set('operation_key', key);",
@@ -8541,9 +9073,9 @@
         "type": "text/javascript",
         "exec": [
           "// SAVED_SETUP_RESPONSES_V1",
-          "(function saveResponseReferences() {\n  if(pm.response.code<200||pm.response.code>=300)return;\n  let response;try{response=pm.response.json();}catch{return;}\n  if(!response.ok)return;\n  function set(key,value){\n    if(value==null)return;\n    pm.collectionVariables.set(key,value);\n    if(pm.environment.has(key))pm.environment.set(key,value);\n  }\n  function unset(key){pm.collectionVariables.unset(key);if(pm.environment.has(key))pm.environment.unset(key);}\n  const url=pm.variables.replaceIn(pm.request.url.toString()).split('?')[0];\n  const data=response.data;\n  if(/\\/setup\\/postman$/.test(url)){\n    set('setup_attempted','true');set('setup_ready',String(Boolean(data.ready_for_orders)));\n    set('setup_shipments_ready',String(Boolean(data.ready_for_shipments)));\n    set('setup_cmr_ready',String(Boolean(data.ready_for_cmr_submissions)));\n    set('setup_source_ready',String(Boolean(data.context?.pacs_id)));\n    set('setup_missing',(data.missing||[]).join(' '));\n    if(!data.ready_for_orders){console.warn(data.missing, data.contexts);return;}\n    const c=data.context;\n    if(pm.variables.get('miller_id')&&Number(pm.variables.get('miller_id'))!==Number(c.miller_id))unset('miller_token');\n    if(pm.variables.get('pacs_id')&&Number(pm.variables.get('pacs_id'))!==Number(c.pacs_id)){\n      for(const key of ['pacs_token','paddy_token'])unset(key);\n    }\n    for(const key of ['season_id','season_code','miller_id','miller_code','destination_id','destination_code','district_id','district_name','store_location_id','source_district_id']){if(c[key]==null)unset(key);else set(key,c[key]);}\n    if(c.pacs_id){set('pacs_id',c.pacs_id);set('pacs_facility_id',c.pacs_id);set('pacs_code',c.pacs_code);}\n    else{for(const key of ['pacs_id','pacs_facility_id','pacs_code'])unset(key);}\n    if(c.source_kind==='LAMPS'){set('lamps_id',c.pacs_id);set('lamps_code',c.pacs_code);}\n    if(c.destination_kind==='FCI'){set('fci_id',c.destination_id);set('fci_code',c.destination_code);}\n    else{set('sfc_id',c.destination_id);set('godown_id',c.destination_id);}\n    for(const [key,value] of Object.entries({setup_season_code:c.season_code,setup_miller_code:c.miller_code,\n      setup_destination_code:c.destination_code,setup_source_code:c.pacs_code}))set(key,value);\n    if(data.vehicle){for(const [key,value] of Object.entries(data.vehicle))if(key!=='busy')set(key,value);set('setup_vehicle_no',data.vehicle.vehicle_no);}\n    else{for(const key of ['vehicle_id','vehicle_no','device_id','imei_id','imei'])unset(key);}\n    return;\n  }\n  if(pm.request.method!=='POST')return;\n  let body={};try{body=JSON.parse(pm.variables.replaceIn(pm.request.body?.raw||'{}'));}catch{}\n  if(/\\/(?:auth\\/login|login)$/.test(url)&&data?.user?.role==='MILLER'){\n    if(Number(pm.variables.get('miller_id'))!==Number(data.user.miller_id)){\n      for(const key of ['district_id','destination_id','store_location_id','order_id','cmr_order_id','selected_cmr_order_no','cmr_dropdown_context'])unset(key);\n      set('cmr_dropdown_ready','false');\n    }\n    set('miller_id',data.user.miller_id);\n  }\n  if(/\\/seasons$/.test(url)&&data?.id){set('season_id',data.id);set('season_code',data.code||body.code);}\n  if(/\\/facilities$/.test(url)&&data?.id){\n    const kind=data.kind||body.kind,code=data.code||body.code;\n    if(['PACS','LAMPS'].includes(kind)){set('pacs_id',data.id);set('pacs_code',code);}\n    if(kind==='LAMPS'){set('lamps_id',data.id);set('lamps_code',code);}\n    if(kind==='MILLER'){set('miller_id',data.id);set('miller_code',code);}\n    if(['SFC_GODOWN','FCI'].includes(kind)){\n      set('destination_id',data.id);set('destination_code',code);set('district_id',data.district_id||body.district_id);\n      set(kind==='FCI'?'fci_id':'sfc_id',data.id);if(kind==='FCI')set('fci_code',code);else set('godown_id',data.id);\n    }\n  }\n  if(/\\/vehicles$/.test(url)&&data?.id){set('vehicle_id',data.id);set('vehicle_no',data.registration_no||body.registration_no);}\n  if(/\\/integrations\\/euparjan\\/cmr-orders$/.test(url)&&data?.records?.[0]?.id){\n    set('cmr_order_id',data.records[0].id);set('order_id',data.records[0].id);\n    if(body.records?.[0]?.destination_code===pm.variables.get('fci_code'))set('fci_order_id',data.records[0].id);\n  }\n  if(/\\/integrations\\/euparjan\\/procurements$/.test(url)&&data?.records?.[0]?.id)set('procurement_id',data.records[0].id);\n})();",
+          "(function saveResponseReferences() {\r\n  if(pm.response.code<200||pm.response.code>=300)return;\r\n  let response;try{response=pm.response.json();}catch{return;}\r\n  if(!response.ok)return;\r\n  function set(key,value){\r\n    if(value==null)return;\r\n    pm.collectionVariables.set(key,value);\r\n    if(pm.environment.has(key))pm.environment.set(key,value);\r\n  }\r\n  function unset(key){pm.collectionVariables.unset(key);if(pm.environment.has(key))pm.environment.unset(key);}\r\n  const url=pm.variables.replaceIn(pm.request.url.toString()).split('?')[0];\r\n  const data=response.data;\r\n  if(/\\/setup\\/postman$/.test(url)){\r\n    set('setup_attempted','true');set('setup_ready',String(Boolean(data.ready_for_orders)));\r\n    set('setup_shipments_ready',String(Boolean(data.ready_for_shipments)));\r\n    set('setup_cmr_ready',String(Boolean(data.ready_for_cmr_submissions)));\r\n    set('setup_source_ready',String(Boolean(data.context?.pacs_id)));\r\n    set('setup_missing',(data.missing||[]).join(' '));\r\n    if(!data.ready_for_orders){console.warn(data.missing, data.contexts);return;}\r\n    const c=data.context;\r\n    if(pm.variables.get('miller_id')&&Number(pm.variables.get('miller_id'))!==Number(c.miller_id))unset('miller_token');\r\n    if(pm.variables.get('pacs_id')&&Number(pm.variables.get('pacs_id'))!==Number(c.pacs_id)){\r\n      for(const key of ['pacs_token','paddy_token'])unset(key);\r\n    }\r\n    for(const key of ['season_id','season_code','miller_id','miller_code','destination_id','destination_code','district_id','district_name','store_location_id','source_district_id']){if(c[key]==null)unset(key);else set(key,c[key]);}\r\n    if(c.pacs_id){set('pacs_id',c.pacs_id);set('pacs_facility_id',c.pacs_id);set('pacs_code',c.pacs_code);}\r\n    else{for(const key of ['pacs_id','pacs_facility_id','pacs_code'])unset(key);}\r\n    if(c.source_kind==='LAMPS'){set('lamps_id',c.pacs_id);set('lamps_code',c.pacs_code);}\r\n    if(c.destination_kind==='FCI'){set('fci_id',c.destination_id);set('fci_code',c.destination_code);}\r\n    else{set('sfc_id',c.destination_id);set('godown_id',c.destination_id);}\r\n    for(const [key,value] of Object.entries({setup_season_code:c.season_code,setup_miller_code:c.miller_code,\r\n      setup_destination_code:c.destination_code,setup_source_code:c.pacs_code}))set(key,value);\r\n    if(data.vehicle){for(const [key,value] of Object.entries(data.vehicle))if(key!=='busy')set(key,value);set('setup_vehicle_no',data.vehicle.vehicle_no);}\r\n    else{for(const key of ['vehicle_id','vehicle_no','device_id','imei_id','imei'])unset(key);}\r\n    return;\r\n  }\r\n  if(pm.request.method!=='POST')return;\r\n  let body={};try{body=JSON.parse(pm.variables.replaceIn(pm.request.body?.raw||'{}'));}catch{}\r\n  if(/\\/(?:auth\\/login|login)$/.test(url)&&data?.user?.role==='MILLER'){\r\n    if(Number(pm.variables.get('miller_id'))!==Number(data.user.miller_id)){\r\n      for(const key of ['district_id','destination_id','store_location_id','order_id','cmr_order_id','selected_cmr_order_no','cmr_dropdown_context'])unset(key);\r\n      set('cmr_dropdown_ready','false');\r\n    }\r\n    set('miller_id',data.user.miller_id);\r\n  }\r\n  if(/\\/seasons$/.test(url)&&data?.id){set('season_id',data.id);set('season_code',data.code||body.code);}\r\n  if(/\\/facilities$/.test(url)&&data?.id){\r\n    const kind=data.kind||body.kind,code=data.code||body.code;\r\n    if(['PACS','LAMPS'].includes(kind)){set('pacs_id',data.id);set('pacs_code',code);}\r\n    if(kind==='LAMPS'){set('lamps_id',data.id);set('lamps_code',code);}\r\n    if(kind==='MILLER'){set('miller_id',data.id);set('miller_code',code);}\r\n    if(['SFC_GODOWN','FCI'].includes(kind)){\r\n      set('destination_id',data.id);set('destination_code',code);set('district_id',data.district_id||body.district_id);\r\n      set(kind==='FCI'?'fci_id':'sfc_id',data.id);if(kind==='FCI')set('fci_code',code);else set('godown_id',data.id);\r\n    }\r\n  }\r\n  if(/\\/vehicles$/.test(url)&&data?.id){set('vehicle_id',data.id);set('vehicle_no',data.registration_no||body.registration_no);}\r\n  if(/\\/integrations\\/euparjan\\/cmr-orders$/.test(url)&&data?.records?.[0]?.id){\r\n    set('cmr_order_id',data.records[0].id);set('order_id',data.records[0].id);\r\n    if(body.records?.[0]?.destination_code===pm.variables.get('fci_code'))set('fci_order_id',data.records[0].id);\r\n  }\r\n  if(/\\/integrations\\/euparjan\\/procurements$/.test(url)&&data?.records?.[0]?.id)set('procurement_id',data.records[0].id);\r\n})();",
           "// CMR_DROPDOWN_STATE_V1",
-          "(function saveCmrDropdownReferences(){\n  const url=pm.variables.replaceIn(pm.request.url.toString());\n  if(!/\\/cmr\\/(?:submission-options|vehicles|vehicle|(?:dropdowns\\/)?(?:seasons|schemes|commodities|districts|stores|orders|vehicles))(?:\\?|$)/.test(url))return;\n  const query=key=>{const match=url.match(new RegExp('[?&]'+key+'=([^&]*)'));return match?decodeURIComponent(match[1]):undefined;};\n  const only=url.match(/\\/cmr\\/(?:dropdowns\\/)?(seasons|schemes|commodities|districts|stores|orders|vehicles)(?:\\?|$)/)?.[1]||query('only')||'all';\n  function set(key,value){pm.collectionVariables.set(key,value);if(pm.environment.has(key))pm.environment.set(key,value);}\n  function clear(keys){for(const key of keys){pm.collectionVariables.unset(key);if(pm.environment.has(key))pm.environment.unset(key);}}\n  const orderKeys=['order_id','cmr_order_id','selected_cmr_order_no'];\n  const storeKeys=['destination_id','store_location_id',...orderKeys];\n  let response;try{response=pm.response.json();}catch{return;}\n  if(pm.response.code>=300||!response.ok){\n    clear(only==='orders'?orderKeys:only==='stores'?storeKeys:['district_id',...storeKeys]);\n    set('cmr_dropdown_ready','false');return;\n  }\n  const d=response.data||{};\n  let previous={};try{previous=JSON.parse(pm.variables.get('cmr_dropdown_context')||'{}');}catch{}\n  const season=query('season_id')??pm.variables.get('season_id');\n  const scheme=query('scheme_type')??pm.variables.get('scheme_code');\n  const district=query('district_id')??pm.variables.get('district_id');\n  const destination=query('destination_id')??pm.variables.get('destination_id');\n  if(previous.season_id!=null&&(String(previous.season_id)!==String(season)||previous.scheme_code!==scheme))clear(storeKeys);\n  else if(previous.district_id!=null&&String(previous.district_id)!==String(district))clear(storeKeys);\n  else if(previous.destination_id!=null&&String(previous.destination_id)!==String(destination))clear(['store_location_id',...orderKeys]);\n  if(query('season_id'))set('season_id',Number(season));\n  if(query('scheme_type'))set('scheme_code',scheme);\n  if(query('district_id'))set('district_id',Number(district));\n  if(query('destination_id'))set('destination_id',Number(destination));\n  const choose=(rows,key,current)=>rows.find(row=>String(row[key])===String(current))||(rows.length===1?rows[0]:null);\n  if(d.seasons){const selected=choose(d.seasons,'id',pm.variables.get('season_id'));if(selected){set('season_id',selected.id);set('season_code',selected.code);}else clear(['season_id',...storeKeys]);}\n  if(d.schemes){const selected=choose(d.schemes,'code',pm.variables.get('scheme_code'));if(selected)set('scheme_code',selected.code);else{clear(['scheme_code',...storeKeys]);console.warn('Select scheme_code: SCMR or CCMR.');}}\n  if(d.commodities){const selected=choose(d.commodities,'code',pm.variables.get('commodity_type'));if(selected)set('commodity_type',selected.code);else clear(['commodity_type']);}\n  if(d.districts){const selected=choose(d.districts,'id',pm.variables.get('district_id'));if(selected)set('district_id',selected.id);else clear(['district_id',...storeKeys]);}\n  if(d.stores){\n    const candidates=d.stores.filter(s=>!pm.variables.get('destination_id')||Number(s.facility_id)===Number(pm.variables.get('destination_id')));\n    const selected=d.stores.find(s=>String(s.id)===String(pm.variables.get('store_location_id')))||choose(candidates,'id',undefined)||(!candidates.length&&d.stores.length===1?d.stores[0]:null);\n    if(selected){set('store_location_id',selected.id);set('destination_id',selected.facility_id);}\n    else clear(storeKeys);\n  }\n  if(d.orders){const selected=choose(d.orders,'id',pm.variables.get('order_id'));\n    if(selected){set('order_id',selected.id);set('cmr_order_id',selected.id);set('selected_cmr_order_no',selected.order_no);}\n    else clear(orderKeys);\n  }\n  if(/\\/cmr\\/(?:dropdowns\\/)?vehicles(?:\\?|$)/.test(url)&&Array.isArray(d)){\n    const selected=choose(d,'id',pm.variables.get('vehicle_id'));\n    if(selected){set('vehicle_id',selected.id);set('vehicle_no',selected.registration_no);}else clear(['vehicle_id','vehicle_no']);\n  }\n  if(/\\/cmr\\/vehicle\\?/.test(url)&&d.id){if(Number(d.busy)===0&&Number(d.gps_active)===1){set('vehicle_id',d.id);set('vehicle_no',d.registration_no);}else clear(['vehicle_id']);}\n  const context={};for(const key of ['miller_id','season_id','scheme_code','district_id','destination_id'])context[key]=pm.variables.get(key)??null;\n  set('cmr_dropdown_context',JSON.stringify(context));\n  const needed=['season_id','scheme_code','district_id','destination_id','store_location_id','order_id','vehicle_id'];\n  set('cmr_dropdown_ready',String(needed.every(key=>Boolean(pm.variables.get(key)))));\n  console.info('CMR selection',Object.fromEntries(needed.map(key=>[key,pm.variables.get(key)||'select next'])));\n})();"
+          "(function saveCmrDropdownReferences(){\r\n  const url=pm.variables.replaceIn(pm.request.url.toString());\r\n  if(!/\\/cmr\\/(?:submission-options|vehicles|vehicle|(?:dropdowns\\/)?(?:seasons|schemes|commodities|districts|stores|orders|vehicles))(?:\\?|$)/.test(url))return;\r\n  const query=key=>{const match=url.match(new RegExp('[?&]'+key+'=([^&]*)'));return match?decodeURIComponent(match[1]):undefined;};\r\n  const only=url.match(/\\/cmr\\/(?:dropdowns\\/)?(seasons|schemes|commodities|districts|stores|orders|vehicles)(?:\\?|$)/)?.[1]||query('only')||'all';\r\n  function set(key,value){pm.collectionVariables.set(key,value);if(pm.environment.has(key))pm.environment.set(key,value);}\r\n  function clear(keys){for(const key of keys){pm.collectionVariables.unset(key);if(pm.environment.has(key))pm.environment.unset(key);}}\r\n  const orderKeys=['order_id','cmr_order_id','selected_cmr_order_no'];\r\n  const storeKeys=['destination_id','store_location_id',...orderKeys];\r\n  let response;try{response=pm.response.json();}catch{return;}\r\n  if(pm.response.code>=300||!response.ok){\r\n    clear(only==='orders'?orderKeys:only==='stores'?storeKeys:['district_id',...storeKeys]);\r\n    set('cmr_dropdown_ready','false');return;\r\n  }\r\n  const d=response.data||{};\r\n  let previous={};try{previous=JSON.parse(pm.variables.get('cmr_dropdown_context')||'{}');}catch{}\r\n  const season=query('season_id')??pm.variables.get('season_id');\r\n  const scheme=query('scheme_type')??pm.variables.get('scheme_code');\r\n  const district=query('district_id')??pm.variables.get('district_id');\r\n  const destination=query('destination_id')??pm.variables.get('destination_id');\r\n  if(previous.season_id!=null&&(String(previous.season_id)!==String(season)||previous.scheme_code!==scheme))clear(storeKeys);\r\n  else if(previous.district_id!=null&&String(previous.district_id)!==String(district))clear(storeKeys);\r\n  else if(previous.destination_id!=null&&String(previous.destination_id)!==String(destination))clear(['store_location_id',...orderKeys]);\r\n  if(query('season_id'))set('season_id',Number(season));\r\n  if(query('scheme_type'))set('scheme_code',scheme);\r\n  if(query('district_id'))set('district_id',Number(district));\r\n  if(query('destination_id'))set('destination_id',Number(destination));\r\n  const choose=(rows,key,current)=>rows.find(row=>String(row[key])===String(current))||(rows.length===1?rows[0]:null);\r\n  if(d.seasons){const selected=choose(d.seasons,'id',pm.variables.get('season_id'));if(selected){set('season_id',selected.id);set('season_code',selected.code);}else clear(['season_id',...storeKeys]);}\r\n  if(d.schemes){const selected=choose(d.schemes,'code',pm.variables.get('scheme_code'));if(selected)set('scheme_code',selected.code);else{clear(['scheme_code',...storeKeys]);console.warn('Select scheme_code: SCMR or CCMR.');}}\r\n  if(d.commodities){const selected=choose(d.commodities,'code',pm.variables.get('commodity_type'));if(selected)set('commodity_type',selected.code);else clear(['commodity_type']);}\r\n  if(d.districts){const selected=choose(d.districts,'id',pm.variables.get('district_id'));if(selected)set('district_id',selected.id);else clear(['district_id',...storeKeys]);}\r\n  if(d.stores){\r\n    const candidates=d.stores.filter(s=>!pm.variables.get('destination_id')||Number(s.facility_id)===Number(pm.variables.get('destination_id')));\r\n    const selected=d.stores.find(s=>String(s.id)===String(pm.variables.get('store_location_id')))||choose(candidates,'id',undefined)||(!candidates.length&&d.stores.length===1?d.stores[0]:null);\r\n    if(selected){set('store_location_id',selected.id);set('destination_id',selected.facility_id);}\r\n    else clear(storeKeys);\r\n  }\r\n  if(d.orders){const selected=choose(d.orders,'id',pm.variables.get('order_id'));\r\n    if(selected){set('order_id',selected.id);set('cmr_order_id',selected.id);set('selected_cmr_order_no',selected.order_no);}\r\n    else clear(orderKeys);\r\n  }\r\n  if(/\\/cmr\\/(?:dropdowns\\/)?vehicles(?:\\?|$)/.test(url)&&Array.isArray(d)){\r\n    const selected=choose(d,'id',pm.variables.get('vehicle_id'));\r\n    if(selected){set('vehicle_id',selected.id);set('vehicle_no',selected.registration_no);}else clear(['vehicle_id','vehicle_no']);\r\n  }\r\n  if(/\\/cmr\\/vehicle\\?/.test(url)&&d.id){if(Number(d.busy)===0&&Number(d.gps_active)===1){set('vehicle_id',d.id);set('vehicle_no',d.registration_no);}else clear(['vehicle_id']);}\r\n  const context={};for(const key of ['miller_id','season_id','scheme_code','district_id','destination_id'])context[key]=pm.variables.get(key)??null;\r\n  set('cmr_dropdown_context',JSON.stringify(context));\r\n  const needed=['season_id','scheme_code','district_id','destination_id','store_location_id','order_id','vehicle_id'];\r\n  set('cmr_dropdown_ready',String(needed.every(key=>Boolean(pm.variables.get(key)))));\r\n  console.info('CMR selection',Object.fromEntries(needed.map(key=>[key,pm.variables.get(key)||'select next'])));\r\n})();"
         ]
       }
     }

@@ -45,15 +45,17 @@ export async function createMaster(connection, type, d, user) {
     vehicleAccess(user, v);
   }
   if (type === 'route-tags') {
+    if(user.role!=='INTEGRATION'){
     const a = await repository.createMasterFindFacilities3(connection, d);
     const b = await repository.createMasterFindFacilities4(connection, d);
     await repository.createMasterFindSeasons(connection, d);
     data.created_by = user.id ?? null;
     ensure(['PACS', 'LAMPS'].includes(a.kind) && b.kind === 'MILLER' || a.kind === 'MILLER' && ['SFC_GODOWN', 'FCI'].includes(b.kind), 'Tag must be PACS/LAMPS → MILLER or MILLER → SFC_GODOWN/FCI', 'INVALID_ROUTE', 400);
+    }
   }
   if (type === 'seasons') {
     const existing = await repository.createSeasonFindByCode(connection, data.code);
-    if (existing && !existing.active) {
+    if (existing && !existing.active && user.role!=='INTEGRATION') {
       const update = {
         ...data,
         active: true,

@@ -1,10 +1,6 @@
 import * as controller from "../controllers/procurement.controller.js";
 import { Router } from 'express';
 import { roles } from "../middlewares/auth.js";
-export const integration = Router();
-integration.post('/procurements', controller.importProcurements);
-integration.patch('/procurements/:id', controller.updateProcurement);
-integration.post('/cmr-orders', controller.importCmrOrders);
 export const procurementRoutes = Router();
 procurementRoutes.get('/procurements', roles('ADMIN', 'OPERATOR', 'PACS', 'LAMPS'), controller.listProcurements);
 procurementRoutes.patch('/procurements/:id', roles('ADMIN', 'OPERATOR'), controller.updateProcurement);

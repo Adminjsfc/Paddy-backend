@@ -280,6 +280,10 @@ export async function listShipments(context) {
     ensure(/^[012]$/.test(String(context.query.trip_status)),'trip_status must be 0, 1 or 2.','VALIDATION',400);
     sql+=' AND s.trip_status=?';args.push(Number(context.query.trip_status));
   }
+  if(context.query.exclude_cancelled!==undefined){
+    ensure(['true','false'].includes(String(context.query.exclude_cancelled)),'exclude_cancelled must be true or false.','VALIDATION',400);
+    if(String(context.query.exclude_cancelled)==='true')sql+=" AND s.status<>'CANCELLED'";
+  }
   const count = await repository.listShipmentsCountShipments(sql, args);
   const data = await repository.listShipmentsListShipmentEvents(sql, limit, offset, args);
   return {

@@ -4,6 +4,12 @@ import {pool} from '../config/database.js';
 export function findByPhone(connection, phone) {
   return one(connection, 'SELECT id,name,phone,role,active,facility_id FROM users WHERE phone=? FOR UPDATE', [phone], false);
 }
+export function tripSummary(driverId) {
+  return one(pool,`SELECT COUNT(*) total_trips,
+    COALESCE(SUM(trip_status=1),0) active_trips,
+    COALESCE(SUM(trip_status=2),0) completed_trips
+    FROM shipments WHERE driver_user_id=? AND leg='PADDY' AND status<>'CANCELLED'`,[driverId]);
+}
 export function create(connection, data) {
   return insert(connection, 'users', data);
 }
