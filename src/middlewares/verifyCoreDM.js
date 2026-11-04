@@ -24,10 +24,12 @@ export function createVerifyCoreDM({
     const db = database();
     const user = await repository.verifyCoreDMFindTblUserMaster(db, id);
     ensure(user && Number(user.status) === 1, 'Invalid or inactive core user', 'UNAUTHORIZED', 401);
-    ensure(Number(user.user_type) === 3, 'Only core DM users may register millers through this endpoint', 'FORBIDDEN', 403);
-    const assignments = await repository.verifyCoreDMListTblUserDistrictwiseStoreAssignment(db, id);
+    ensure([1, 3].includes(Number(user.user_type)), 'Only core DM or super admin users may access this endpoint', 'FORBIDDEN', 403);
+    const assignments = Number(user.user_type) === 1
+      ? await repository.verifyCoreDMListActiveDistricts(db)
+      : await repository.verifyCoreDMListTblUserDistrictwiseStoreAssignment(db, id);
     const districtIds = [...new Set(assignments.map(row => Number(row.district_id)).filter(value => Number.isSafeInteger(value) && value > 0))];
-    ensure(districtIds.length, 'DM has no active district assignments', 'DISTRICT_SCOPE_REQUIRED', 403);
+    ensure(districtIds.length, 'Core user has no accessible active districts', 'DISTRICT_SCOPE_REQUIRED', 403);
     req.user = {
       role: 'CORE_DM',
       actor: `core-dm:${id}`,

@@ -6,3 +6,7 @@ export async function verifyCoreDMListTblUserDistrictwiseStoreAssignment(db, id)
   return rows(db, `SELECT DISTINCT district_id FROM tbl_user_districtwise_store_assignment
       WHERE user_id=? AND status=1 AND district_id IS NOT NULL`, [id]);
 }
+
+export async function verifyCoreDMListActiveDistricts(db) {
+  return rows(db, 'SELECT id AS district_id FROM tbl_district_master WHERE status=1');
+}
