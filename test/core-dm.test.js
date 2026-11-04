@@ -75,7 +75,7 @@ test('DM setup rejects another district or wrong facility kind', async () => {
     district_ids: [364]
   }, 1, 'STORE'), error => error.status === 400);
 });
-test('Core DM identity is checked against active database records and district scope', async () => {
+test('Core DM and super admin identities use active database roles and district scope', async () => {
   const previous = {
     enabled: process.env.CORE_DM_ENABLED,
     secret: process.env.CORE_JWT_ACCESS_SECRET
@@ -100,6 +100,10 @@ test('Core DM identity is checked against active database records and district s
     database: () => ({
       async execute(sql, args) {
         queries++;
+        if (sql.includes('tbl_district_master')) {
+          assert.deepEqual(args, []);
+          return [[{ district_id: 7 }, { district_id: 9 }, { district_id: 100 }]];
+        }
         assert.equal(args[0], 25);
         return [sql.includes('tbl_user_master') ? [user] : assignments];
       }
@@ -133,6 +137,21 @@ test('Core DM identity is checked against active database records and district s
     assert.equal(actor.core_user_type, 3);
     requireDMDistrict(actor, 7);
     assert.throws(() => requireDMDistrict(actor, 100), error => error.status === 403);
+    user = { ...user, user_type: 1 };
+    const dmAssignments = assignments;
+    assignments = [];
+    const admin = await verify(sign({ id: 25, user_type: 3, district_ids: [999] }));
+    assert.equal(admin.core_user_type, 1);
+    assert.equal(admin.core_user_id, 25);
+    assert.equal(admin.role, 'CORE_DM');
+    assert.deepEqual(admin.district_ids, [7, 9, 100]);
+    requireDMDistrict(admin, 100);
+    assert.throws(() => requireDMDistrict(admin, 999), error => error.status === 403);
+    user = { ...user, status: 0 };
+    await assert.rejects(verify(sign()), error => error.status === 401);
+    user = { ...user, status: 1 };
+    assignments = dmAssignments;
+
     user = {
       ...user,
       user_type: 5
