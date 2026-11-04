@@ -25,7 +25,7 @@ export const timestamp = z.iso.datetime({
 export const pastTimestamp = timestamp.refine(v => v.getTime() <= Date.now() + 120000, 'Timestamp cannot be in the future');
 export const quantity = z.object({
   value: z.union([z.string().regex(/^\d+(\.\d{1,3})?$/), z.number().nonnegative()]),
-  unit: z.enum(['KG', 'QTL', 'MT'])
+  unit: z.enum(['KG', 'QTL', 'MT']).default('KG')
 }).strict();
 export function grams(q, allowZero = false) {
   const text = String(q.value);
@@ -42,6 +42,15 @@ export function grams(q, allowZero = false) {
 }
 export const recoveryGrams = (g, p) => Number((BigInt(g) * BigInt(Math.round(Number(p) * 100)) + 5000n) / 10000n);
 export const kg = g => Number((Number(g) / 1000).toFixed(3));
+// Gram integers are used only for exact arithmetic; database/API weights are kg.
+export const kilograms = (q, allowZero = false) => grams({ ...q, unit: q.unit ?? 'KG' }, allowZero) / 1000;
+export const roundKg = value => Math.round(Number(value) * 1000) / 1000;
+export const addKg = (...values) => values.reduce((sum, value) => sum + Math.round(Number(value) * 1000), 0) / 1000;
+export const recoveryKg = (value, percent) => recoveryGrams(Math.round(Number(value) * 1000), percent) / 1000;
+export const capacityKg = (record, daily = false) => {
+  const amount = capacityGrams(record, daily);
+  return amount == null ? null : amount / 1000;
+};
 export function capacityFields(quantity, daily = false) {
   if (quantity) grams(quantity);
   return {

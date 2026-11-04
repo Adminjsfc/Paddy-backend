@@ -499,6 +499,207 @@
       ]
     },
     {
+      "name": "00 Quick CMR - saved setup",
+      "description": "After Admin login, load setup once, then import an order. Set cmr_order_no to the source full LotNo. Keep it and the payload unchanged on retry; change it for a new order. Tokens, codes and IDs persist across logins. Selectors choose existing mapped records; setup does not create records.",
+      "item": [
+        {
+          "name": "01 Load existing setup (save IDs once)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/setup/postman",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "setup",
+                "postman"
+              ],
+              "query": []
+            },
+            "description": "Login as Admin/Operator first. Read-only: returns valid season/Miller/depot mappings and free GPS vehicles. A single matching setup is saved automatically. If several match, set setup_season_code, setup_miller_code, setup_destination_code and setup_source_code once; set setup_vehicle_no if needed. IDs from an old database are replaced. No master records are created."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "for(const key of ['season_code','miller_code','destination_code','source_code','vehicle_no']){",
+                  " const value=String(pm.variables.get('setup_'+key)||'').trim();",
+                  " if(value)pm.request.url.query.upsert({key,value});else pm.request.url.query.remove(key);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Setup request succeeded',()=>pm.expect(pm.response.code).to.eql(200));",
+                  "const result=pm.response.json();if(result.data)pm.test('One valid setup selected',()=>pm.expect(result.data.ready_for_orders,(result.data.missing||[]).join(' ')).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Import CMR order (source LotNo = order_no)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{operation_key}}"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{euparjan_api_key}}"
+              }
+            ],
+            "url": "{{paddy_api_url}}/integrations/euparjan/cmr-orders",
+            "description": "Variants for this endpoint are saved under Examples (original bodies, query filters, authorization headers and scripts). Open an example and adapt the main request before sending. Example scripts are documentation and do not execute automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"CMR:{{cmr_order_no}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"{{miller_code}}\",\n      \"destination_code\": \"{{destination_code}}\",\n      \"order_no\": \"{{cmr_order_no}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 6800,\n        \"unit\": \"KG\"\n      },\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"RICE\",\n      \"district_id\": {{district_id}},\n      \"lot_count\": {{cmr_lot_count}},\n      \"stenciling_code\": \"{{stenciling_code}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.request.body && pm.request.body.mode === 'raw') {",
+                  " const resolved = pm.variables.replaceIn(pm.request.body.raw);",
+                  " function stop(message) { pm.execution.skipRequest(); throw new Error(message); }",
+                  " const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);",
+                  " if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));",
+                  " let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }",
+                  " function convert(value) {",
+                  "  if (Array.isArray(value)) return value.map(convert);",
+                  "  if (value && typeof value === 'object') for (const key of Object.keys(value)) {",
+                  "   if (key === 'id' || key.endsWith('_id')) {",
+                  "    if (value[key] === null) continue;",
+                  "    const n = Number(value[key]);",
+                  "    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');",
+                  "    value[key] = n;",
+                  "   } else value[key] = convert(value[key]);",
+                  "  }",
+                  "  return value;",
+                  " }",
+                  " pm.request.body.update(JSON.stringify(convert(body), null, 2));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const response=pm.response.json();",
+                  "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));",
+                  "if (response.ok && response.data?.records?.length) { pm.collectionVariables.set(\"cmr_order_id\", response.data.records[0].id); }"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "26 Push miller CMR order for SFC",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{operation_key}}"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{euparjan_api_key}}"
+                  }
+                ],
+                "url": "{{paddy_api_url}}/integrations/euparjan/cmr-orders",
+                "description": "Original folder: 05 — Milling, CMR order, rice lifting and SFC acceptance\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\npm.collectionVariables.set(\"cmr_order_id\", response.data.records[0].id);\n```",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"CMR-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"MILLER-{{run_id}}\",\n      \"destination_code\": \"SFC-{{run_id}}\",\n      \"order_no\": \"CMR-ORDER-{{run_id}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 6800,\n        \"unit\": \"KG\"\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Example request (not executed)",
+              "code": 200,
+              "header": [],
+              "body": "",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "42 Push central pool FCI order",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{operation_key}}"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{euparjan_api_key}}"
+                  }
+                ],
+                "url": "{{paddy_api_url}}/integrations/euparjan/cmr-orders",
+                "description": "Creates a separate FCI order for future production. Allocate CMR with destination_id=fci_id and order_id=fci_order_id after rice becomes available.\n\nOriginal folder: 06 — Reports, tracking and FCI order example\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\npm.collectionVariables.set(\"fci_order_id\", response.data.records[0].id);\n```",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"FCI-CMR-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"MILLER-{{run_id}}\",\n      \"destination_code\": \"FCI-{{run_id}}\",\n      \"order_no\": \"FCI-ORDER-{{run_id}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Example request (not executed)",
+              "code": 200,
+              "header": [],
+              "body": "",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "02 - Masters",
       "item": [
         {
@@ -4754,7 +4955,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"shipment_no\": \"PADDY-{{operation_key}}\",\n  \"leg\": \"PADDY\",\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"source_id\": \"{{pacs_id}}\",\n  \"destination_id\": \"{{miller_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": \"10.000\",\n    \"unit\": \"QTL\"\n  },\n  \"remarks\": null,\n  \"scheme_code\": \"{{scheme_code}}\",\n  \"driver_name\": \"{{driver_name}}\",\n  \"driver_phone\": \"{{driver_phone}}\",\n  \"expected_completion_at\": \"{{expected_completion_at}}\"\n}",
+              "raw": "{\n  \"shipment_no\": \"PADDY-{{operation_key}}\",\n  \"leg\": \"PADDY\",\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"source_id\": \"{{pacs_id}}\",\n  \"destination_id\": \"{{miller_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": 1000,\n    \"unit\": \"KG\"\n  },\n  \"remarks\": null,\n  \"scheme_code\": \"{{scheme_code}}\",\n  \"driver_name\": \"{{driver_name}}\",\n  \"driver_phone\": \"{{driver_phone}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4828,7 +5029,7 @@
                 "description": "Variants for this endpoint are saved under Examples (original bodies, query filters, authorization headers and scripts). Open an example and adapt the main request before sending. Example scripts are documentation and do not execute automatically.\n\nTrip fields are managed by GPS: trip_status 0 before departure, 1 after leaving the source, 2 on destination arrival. trip_started_at and trip_completed_at are actual times. Optional expected_completion_at accepts an ISO datetime with timezone (e.g. 2026-10-22T18:30:00+05:30). Supply your expected arrival time, or null if unknown.\n\nSet expected_completion_at in the active environment to an ISO datetime with timezone. Blank saves NULL at creation and preserves the existing estimate at dispatch. Set the variable to the literal null to clear the estimate at dispatch. The estimate cannot precede dispatched_at. Actual trip_status, trip_started_at and trip_completed_at are response fields managed by GPS; do not add them to the request body.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"shipment_no\": \"PADDY-{{run_id}}\",\n  \"leg\": \"PADDY\",\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"source_id\": \"{{pacs_id}}\",\n  \"destination_id\": \"{{miller_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": 100,\n    \"unit\": \"QTL\"\n  },\n  \"lots\": [\n    {\n      \"procurement_id\": \"{{procurement_id}}\",\n      \"quantity\": {\n        \"value\": 100,\n        \"unit\": \"QTL\"\n      }\n    }\n  ],\n  \"scheme_code\": \"{{scheme_code}}\",\n  \"driver_name\": \"{{driver_name}}\",\n  \"driver_phone\": \"{{driver_phone}}\",\n  \"expected_completion_at\": \"{{expected_completion_at}}\"\n}",
+                  "raw": "{\n  \"shipment_no\": \"PADDY-{{run_id}}\",\n  \"leg\": \"PADDY\",\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"source_id\": \"{{pacs_id}}\",\n  \"destination_id\": \"{{miller_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": 10000,\n    \"unit\": \"KG\"\n  },\n  \"lots\": [\n    {\n      \"procurement_id\": \"{{procurement_id}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      }\n    }\n  ],\n  \"scheme_code\": \"{{scheme_code}}\",\n  \"driver_name\": \"{{driver_name}}\",\n  \"driver_phone\": \"{{driver_phone}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4865,7 +5066,7 @@
                 "description": "Original folder: 04 — e-uparjan pushes and paddy lifting\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\npm.collectionVariables.set(\"paddy_shipment_id\", response.data.id);\n```\n\nTrip fields are managed by GPS: trip_status 0 before departure, 1 after leaving the source, 2 on destination arrival. trip_started_at and trip_completed_at are actual times. Optional expected_completion_at accepts an ISO datetime with timezone (e.g. 2026-10-22T18:30:00+05:30). Supply your expected arrival time, or null if unknown.\n\nSet expected_completion_at in the active environment to an ISO datetime with timezone. Blank saves NULL at creation and preserves the existing estimate at dispatch. Set the variable to the literal null to clear the estimate at dispatch. The estimate cannot precede dispatched_at. Actual trip_status, trip_started_at and trip_completed_at are response fields managed by GPS; do not add them to the request body.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"shipment_no\": \"PADDY-{{run_id}}\",\n  \"leg\": \"PADDY\",\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"source_id\": \"{{pacs_id}}\",\n  \"destination_id\": \"{{miller_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": 100,\n    \"unit\": \"QTL\"\n  },\n  \"lots\": [\n    {\n      \"procurement_id\": \"{{procurement_id}}\",\n      \"quantity\": {\n        \"value\": 100,\n        \"unit\": \"QTL\"\n      }\n    }\n  ],\n  \"expected_completion_at\": \"{{expected_completion_at}}\",\n  \"scheme_code\": \"{{scheme_code}}\",\n  \"driver_name\": \"{{driver_name}}\",\n  \"driver_phone\": \"{{driver_phone}}\"\n}",
+                  "raw": "{\n  \"shipment_no\": \"PADDY-{{run_id}}\",\n  \"leg\": \"PADDY\",\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"source_id\": \"{{pacs_id}}\",\n  \"destination_id\": \"{{miller_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": 10000,\n    \"unit\": \"KG\"\n  },\n  \"lots\": [\n    {\n      \"procurement_id\": \"{{procurement_id}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      }\n    }\n  ],\n  \"scheme_code\": \"{{scheme_code}}\",\n  \"driver_name\": \"{{driver_name}}\",\n  \"driver_phone\": \"{{driver_phone}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4901,7 +5102,7 @@
                 "description": "Original folder: 05 — Milling, CMR order, rice lifting and SFC acceptance\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\npm.collectionVariables.set(\"rice_shipment_id\", response.data.id);\n```\n\nTrip fields are managed by GPS: trip_status 0 before departure, 1 after leaving the source, 2 on destination arrival. trip_started_at and trip_completed_at are actual times. Optional expected_completion_at accepts an ISO datetime with timezone (e.g. 2026-10-22T18:30:00+05:30). Supply your expected arrival time, or null if unknown.\n\nSet expected_completion_at in the active environment to an ISO datetime with timezone. Blank saves NULL at creation and preserves the existing estimate at dispatch. Set the variable to the literal null to clear the estimate at dispatch. The estimate cannot precede dispatched_at. Actual trip_status, trip_started_at and trip_completed_at are response fields managed by GPS; do not add them to the request body.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"shipment_no\": \"RICE-{{run_id}}\",\n  \"leg\": \"CMR\",\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"source_id\": \"{{miller_id}}\",\n  \"destination_id\": \"{{godown_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"order_id\": \"{{cmr_order_id}}\",\n  \"quantity\": {\n    \"value\": 68,\n    \"unit\": \"QTL\"\n  },\n  \"expected_completion_at\": \"{{expected_completion_at}}\",\n  \"scheme_code\": \"{{scheme_code}}\",\n  \"driver_name\": \"{{driver_name}}\",\n  \"driver_phone\": \"{{driver_phone}}\"\n}",
+                  "raw": "{\n  \"shipment_no\": \"RICE-{{run_id}}\",\n  \"leg\": \"CMR\",\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"source_id\": \"{{miller_id}}\",\n  \"destination_id\": \"{{godown_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"order_id\": \"{{cmr_order_id}}\",\n  \"quantity\": {\n    \"value\": 6800,\n    \"unit\": \"KG\"\n  },\n  \"scheme_code\": \"{{scheme_code}}\",\n  \"driver_name\": \"{{driver_name}}\",\n  \"driver_phone\": \"{{driver_phone}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4938,7 +5139,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"dispatched_at\": \"{{lifting_at}}\",\n  \"receipt_no\": \"DISPATCH-{{operation_key}}\",\n  \"expected_completion_at\": \"{{expected_completion_at}}\"\n}",
+              "raw": "{\n  \"dispatched_at\": \"{{lifting_at}}\",\n  \"receipt_no\": \"DISPATCH-{{operation_key}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4981,7 +5182,7 @@
                 "description": "Dispatch reuses driver_name/driver_phone saved at shipment creation. To enter or change driver details, include driver_name and driver_phone in this body. Both must exist by dispatch time.\n\nOptional expected_completion_at sets or replaces the expected completion datetime (ISO with timezone). Omit it to keep the creation estimate; null clears it. It must not precede dispatched_at. Dispatch keeps trip_status=0; GPS departure starts the trip.\n\nSet expected_completion_at in the active environment to an ISO datetime with timezone. Blank saves NULL at creation and preserves the existing estimate at dispatch. Set the variable to the literal null to clear the estimate at dispatch. The estimate cannot precede dispatched_at. Actual trip_status, trip_started_at and trip_completed_at are response fields managed by GPS; do not add them to the request body.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"dispatched_at\": \"{{dispatch_paddy}}\",\n  \"receipt_no\": \"PADDY-WB-{{run_id}}\",\n  \"expected_completion_at\": \"{{expected_completion_at}}\"\n}",
+                  "raw": "{\n  \"dispatched_at\": \"{{dispatch_paddy}}\",\n  \"receipt_no\": \"PADDY-WB-{{run_id}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5018,7 +5219,7 @@
                 "description": "Original folder: 04 — e-uparjan pushes and paddy lifting\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\n```\n\nOptional expected_completion_at sets or replaces the expected completion datetime (ISO with timezone). Omit it to keep the creation estimate; null clears it. It must not precede dispatched_at. Dispatch keeps trip_status=0; GPS departure starts the trip.\n\nSet expected_completion_at in the active environment to an ISO datetime with timezone. Blank saves NULL at creation and preserves the existing estimate at dispatch. Set the variable to the literal null to clear the estimate at dispatch. The estimate cannot precede dispatched_at. Actual trip_status, trip_started_at and trip_completed_at are response fields managed by GPS; do not add them to the request body.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"dispatched_at\": \"{{dispatch_paddy}}\",\n  \"receipt_no\": \"PADDY-WB-{{run_id}}\",\n  \"driver_name\": \"Demonstration driver\",\n  \"driver_phone\": \"9999999999\",\n  \"expected_completion_at\": \"{{expected_completion_at}}\"\n}",
+                  "raw": "{\n  \"dispatched_at\": \"{{dispatch_paddy}}\",\n  \"receipt_no\": \"PADDY-WB-{{run_id}}\",\n  \"driver_name\": \"Demonstration driver\",\n  \"driver_phone\": \"9999999999\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5054,7 +5255,7 @@
                 "description": "Original folder: 05 — Milling, CMR order, rice lifting and SFC acceptance\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\n```\n\nOptional expected_completion_at sets or replaces the expected completion datetime (ISO with timezone). Omit it to keep the creation estimate; null clears it. It must not precede dispatched_at. Dispatch keeps trip_status=0; GPS departure starts the trip.\n\nSet expected_completion_at in the active environment to an ISO datetime with timezone. Blank saves NULL at creation and preserves the existing estimate at dispatch. Set the variable to the literal null to clear the estimate at dispatch. The estimate cannot precede dispatched_at. Actual trip_status, trip_started_at and trip_completed_at are response fields managed by GPS; do not add them to the request body.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"dispatched_at\": \"{{dispatch_rice}}\",\n  \"receipt_no\": \"RICE-WB-{{run_id}}\",\n  \"driver_name\": \"Demonstration driver\",\n  \"driver_phone\": \"9999999999\",\n  \"expected_completion_at\": \"{{expected_completion_at}}\"\n}",
+                  "raw": "{\n  \"dispatched_at\": \"{{dispatch_rice}}\",\n  \"receipt_no\": \"RICE-WB-{{run_id}}\",\n  \"driver_name\": \"Demonstration driver\",\n  \"driver_phone\": \"9999999999\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5091,14 +5292,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accepted_quantity\": {\n    \"value\": \"10.000\",\n    \"unit\": \"QTL\"\n  },\n  \"delivered_at\": \"{{received_at}}\",\n  \"receipt_no\": \"MILL-{{operation_key}}\",\n  \"remarks\": null,\n  \"gps_override_reason\": null\n}",
+              "raw": "{\n  \"value\": 1000,\n  \"unit\": \"KG\",\n  \"received_bags\": 10\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "description": "Only ARRIVED paddy at the authenticated Miller destination can be received. GPS updates the linked shipment. Adjust accepted weight and add remarks for shortages.\n\nVariants are available under Examples. Example scripts do not run automatically; the main request runs its saved scripts."
+            "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Reuse the same Idempotency-Key and body for a retry."
           },
           "event": [
             {
@@ -5141,10 +5342,10 @@
                   }
                 ],
                 "url": "{{paddy_api_url}}/shipments/{{paddy_shipment_id}}/deliver",
-                "description": "Variants for this endpoint are saved under Examples (original bodies, query filters, authorization headers and scripts). Open an example and adapt the main request before sending. Example scripts are documentation and do not execute automatically.",
+                "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Reuse the same Idempotency-Key and body for a retry.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"delivered_at\": \"{{delivery_paddy}}\",\n  \"accepted_quantity\": {\n    \"value\": 100,\n    \"unit\": \"QTL\"\n  },\n  \"receipt_no\": \"MILLER-RECEIPT-{{run_id}}\"\n}",
+                  "raw": "{\n  \"value\": 10000,\n  \"unit\": \"KG\",\n  \"received_bags\": 10\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5178,10 +5379,10 @@
                   }
                 ],
                 "url": "{{paddy_api_url}}/shipments/{{paddy_shipment_id}}/deliver",
-                "description": "Original folder: 04 — e-uparjan pushes and paddy lifting\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\npm.test(\"68 QTL rice obligation\",()=>pm.expect(response.data.expected_rice_g).to.eql(6800000));\n```",
+                "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Reuse the same Idempotency-Key and body for a retry.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"delivered_at\": \"{{delivery_paddy}}\",\n  \"accepted_quantity\": {\n    \"value\": 100,\n    \"unit\": \"QTL\"\n  },\n  \"receipt_no\": \"MILLER-RECEIPT-{{run_id}}\"\n}",
+                  "raw": "{\n  \"value\": 10000,\n  \"unit\": \"KG\",\n  \"received_bags\": 10\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5214,10 +5415,10 @@
                   }
                 ],
                 "url": "{{paddy_api_url}}/shipments/{{rice_shipment_id}}/deliver",
-                "description": "Use ADMIN or OPERATOR for SFC/FCI receipts. Miller and transporter cannot self-accept rice deliveries.\n\nOriginal folder: 05 — Milling, CMR order, rice lifting and SFC acceptance\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\n```",
+                "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Reuse the same Idempotency-Key and body for a retry.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"delivered_at\": \"{{delivery_rice}}\",\n  \"accepted_quantity\": {\n    \"value\": 68,\n    \"unit\": \"QTL\"\n  },\n  \"receipt_no\": \"SFC-RECEIPT-{{run_id}}\"\n}",
+                  "raw": "{\n  \"value\": 6800,\n  \"unit\": \"KG\",\n  \"received_bags\": 10\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5634,7 +5835,7 @@
             "description": "Omit rice_quantity to use configured recovery. Supply measured rice_quantity to record actual production and report variance.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"miller_id\": \"{{miller_id}}\",\n  \"season_id\": \"{{season_id}}\",\n  \"batch_no\": \"MILLING-{{run_id}}\",\n  \"paddy_quantity\": {\n    \"value\": 100,\n    \"unit\": \"QTL\"\n  },\n  \"milled_at\": \"{{milled_at}}\",\n  \"scheme_code\": \"{{scheme_code}}\"\n}",
+              "raw": "{\n  \"miller_id\": \"{{miller_id}}\",\n  \"season_id\": \"{{season_id}}\",\n  \"batch_no\": \"MILLING-{{run_id}}\",\n  \"paddy_quantity\": {\n    \"value\": 10000,\n    \"unit\": \"KG\"\n  },\n  \"milled_at\": \"{{milled_at}}\",\n  \"scheme_code\": \"{{scheme_code}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5680,7 +5881,7 @@
                   "const response=pm.response.json();",
                   "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));",
                   "pm.collectionVariables.set(\"batch_id\", response.data.id);",
-                  "pm.test(\"68 QTL rice produced\",()=>pm.expect(response.data.rice_produced_g).to.eql(6800000));"
+                  "pm.test(\"68 QTL rice produced\",()=>pm.expect(response.data.rice_produced_kg).to.eql(6800000));"
                 ]
               }
             }
@@ -5746,6 +5947,211 @@
       "name": "08 - CMR Orders and Submissions",
       "item": [
         {
+          "name": "01 - Dropdowns",
+          "item": [
+            {
+              "name": "00 Reset CMR selections",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{miller_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/cmr/seasons",
+                "description": "Clears district/store/order/vehicle selections in collection and environment. Keeps season/scheme. No backend data is changed."
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "for(const key of ['district_id','destination_id','store_location_id','order_id','cmr_order_id','selected_cmr_order_no','vehicle_id','vehicle_no','cmr_dropdown_context']){pm.collectionVariables.unset(key);if(pm.environment.has(key))pm.environment.unset(key);}",
+                      "pm.collectionVariables.set('cmr_dropdown_ready','false');if(pm.environment.has('cmr_dropdown_ready'))pm.environment.set('cmr_dropdown_ready','false');"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response = pm.response.json();",
+                      "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "01 Season Dropdown",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{miller_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/cmr/seasons",
+                "description": "data.seasons: select season_id=id."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response = pm.response.json();",
+                      "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "02 District Dropdown",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{miller_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/cmr/districts",
+                "description": "All active districts. No season, scheme or Miller-depot mapping filter. Select district_id=id."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response = pm.response.json();",
+                      "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "03 Destination Depot Dropdown",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{miller_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/cmr/stores?season_id={{season_id}}&scheme_type={{scheme_code}}&district_id={{district_id}}",
+                "description": "data.stores: choose store_location_id=row.id (core store ID); destination_id=row.facility_id is saved with it."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response = pm.response.json();",
+                      "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "04 CMR Order Number Dropdown",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{miller_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/cmr/orders?season_id={{season_id}}&scheme_type={{scheme_code}}&district_id={{district_id}}&destination_id={{destination_id}}",
+                "description": "data.orders: display order_no and save order_id=id. Only eligible orders for the selected depot are returned."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response = pm.response.json();",
+                      "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "05 Vehicle Dropdown",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{miller_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/cmr/vehicles",
+                "description": "Select vehicle_id=id. A single free vehicle is saved automatically."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response = pm.response.json();",
+                      "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "06 Selected Vehicle Details (optional)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{miller_token}}"
+                  }
+                ],
+                "url": "{{base_url}}/cmr/vehicle?registration_no={{vehicle_no}}",
+                "description": "Checks GPS mapping/busy state for the selected registration."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                      "const response = pm.response.json();",
+                      "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "description": "Miller login. Run the separate Season, District, Destination Depot, CMR Order Number and Vehicle dropdowns in order. Scheme/commodity have no dropdown requests; existing scheme_code configuration and RICE payload remain available."
+        },
+        {
           "name": "CMR orders",
           "request": {
             "method": "GET",
@@ -5794,7 +6200,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"rice_quantity\": {\n    \"value\": 12,\n    \"unit\": \"QTL\"\n  },\n  \"reason\": \"Demonstration amendment before allocation\"\n}",
+              "raw": "{\n  \"rice_quantity\": {\n    \"value\": 1200,\n    \"unit\": \"KG\"\n  },\n  \"reason\": \"Demonstration amendment before allocation\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5917,87 +6323,6 @@
           ]
         },
         {
-          "name": "CMR submission options",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{miller_token}}"
-              }
-            ],
-            "url": "{{paddy_api_url}}/cmr/submission-options?season_id={{season_id}}&district_id={{district_id}}&scheme_type=SCMR",
-            "description": ""
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
-                  "const response = pm.response.json();",
-                  "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "CMR eligible vehicles",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{miller_token}}"
-              }
-            ],
-            "url": "{{paddy_api_url}}/cmr/vehicles",
-            "description": ""
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
-                  "const response = pm.response.json();",
-                  "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "CMR vehicle by registration",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{miller_token}}"
-              }
-            ],
-            "url": "{{paddy_api_url}}/cmr/vehicle?registration_no={{vehicle_no}}",
-            "description": ""
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('HTTP success', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
-                  "const response = pm.response.json();",
-                  "pm.test('Successful response', () => pm.expect(response.ok).to.eql(true));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Submit SCMR rice",
           "request": {
             "method": "POST",
@@ -6019,7 +6344,7 @@
             "description": "Creates a planned shipment; dispatch it using the shipment dispatch request.\n\nTrip fields are managed by GPS: trip_status 0 before departure, 1 after leaving the source, 2 on destination arrival. trip_started_at and trip_completed_at are actual times. Optional expected_completion_at accepts an ISO datetime with timezone (e.g. 2026-10-22T18:30:00+05:30). Supply your expected arrival time, or null if unknown.\n\nSet expected_completion_at in the active environment to an ISO datetime with timezone. Blank saves NULL at creation and preserves the existing estimate at dispatch. Set the variable to the literal null to clear the estimate at dispatch. The estimate cannot precede dispatched_at. Actual trip_status, trip_started_at and trip_completed_at are response fields managed by GPS; do not add them to the request body.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"season_id\": \"{{season_id}}\",\n  \"order_id\": \"{{order_id}}\",\n  \"destination_id\": \"{{sfc_id}}\",\n  \"district_id\": \"{{district_id}}\",\n  \"store_location_id\": \"{{store_location_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": 68,\n    \"unit\": \"QTL\"\n  },\n  \"submitted_on\": \"{{submitted_on}}\",\n  \"scheme_type\": \"SCMR\",\n  \"commodity_type\": \"RICE\",\n  \"lot_count\": 1,\n  \"stenciling_code\": \"STENCIL-{{run_id}}\",\n  \"gunny_bag_year\": 2026,\n  \"gunny_bag_type\": \"NEW\",\n  \"total_bags\": 136,\n  \"driver_name\": \"Demonstration driver\",\n  \"driver_phone\": \"9999999999\",\n  \"remarks\": \"Submitted via Postman\",\n  \"expected_completion_at\": \"{{expected_completion_at}}\"\n}",
+              "raw": "{\n  \"season_id\": \"{{season_id}}\",\n  \"order_id\": \"{{order_id}}\",\n  \"destination_id\": \"{{sfc_id}}\",\n  \"district_id\": \"{{district_id}}\",\n  \"store_location_id\": \"{{store_location_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": 6800,\n    \"unit\": \"KG\"\n  },\n  \"submitted_on\": \"{{submitted_on}}\",\n  \"scheme_type\": \"SCMR\",\n  \"commodity_type\": \"RICE\",\n  \"lot_count\": 1,\n  \"stenciling_code\": \"STENCIL-{{run_id}}\",\n  \"gunny_bag_year\": 2026,\n  \"gunny_bag_type\": \"NEW\",\n  \"total_bags\": 136,\n  \"driver_name\": \"Demonstration driver\",\n  \"driver_phone\": \"9999999999\",\n  \"remarks\": \"Submitted via Postman\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6291,7 +6616,7 @@
             "description": "Procurement sync creates Paddy stock; it does not create a lifting shipment. facility_code must be the exact active PACS/LAMPS code returned by facility registration. PACS-{{run_id}} is valid only after registering that demo PACS. Use {{season_code}} and {{scheme_code}} without asterisks. For lifting, use folder 15 POST /shipments with matching facility, season, scheme and mapped Miller. Missing/mismatched values return a specific error code/message.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"PROC-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"PACS-{{run_id}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 100,\n        \"unit\": \"QTL\"\n      },\n      \"moisture_percent\": 14,\n      \"receipt_no\": \"PURCHASE-{{run_id}}\",\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\"\n    }\n  ]\n}",
+              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"PROC-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"facility_code\": \"{{pacs_code}}\",\n      \"procured_at\": \"{{procured_at}}\",\n      \"quantity\": {\n        \"value\": 10000,\n        \"unit\": \"KG\"\n      },\n      \"moisture_percent\": 14,\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"PADDY\",\n      \"ro_no\": \"RO-{{run_id}}\",\n      \"ro_date\": \"2026-02-26\",\n      \"miller_id\": {{miller_id}}\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6364,7 +6689,7 @@
             "description": "Correct the existing procurement by its stable ID. external_ref and quantity are optional individually; reason is required. quantity is the new total purchase quantity, not an additional receipt. Stock changes only by the quantity difference. Existing dispatches/reservations must still be covered. Old references remain linked to this procurement so source retries do not add stock again. Use a new Idempotency-Key for a different correction; repeat the same key/body for retry. Run this request only when a correction is intended.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"external_ref\": \"PROC-{{run_id}}-UPDATED\",\n  \"quantity\": {\n    \"value\": 200,\n    \"unit\": \"QTL\"\n  },\n  \"reason\": \"Correct purchase reference and total quantity\"\n}",
+              "raw": "{\n  \"external_ref\": \"PROC-{{run_id}}-UPDATED\",\n  \"quantity\": {\n    \"value\": 20000,\n    \"unit\": \"KG\"\n  },\n  \"reason\": \"Correct purchase reference and total quantity\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6437,7 +6762,7 @@
             "description": "Variants for this endpoint are saved under Examples (original bodies, query filters, authorization headers and scripts). Open an example and adapt the main request before sending. Example scripts are documentation and do not execute automatically.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"CMR-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"MILLER-{{run_id}}\",\n      \"destination_code\": \"SFC-{{run_id}}\",\n      \"order_no\": \"CMR-ORDER-{{run_id}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 68,\n        \"unit\": \"QTL\"\n      },\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"RICE\"\n    }\n  ]\n}",
+              "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"CMR:{{cmr_order_no}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"{{miller_code}}\",\n      \"destination_code\": \"{{destination_code}}\",\n      \"order_no\": \"{{cmr_order_no}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 6800,\n        \"unit\": \"KG\"\n      },\n      \"scheme_code\": \"{{scheme_code}}\",\n      \"commodity_code\": \"RICE\",\n      \"district_id\": {{district_id}},\n      \"lot_count\": {{cmr_lot_count}},\n      \"stenciling_code\": \"{{stenciling_code}}\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6510,7 +6835,7 @@
                 "description": "Original folder: 05 — Milling, CMR order, rice lifting and SFC acceptance\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\npm.collectionVariables.set(\"cmr_order_id\", response.data.records[0].id);\n```",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"CMR-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"MILLER-{{run_id}}\",\n      \"destination_code\": \"SFC-{{run_id}}\",\n      \"order_no\": \"CMR-ORDER-{{run_id}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 68,\n        \"unit\": \"QTL\"\n      }\n    }\n  ]\n}",
+                  "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"CMR-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"MILLER-{{run_id}}\",\n      \"destination_code\": \"SFC-{{run_id}}\",\n      \"order_no\": \"CMR-ORDER-{{run_id}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 6800,\n        \"unit\": \"KG\"\n      }\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -6546,7 +6871,7 @@
                 "description": "Creates a separate FCI order for future production. Allocate CMR with destination_id=fci_id and order_id=fci_order_id after rice becomes available.\n\nOriginal folder: 06 — Reports, tracking and FCI order example\n\nprerequest script:\n```javascript\nif (pm.request.body && pm.request.body.mode === 'raw') {\n const resolved = pm.variables.replaceIn(pm.request.body.raw);\n function stop(message) { pm.execution.skipRequest(); throw new Error(message); }\n const missing = [...resolved.matchAll(/{{([^}]+)}}/g)].map(m => m[1]);\n if (missing.length) stop('Set Postman variables: ' + [...new Set(missing)].join(', '));\n let body; try { body = JSON.parse(resolved); } catch (error) { stop('Invalid JSON: ' + error.message); }\n function convert(value) {\n  if (Array.isArray(value)) return value.map(convert);\n  if (value && typeof value === 'object') for (const key of Object.keys(value)) {\n   if (key === 'id' || key.endsWith('_id')) {\n    if (value[key] === null) continue;\n    const n = Number(value[key]);\n    if (!Number.isSafeInteger(n) || n <= 0) stop(key + ' must be a positive numeric ID. Run location setup or create/list the required record first.');\n    value[key] = n;\n   } else value[key] = convert(value[key]);\n  }\n  return value;\n }\n pm.request.body.update(JSON.stringify(convert(body), null, 2));\n}\n```\n\ntest script:\n```javascript\npm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));\nconst response=pm.response.json();\npm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));\npm.collectionVariables.set(\"fci_order_id\", response.data.records[0].id);\n```",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"FCI-CMR-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"MILLER-{{run_id}}\",\n      \"destination_code\": \"FCI-{{run_id}}\",\n      \"order_no\": \"FCI-ORDER-{{run_id}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 10,\n        \"unit\": \"QTL\"\n      }\n    }\n  ]\n}",
+                  "raw": "{\n  \"records\": [\n    {\n      \"external_ref\": \"FCI-CMR-{{run_id}}\",\n      \"season_code\": \"{{season_code}}\",\n      \"miller_code\": \"MILLER-{{run_id}}\",\n      \"destination_code\": \"FCI-{{run_id}}\",\n      \"order_no\": \"FCI-ORDER-{{run_id}}\",\n      \"ordered_at\": \"{{order_at}}\",\n      \"due_date\": \"{{due_date}}\",\n      \"rice_quantity\": {\n        \"value\": 1000,\n        \"unit\": \"KG\"\n      }\n    }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -7081,7 +7406,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"destination_id\": \"{{sfc_id}}\",\n  \"order_no\": \"DM-{{run_id}}\",\n  \"rice_quantity\": {\n    \"value\": 68,\n    \"unit\": \"QTL\"\n  },\n  \"due_date\": \"{{due_date}}\",\n  \"scheme_code\": \"{{scheme_code}}\"\n}",
+              "raw": "{\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"destination_id\": \"{{sfc_id}}\",\n  \"order_no\": \"DM-{{run_id}}\",\n  \"rice_quantity\": {\n    \"value\": 6800,\n    \"unit\": \"KG\"\n  },\n  \"due_date\": \"{{due_date}}\",\n  \"scheme_code\": \"{{scheme_code}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7153,7 +7478,7 @@
             "description": "Requires the backend test-stock feature to be enabled.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"reference\": \"TEST-{{run_id}}\",\n  \"quantity\": {\n    \"value\": 68,\n    \"unit\": \"QTL\"\n  },\n  \"scheme_code\": \"{{scheme_code}}\"\n}",
+              "raw": "{\n  \"season_id\": \"{{season_id}}\",\n  \"miller_id\": \"{{miller_id}}\",\n  \"reference\": \"TEST-{{run_id}}\",\n  \"quantity\": {\n    \"value\": 6800,\n    \"unit\": \"KG\"\n  },\n  \"scheme_code\": \"{{scheme_code}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7383,7 +7708,7 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"decision\": \"ACCEPTED\",\n  \"receipt_no\": \"RECEIPT-{{run_id}}\",\n  \"received_at\": \"{{received_at}}\",\n  \"stacks\": [\n    {\n      \"stack_no\": \"STACK-01\",\n      \"received_quantity_qtl\": \"68.00000\",\n      \"bags\": 136\n    }\n  ],\n  \"gross_weight_kg\": \"6868.000\",\n  \"empty_bag_weight_kg\": \"0.500\",\n  \"red_grains_percent\": 1,\n  \"chalky_grains_percent\": 1,\n  \"moisture_percent\": 12,\n  \"broken_rice_percent\": 10,\n  \"other_standards\": \"Within applicable standards\",\n  \"compliance_confirmed\": true,\n  \"remarks\": \"Verified at receiving depot\"\n}",
+              "raw": "{\n  \"decision\": \"ACCEPTED\",\n  \"receipt_no\": \"RECEIPT-{{run_id}}\",\n  \"received_at\": \"{{received_at}}\",\n  \"stacks\": [\n    {\n      \"stack_no\": \"STACK-01\",\n      \"received_quantity_kg\": \"6800.000\",\n      \"bags\": 136\n    }\n  ],\n  \"gross_weight_kg\": \"6868.000\",\n  \"empty_bag_weight_kg\": \"0.500\",\n  \"red_grains_percent\": 1,\n  \"chalky_grains_percent\": 1,\n  \"moisture_percent\": 12,\n  \"broken_rice_percent\": 10,\n  \"other_standards\": \"Within applicable standards\",\n  \"compliance_confirmed\": true,\n  \"remarks\": \"Verified at receiving depot\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7474,7 +7799,7 @@
                   "pm.test(\"HTTP success\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
                   "const response=pm.response.json();",
                   "pm.test(\"Successful response\", () => pm.expect(response.ok).to.eql(true));",
-                  "pm.test(\"Obligation fully delivered\",()=>pm.expect(response.data.totals.rice_obligation_balance_g).to.eql(0));"
+                  "pm.test(\"Obligation fully delivered\",()=>pm.expect(response.data.totals.rice_obligation_balance_kg).to.eql(0));"
                 ]
               }
             }
@@ -7688,6 +8013,61 @@
             "description": ""
           },
           "event": []
+        }
+      ]
+    },
+    {
+      "name": "PACS LAMPS Mappings",
+      "description": "Login as PACS or LAMPS. The backend derives the source facility from the login and lists its mapped Millers.",
+      "item": [
+        {
+          "name": "01 My mapped Millers - mapping report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{pacs_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pacs-mappings?page=1&limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pacs-mappings"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "season_id",
+                  "value": "{{season_id}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns mapping_id, source_id/name/kind, miller_id/name/code, season, district, contact/address and mapped_at. Enable season_id to filter; disabled means all seasons. Source facility is always taken from the authenticated PACS/LAMPS user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Mapping report succeeded',()=>pm.expect(pm.response.code).to.eql(200));",
+                  "const result=pm.response.json();pm.test('Own mapped Millers returned',()=>pm.expect(result.ok).to.eql(true));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
@@ -7995,12 +8375,6 @@
       "type": "string"
     },
     {
-      "key": "expected_completion_at",
-      "value": "",
-      "type": "string",
-      "description": "Expected arrival/completion ISO datetime with timezone, e.g. 2026-10-22T18:30:00+05:30. Blank means unknown on create and keeps the existing estimate on dispatch. The literal null clears an estimate on dispatch."
-    },
-    {
       "key": "trip_status",
       "value": "0",
       "type": "string",
@@ -8041,6 +8415,70 @@
     {
       "key": "pacs_token",
       "value": ""
+    },
+    {
+      "key": "setup_season_code",
+      "value": ""
+    },
+    {
+      "key": "setup_miller_code",
+      "value": ""
+    },
+    {
+      "key": "setup_destination_code",
+      "value": ""
+    },
+    {
+      "key": "setup_source_code",
+      "value": ""
+    },
+    {
+      "key": "setup_vehicle_no",
+      "value": ""
+    },
+    {
+      "key": "miller_code",
+      "value": ""
+    },
+    {
+      "key": "pacs_code",
+      "value": ""
+    },
+    {
+      "key": "destination_code",
+      "value": ""
+    },
+    {
+      "key": "fci_code",
+      "value": ""
+    },
+    {
+      "key": "lamps_code",
+      "value": ""
+    },
+    {
+      "key": "cmr_order_no",
+      "value": ""
+    },
+    {
+      "key": "cmr_lot_count",
+      "value": ""
+    },
+    {
+      "key": "stenciling_code",
+      "value": ""
+    },
+    {
+      "key": "fci_order_no",
+      "value": ""
+    },
+    {
+      "key": "cmr_quantity_kg",
+      "value": ""
+    },
+    {
+      "key": "fci_quantity_kg",
+      "value": ""
     }
   ],
   "event": [
@@ -8049,13 +8487,42 @@
       "script": {
         "type": "text/javascript",
         "exec": [
+          "// SAVED_SETUP_DEFAULTS_V1",
+          "(function savedDefaults() {",
+          "  function set(key,value){pm.collectionVariables.set(key,value);if(pm.environment.has(key))pm.environment.set(key,value);}",
+          "  function once(key,value){if(!String(pm.variables.get(key)??'').trim())set(key,value);}",
+          "  once('run_id',String(Date.now()));",
+          "  const run=pm.variables.get('run_id');",
+          "  for(const [key,value] of Object.entries({pacs_code:'PACS-'+run,miller_code:'MILLER-'+run,",
+          "    destination_code:'SFC-'+run,fci_code:'FCI-'+run,lamps_code:'LAMPS-'+run,",
+          "    cmr_order_no:'CMR-ORDER-'+run,fci_order_no:'FCI-ORDER-'+run,cmr_quantity_kg:6800,fci_quantity_kg:100,",
+          "    cmr_lot_count:2,stenciling_code:'CMR-STENCIL-'+run}))once(key,value);",
+          "  const url=pm.variables.replaceIn(pm.request.url.toString());",
+          "  const cmrDropdownReady=/\\/cmr\\/submissions(?:\\?|$)/.test(url)&&pm.variables.get('cmr_dropdown_ready')==='true';",
+          "  if(pm.variables.get('setup_attempted')==='true'&&pm.request.method==='POST'&&!cmrDropdownReady){",
+          "    const order=/\\/integrations\\/euparjan\\/(?:cmr-orders|procurements)(?:\\?|$)/.test(url);",
+          "    const shipment=/\\/(?:cmr\\/submissions|shipments)(?:\\?|$)/.test(url);",
+          "    if((order||shipment)&&pm.variables.get('setup_ready')!=='true'){",
+          "      pm.execution.skipRequest();throw new Error('Load saved setup first: '+(pm.variables.get('setup_missing')||'select a valid mapped setup'));",
+          "    }",
+          "    if(shipment&&pm.variables.get('setup_shipments_ready')!=='true'){",
+          "      pm.execution.skipRequest();throw new Error('Load saved setup with one free mapped vehicle before creating a shipment.');",
+          "    }",
+          "    if(/\\/cmr\\/submissions(?:\\?|$)/.test(url)&&pm.variables.get('setup_cmr_ready')!=='true'){",
+          "      pm.execution.skipRequest();throw new Error('Selected CMR destination needs a linked core store and a free vehicle. Reload saved setup.');",
+          "    }",
+          "    if(/\\/integrations\\/euparjan\\/procurements(?:\\?|$)/.test(url)&&pm.variables.get('setup_source_ready')!=='true'){",
+          "      pm.execution.skipRequest();throw new Error('Select a mapped PACS/LAMPS source in saved setup before procurement import.');",
+          "    }",
+          "  }",
+          "})();",
           "const key = pm.variables.get('retry_key') || 'operation-' + pm.variables.replaceIn('{{$guid}}');",
           "pm.variables.set('operation_key', key);",
           "console.log('Idempotency-Key:', key);",
           "",
           "// Optional expected completion time for shipment creation and dispatch.",
           "if (pm.request.body && pm.request.body.mode === 'raw' && pm.request.body.raw.includes('\"{{expected_completion_at}}\"')) {",
-          " const tripBody = JSON.parse(pm.request.body.raw);",
+          " const tripBody = JSON.parse(pm.request.body.raw.replace(/(:\\s*)(\\{\\{[^}]+\\}\\})/g, '$1\"$2\"'));",
           " if (tripBody.expected_completion_at === '{{expected_completion_at}}') {",
           "  const configuredEta = String(pm.variables.get('expected_completion_at') ?? '').trim();",
           "  if (configuredEta.toLowerCase() === 'null') tripBody.expected_completion_at = null;",
@@ -8065,6 +8532,18 @@
           "  pm.request.body.update(JSON.stringify(tripBody, null, 2));",
           " }",
           "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// SAVED_SETUP_RESPONSES_V1",
+          "(function saveResponseReferences() {\n  if(pm.response.code<200||pm.response.code>=300)return;\n  let response;try{response=pm.response.json();}catch{return;}\n  if(!response.ok)return;\n  function set(key,value){\n    if(value==null)return;\n    pm.collectionVariables.set(key,value);\n    if(pm.environment.has(key))pm.environment.set(key,value);\n  }\n  function unset(key){pm.collectionVariables.unset(key);if(pm.environment.has(key))pm.environment.unset(key);}\n  const url=pm.variables.replaceIn(pm.request.url.toString()).split('?')[0];\n  const data=response.data;\n  if(/\\/setup\\/postman$/.test(url)){\n    set('setup_attempted','true');set('setup_ready',String(Boolean(data.ready_for_orders)));\n    set('setup_shipments_ready',String(Boolean(data.ready_for_shipments)));\n    set('setup_cmr_ready',String(Boolean(data.ready_for_cmr_submissions)));\n    set('setup_source_ready',String(Boolean(data.context?.pacs_id)));\n    set('setup_missing',(data.missing||[]).join(' '));\n    if(!data.ready_for_orders){console.warn(data.missing, data.contexts);return;}\n    const c=data.context;\n    if(pm.variables.get('miller_id')&&Number(pm.variables.get('miller_id'))!==Number(c.miller_id))unset('miller_token');\n    if(pm.variables.get('pacs_id')&&Number(pm.variables.get('pacs_id'))!==Number(c.pacs_id)){\n      for(const key of ['pacs_token','paddy_token'])unset(key);\n    }\n    for(const key of ['season_id','season_code','miller_id','miller_code','destination_id','destination_code','district_id','district_name','store_location_id','source_district_id']){if(c[key]==null)unset(key);else set(key,c[key]);}\n    if(c.pacs_id){set('pacs_id',c.pacs_id);set('pacs_facility_id',c.pacs_id);set('pacs_code',c.pacs_code);}\n    else{for(const key of ['pacs_id','pacs_facility_id','pacs_code'])unset(key);}\n    if(c.source_kind==='LAMPS'){set('lamps_id',c.pacs_id);set('lamps_code',c.pacs_code);}\n    if(c.destination_kind==='FCI'){set('fci_id',c.destination_id);set('fci_code',c.destination_code);}\n    else{set('sfc_id',c.destination_id);set('godown_id',c.destination_id);}\n    for(const [key,value] of Object.entries({setup_season_code:c.season_code,setup_miller_code:c.miller_code,\n      setup_destination_code:c.destination_code,setup_source_code:c.pacs_code}))set(key,value);\n    if(data.vehicle){for(const [key,value] of Object.entries(data.vehicle))if(key!=='busy')set(key,value);set('setup_vehicle_no',data.vehicle.vehicle_no);}\n    else{for(const key of ['vehicle_id','vehicle_no','device_id','imei_id','imei'])unset(key);}\n    return;\n  }\n  if(pm.request.method!=='POST')return;\n  let body={};try{body=JSON.parse(pm.variables.replaceIn(pm.request.body?.raw||'{}'));}catch{}\n  if(/\\/(?:auth\\/login|login)$/.test(url)&&data?.user?.role==='MILLER'){\n    if(Number(pm.variables.get('miller_id'))!==Number(data.user.miller_id)){\n      for(const key of ['district_id','destination_id','store_location_id','order_id','cmr_order_id','selected_cmr_order_no','cmr_dropdown_context'])unset(key);\n      set('cmr_dropdown_ready','false');\n    }\n    set('miller_id',data.user.miller_id);\n  }\n  if(/\\/seasons$/.test(url)&&data?.id){set('season_id',data.id);set('season_code',data.code||body.code);}\n  if(/\\/facilities$/.test(url)&&data?.id){\n    const kind=data.kind||body.kind,code=data.code||body.code;\n    if(['PACS','LAMPS'].includes(kind)){set('pacs_id',data.id);set('pacs_code',code);}\n    if(kind==='LAMPS'){set('lamps_id',data.id);set('lamps_code',code);}\n    if(kind==='MILLER'){set('miller_id',data.id);set('miller_code',code);}\n    if(['SFC_GODOWN','FCI'].includes(kind)){\n      set('destination_id',data.id);set('destination_code',code);set('district_id',data.district_id||body.district_id);\n      set(kind==='FCI'?'fci_id':'sfc_id',data.id);if(kind==='FCI')set('fci_code',code);else set('godown_id',data.id);\n    }\n  }\n  if(/\\/vehicles$/.test(url)&&data?.id){set('vehicle_id',data.id);set('vehicle_no',data.registration_no||body.registration_no);}\n  if(/\\/integrations\\/euparjan\\/cmr-orders$/.test(url)&&data?.records?.[0]?.id){\n    set('cmr_order_id',data.records[0].id);set('order_id',data.records[0].id);\n    if(body.records?.[0]?.destination_code===pm.variables.get('fci_code'))set('fci_order_id',data.records[0].id);\n  }\n  if(/\\/integrations\\/euparjan\\/procurements$/.test(url)&&data?.records?.[0]?.id)set('procurement_id',data.records[0].id);\n})();",
+          "// CMR_DROPDOWN_STATE_V1",
+          "(function saveCmrDropdownReferences(){\n  const url=pm.variables.replaceIn(pm.request.url.toString());\n  if(!/\\/cmr\\/(?:submission-options|vehicles|vehicle|(?:dropdowns\\/)?(?:seasons|schemes|commodities|districts|stores|orders|vehicles))(?:\\?|$)/.test(url))return;\n  const query=key=>{const match=url.match(new RegExp('[?&]'+key+'=([^&]*)'));return match?decodeURIComponent(match[1]):undefined;};\n  const only=url.match(/\\/cmr\\/(?:dropdowns\\/)?(seasons|schemes|commodities|districts|stores|orders|vehicles)(?:\\?|$)/)?.[1]||query('only')||'all';\n  function set(key,value){pm.collectionVariables.set(key,value);if(pm.environment.has(key))pm.environment.set(key,value);}\n  function clear(keys){for(const key of keys){pm.collectionVariables.unset(key);if(pm.environment.has(key))pm.environment.unset(key);}}\n  const orderKeys=['order_id','cmr_order_id','selected_cmr_order_no'];\n  const storeKeys=['destination_id','store_location_id',...orderKeys];\n  let response;try{response=pm.response.json();}catch{return;}\n  if(pm.response.code>=300||!response.ok){\n    clear(only==='orders'?orderKeys:only==='stores'?storeKeys:['district_id',...storeKeys]);\n    set('cmr_dropdown_ready','false');return;\n  }\n  const d=response.data||{};\n  let previous={};try{previous=JSON.parse(pm.variables.get('cmr_dropdown_context')||'{}');}catch{}\n  const season=query('season_id')??pm.variables.get('season_id');\n  const scheme=query('scheme_type')??pm.variables.get('scheme_code');\n  const district=query('district_id')??pm.variables.get('district_id');\n  const destination=query('destination_id')??pm.variables.get('destination_id');\n  if(previous.season_id!=null&&(String(previous.season_id)!==String(season)||previous.scheme_code!==scheme))clear(storeKeys);\n  else if(previous.district_id!=null&&String(previous.district_id)!==String(district))clear(storeKeys);\n  else if(previous.destination_id!=null&&String(previous.destination_id)!==String(destination))clear(['store_location_id',...orderKeys]);\n  if(query('season_id'))set('season_id',Number(season));\n  if(query('scheme_type'))set('scheme_code',scheme);\n  if(query('district_id'))set('district_id',Number(district));\n  if(query('destination_id'))set('destination_id',Number(destination));\n  const choose=(rows,key,current)=>rows.find(row=>String(row[key])===String(current))||(rows.length===1?rows[0]:null);\n  if(d.seasons){const selected=choose(d.seasons,'id',pm.variables.get('season_id'));if(selected){set('season_id',selected.id);set('season_code',selected.code);}else clear(['season_id',...storeKeys]);}\n  if(d.schemes){const selected=choose(d.schemes,'code',pm.variables.get('scheme_code'));if(selected)set('scheme_code',selected.code);else{clear(['scheme_code',...storeKeys]);console.warn('Select scheme_code: SCMR or CCMR.');}}\n  if(d.commodities){const selected=choose(d.commodities,'code',pm.variables.get('commodity_type'));if(selected)set('commodity_type',selected.code);else clear(['commodity_type']);}\n  if(d.districts){const selected=choose(d.districts,'id',pm.variables.get('district_id'));if(selected)set('district_id',selected.id);else clear(['district_id',...storeKeys]);}\n  if(d.stores){\n    const candidates=d.stores.filter(s=>!pm.variables.get('destination_id')||Number(s.facility_id)===Number(pm.variables.get('destination_id')));\n    const selected=d.stores.find(s=>String(s.id)===String(pm.variables.get('store_location_id')))||choose(candidates,'id',undefined)||(!candidates.length&&d.stores.length===1?d.stores[0]:null);\n    if(selected){set('store_location_id',selected.id);set('destination_id',selected.facility_id);}\n    else clear(storeKeys);\n  }\n  if(d.orders){const selected=choose(d.orders,'id',pm.variables.get('order_id'));\n    if(selected){set('order_id',selected.id);set('cmr_order_id',selected.id);set('selected_cmr_order_no',selected.order_no);}\n    else clear(orderKeys);\n  }\n  if(/\\/cmr\\/(?:dropdowns\\/)?vehicles(?:\\?|$)/.test(url)&&Array.isArray(d)){\n    const selected=choose(d,'id',pm.variables.get('vehicle_id'));\n    if(selected){set('vehicle_id',selected.id);set('vehicle_no',selected.registration_no);}else clear(['vehicle_id','vehicle_no']);\n  }\n  if(/\\/cmr\\/vehicle\\?/.test(url)&&d.id){if(Number(d.busy)===0&&Number(d.gps_active)===1){set('vehicle_id',d.id);set('vehicle_no',d.registration_no);}else clear(['vehicle_id']);}\n  const context={};for(const key of ['miller_id','season_id','scheme_code','district_id','destination_id'])context[key]=pm.variables.get(key)??null;\n  set('cmr_dropdown_context',JSON.stringify(context));\n  const needed=['season_id','scheme_code','district_id','destination_id','store_location_id','order_id','vehicle_id'];\n  set('cmr_dropdown_ready',String(needed.every(key=>Boolean(pm.variables.get(key)))));\n  console.info('CMR selection',Object.fromEntries(needed.map(key=>[key,pm.variables.get(key)||'select next'])));\n})();"
         ]
       }
     }

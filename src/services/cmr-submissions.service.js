@@ -25,7 +25,6 @@ export async function submitCMR(connection, data, context) {
     source_id: context.user.miller_id,
     destination_id: data.destination_id,
     vehicle_id: data.vehicle_id,
-    expected_completion_at: data.expected_completion_at?.toISOString() ?? null,
     order_id: data.order_id,
     quantity: data.quantity,
     remarks: data.remarks
@@ -44,16 +43,25 @@ export async function submitCMR(connection, data, context) {
   });
 }
 export async function getSubmissionOptions(context) {
+  const only=z.enum(['all','base','seasons','schemes','commodities','districts','stores','orders']).parse(context.query.only||'all');
+  if(only==='districts')return {body:{ok:true,data:{districts:await repository.listDistricts()}},status:200,headers:[]};
+  if(['seasons','schemes','commodities'].includes(only)){
+    const values=only==='seasons'?await repository.getSubmissionOptionsListSeasons():only==='schemes'?await repository.listCmrSchemes():await repository.listCmrCommodities();
+    return {body:{ok:true,data:{[only]:values}},status:200,headers:[]};
+  }
+  if(!['all','base'].includes(only))ensure(context.query.season_id,'season_id is required for this dropdown','VALIDATION',400);
+  if(only==='stores')ensure(context.query.district_id,'district_id is required for the store dropdown','VALIDATION',400);
+  if(only==='orders')ensure(context.query.destination_id,'destination_id is required for the order dropdown','VALIDATION',400);
   const effects = {
     headers: []
   };
-  const seasons = await repository.getSubmissionOptionsListSeasons();
-  const [schemes, commodities] = await Promise.all([repository.listCmrSchemes(), repository.listCmrCommodities()]);
+  const seasons = ['all','base'].includes(only)?await repository.getSubmissionOptionsListSeasons():[];
+  const [schemes, commodities] = ['all','base'].includes(only)?await Promise.all([repository.listCmrSchemes(), repository.listCmrCommodities()]):[[],[]];
   const seasonId = context.query.season_id ? id.parse(Number(context.query.season_id)) : null;
-  const districts = seasonId ? await repository.getSubmissionOptionsListTblDistrictMaster(context, seasonId) : [];
+  const districts = seasonId&&['all','districts','stores'].includes(only) ? await repository.getSubmissionOptionsListTblDistrictMaster(context, seasonId) : [];
   const scheme = z.enum(['SCMR', 'CCMR']).parse(context.query.scheme_type || 'SCMR');
   let stores = [];
-  if (context.query.district_id) {
+  if (context.query.district_id&&['all','stores'].includes(only)) {
     const districtId = id.parse(Number(context.query.district_id));
     const sourceStores = districts.some(district => Number(district.id) === districtId) ? await readStores(districtId, scheme) : [];
     const facilities = seasonId ? await repository.getSubmissionOptionsListFacilities(districtId, context, seasonId) : [];
@@ -70,9 +78,16 @@ export async function getSubmissionOptions(context) {
   }
   let orders = [];
   let stock = null;
-  if (context.query.season_id) {
+  if (context.query.season_id&&['all','orders'].includes(only)) {
     orders = await repository.getSubmissionOptionsListCmrOrders(context, seasonId, scheme);
     stock = await repository.getSubmissionOptionsFindStocks(context, seasonId, scheme);
+    if(context.query.destination_id){const destinationId=id.parse(Number(context.query.destination_id));orders=orders.filter(o=>Number(o.destination_id)===destinationId);}
+    if(context.query.district_id){const districtId=id.parse(Number(context.query.district_id));orders=orders.filter(o=>Number(o.district_id)===districtId);}
+  }
+  if(only!=='all'){
+    const data=only==='base'?{seasons,schemes,commodities}:only==='districts'?{districts}:only==='stores'?{stores}:
+      {orders,rice_stock:stock||{on_hand_kg:0,reserved_kg:0,available_kg:0}};
+    return {body:{ok:true,data},status:200,headers:[]};
   }
   return {
     body: {
@@ -85,9 +100,9 @@ export async function getSubmissionOptions(context) {
         stores,
         orders,
         rice_stock: stock || {
-          on_hand_g: 0,
-          reserved_g: 0,
-          available_g: 0
+          on_hand_kg: 0,
+          reserved_kg: 0,
+          available_kg: 0
         }
       }
     },

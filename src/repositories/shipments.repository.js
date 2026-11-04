@@ -10,7 +10,7 @@ export async function correctTripStatus(connection, s, data) {
     s.route_id, data.trip_started_at, data.trip_status === 2 ? 'IN' : 'UNKNOWN', s.id]);
 }
 export async function ownedShipmentFindShipments(connection, scope, lock, context) {
-  return one(connection, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_g,s.accepted_g,s.shortage_g,s.recovery_percent,s.expected_rice_g,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.delivery_receipt,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,sr.source_id,sr.destination_id,vt.name vehicle_type FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id
+  return one(connection, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_kg,s.accepted_kg,s.shortage_kg,s.recovery_percent,s.expected_rice_kg,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.received_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,sr.source_id,sr.destination_id,vt.name vehicle_type FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id
     LEFT JOIN vehicle_types vt ON vt.id=s.vehicle_type_id WHERE s.id=?${scope.sql}${lock ? ' FOR UPDATE' : ''}`, [context.params.id, ...scope.params]);
 }
 export async function transportFindVehicles(connection, vehicleId) {
@@ -35,7 +35,7 @@ export async function createShipmentFindShipments(connection, v) {
   return one(connection, "SELECT id FROM shipments WHERE vehicle_id=? AND status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED') FOR UPDATE", [v.id], false);
 }
 export async function createShipmentFindCmrOrders(connection, data) {
-  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,ordered_at,due_date,rice_quantity_g,committed_g,delivered_g,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [data.order_id],true,{code:'CMR_ORDER_NOT_FOUND',message:`order_id=${data.order_id} does not match a CMR order.`});
+  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [data.order_id],true,{code:'CMR_ORDER_NOT_FOUND',message:`order_id=${data.order_id} does not match a CMR order.`});
 }
 export async function createShipmentInsertShipments(connection, data, flowType, source, dest, v, qty, recovery, submission, masters, routeId) {
   return insert(connection, 'shipments', {
@@ -52,8 +52,8 @@ export async function createShipmentInsertShipments(connection, data, flowType, 
     order_id: data.order_id,
     driver_name: data.driver_name ?? null,
     driver_phone: data.driver_phone ?? null,
-    expected_completion_at: data.expected_completion_at ?? null,
-    quantity_g: qty,
+    expected_completion_at: null,
+    quantity_kg: qty,
     recovery_percent: recovery,
     source_lat: source.latitude,
     source_lng: source.longitude,
@@ -66,13 +66,13 @@ export async function createShipmentInsertShipments(connection, data, flowType, 
   });
 }
 export async function createShipmentListProcurement(connection, source, data) {
-  return rows(connection, "SELECT p.id,p.available_g,p.reserved_g FROM procurement p WHERE p.facility_id=? AND p.season_id=? AND p.scheme_code=? AND p.commodity_code='PADDY' AND p.available_g>p.reserved_g ORDER BY p.procured_at,p.id FOR UPDATE", [source.id, data.season_id, data.scheme_code]);
+  return rows(connection, "SELECT p.id,p.available_kg,p.reserved_kg FROM procurement p WHERE p.facility_id=? AND p.season_id=? AND p.scheme_code=? AND p.miller_id=? AND p.commodity_code='PADDY' AND p.available_kg>p.reserved_kg ORDER BY p.procured_at,p.id FOR UPDATE", [source.id, data.season_id, data.scheme_code, data.miller_id]);
 }
 export async function createShipmentFindProcurement(connection, l) {
-  return one(connection, 'SELECT p.id,p.external_ref,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.moisture_percent,p.receipt_no,p.created_at,p.scheme_code,p.commodity_code,p.commodity_code commodity FROM procurement p WHERE p.id=? FOR UPDATE', [l.procurement_id],true,{code:'PROCUREMENT_LOT_NOT_FOUND',message:`procurement_id=${l.procurement_id} was not found. Select a synced procurement lot.`});
+  return one(connection, 'SELECT p.id,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.district_id,p.procured_at,p.quantity_kg,p.available_kg,p.reserved_kg,p.moisture_percent,p.created_at,p.scheme_code,p.commodity_code,p.commodity_code commodity FROM procurement p WHERE p.id=? FOR UPDATE', [l.procurement_id],true,{code:'PROCUREMENT_LOT_NOT_FOUND',message:`procurement_id=${l.procurement_id} was not found. Select a synced procurement lot.`});
 }
 export async function createShipmentUpdateProcurement(connection, l, p) {
-  return rows(connection, 'UPDATE procurement SET reserved_g=reserved_g+? WHERE id=?', [l.quantity_g, p.id]);
+  return rows(connection, 'UPDATE procurement SET reserved_kg=reserved_kg+? WHERE id=?', [l.quantity_kg, p.id]);
 }
 export async function createShipmentInsertShipmentLots(connection, id, l) {
   return insert(connection, 'shipment_lots', {
@@ -81,43 +81,43 @@ export async function createShipmentInsertShipmentLots(connection, id, l) {
   });
 }
 export async function createShipmentUpdateCmrOrders(connection, qty, order) {
-  return rows(connection, 'UPDATE cmr_orders SET committed_g=committed_g+? WHERE id=?', [qty, order.id]);
+  return rows(connection, 'UPDATE cmr_orders SET committed_kg=committed_kg+? WHERE id=?', [qty, order.id]);
 }
 export async function deliverShipmentFindCmrReceipts(connection, s) {
   return one(connection, "SELECT id FROM cmr_receipts WHERE shipment_id=? AND decision='REJECTED'", [s.id], false);
 }
 export async function deliverShipmentFindCmrOrders(connection, s) {
-  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,ordered_at,due_date,rice_quantity_g,committed_g,delivered_g,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [s.order_id]);
+  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [s.order_id]);
 }
 export async function deliverShipmentUpdateCmrOrders(connection, delivered, committed, o) {
-  return rows(connection, 'UPDATE cmr_orders SET delivered_g=?,committed_g=?,status=? WHERE id=?', [delivered, committed, delivered === o.rice_quantity_g ? 'FULFILLED' : 'OPEN', o.id]);
+  return rows(connection, 'UPDATE cmr_orders SET delivered_kg=?,committed_kg=?,status=? WHERE id=?', [delivered, committed, delivered === o.rice_quantity_kg ? 'FULFILLED' : 'OPEN', o.id]);
 }
 export async function deliverShipmentUpdateShipments(connection, accepted, shortage, obligation, data, s) {
-  return rows(connection, "UPDATE shipments SET status='DELIVERED',accepted_g=?,shortage_g=?,expected_rice_g=?,delivered_at=?,delivery_receipt=?,remarks=?,trip_status=2,trip_completed_at=COALESCE(trip_completed_at,?) WHERE id=?", [accepted, shortage, obligation, data.delivered_at, data.receipt_no, data.remarks, data.delivered_at, s.id]);
+  return rows(connection, "UPDATE shipments SET status='DELIVERED',accepted_kg=?,shortage_kg=?,expected_rice_kg=?,delivered_at=?,remarks=?,received_bags=?,trip_status=2,trip_completed_at=COALESCE(trip_completed_at,?) WHERE id=?", [accepted, shortage, obligation, data.delivered_at, data.remarks, data.received_bags, data.delivered_at, s.id]);
 }
 export async function dispatchShipmentFindFacilities(connection, s) {
   return one(connection, 'SELECT active FROM facilities WHERE id=?', [s.source_id]);
 }
 export async function dispatchShipmentListShipmentLots(connection, s) {
-  return rows(connection, 'SELECT l.shipment_id,l.procurement_id,l.quantity_g,p.procured_at FROM shipment_lots l JOIN procurement p ON p.id=l.procurement_id WHERE l.shipment_id=? ORDER BY l.procurement_id FOR UPDATE', [s.id]);
+  return rows(connection, 'SELECT l.shipment_id,l.procurement_id,l.quantity_kg,p.miller_id,p.procured_at FROM shipment_lots l JOIN procurement p ON p.id=l.procurement_id WHERE l.shipment_id=? ORDER BY l.procurement_id FOR UPDATE', [s.id]);
 }
 export async function dispatchShipmentFindCmrOrders(connection, s) {
   return one(connection, 'SELECT ordered_at,status FROM cmr_orders WHERE id=?', [s.order_id]);
 }
 export async function dispatchShipmentUpdateProcurement(connection, l) {
-  return rows(connection, 'UPDATE procurement SET available_g=available_g-?,reserved_g=reserved_g-? WHERE id=?', [l.quantity_g, l.quantity_g, l.procurement_id]);
+  return rows(connection, 'UPDATE procurement SET available_kg=available_kg-?,reserved_kg=reserved_kg-? WHERE id=?', [l.quantity_kg, l.quantity_kg, l.procurement_id]);
 }
 export async function dispatchShipmentUpdateShipments(connection, data, s) {
-  return rows(connection, "UPDATE shipments SET status='DISPATCHED',dispatched_at=?,dispatch_receipt=?,driver_name=?,driver_phone=?,expected_completion_at=?,driver_user_id=? WHERE id=?", [data.dispatched_at, data.receipt_no, data.driver_name, data.driver_phone, data.expected_completion_at, data.driver_user_id, s.id]);
+  return rows(connection, "UPDATE shipments SET status='DISPATCHED',dispatched_at=?,dispatch_receipt=?,driver_name=?,driver_phone=?,expected_completion_at=NULL,driver_user_id=? WHERE id=?", [data.dispatched_at, data.receipt_no, data.driver_name, data.driver_phone, data.driver_user_id, s.id]);
 }
 export async function cancelShipmentListShipmentLots(connection, s) {
-  return rows(connection, 'SELECT shipment_id,procurement_id,quantity_g FROM shipment_lots WHERE shipment_id=? ORDER BY procurement_id', [s.id]);
+  return rows(connection, 'SELECT shipment_id,procurement_id,quantity_kg FROM shipment_lots WHERE shipment_id=? ORDER BY procurement_id', [s.id]);
 }
 export async function cancelShipmentUpdateProcurement(connection, l) {
-  return rows(connection, 'UPDATE procurement SET reserved_g=reserved_g-? WHERE id=?', [l.quantity_g, l.procurement_id]);
+  return rows(connection, 'UPDATE procurement SET reserved_kg=reserved_kg-? WHERE id=?', [l.quantity_kg, l.procurement_id]);
 }
 export async function cancelShipmentUpdateCmrOrders(connection, s) {
-  return rows(connection, 'UPDATE cmr_orders SET committed_g=committed_g-? WHERE id=?', [s.quantity_g, s.order_id]);
+  return rows(connection, 'UPDATE cmr_orders SET committed_kg=committed_kg-? WHERE id=?', [s.quantity_kg, s.order_id]);
 }
 export async function cancelShipmentUpdateShipments(connection, s) {
   return rows(connection, "UPDATE shipments SET status='CANCELLED' WHERE id=?", [s.id]);
@@ -126,7 +126,7 @@ export async function listShipmentsCountShipments(sql, args) {
   return one(pool, `SELECT COUNT(s.id) total FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id WHERE 1=1${sql}`, args);
 }
 export async function listShipmentsListShipmentEvents(sql, limit, offset, args) {
-  return rows(pool, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_g,s.accepted_g,s.shortage_g,s.recovery_percent,s.expected_rice_g,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.delivery_receipt,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,sr.source_id,sr.destination_id,vt.name vehicle_type,v.registration_no,f.name source_name,t.name destination_name,
+  return rows(pool, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_kg,s.accepted_kg,s.shortage_kg,s.recovery_percent,s.expected_rice_kg,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.received_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,sr.source_id,sr.destination_id,vt.name vehicle_type,v.registration_no,f.name source_name,t.name destination_name,
     dd.district_name destination_district_name,COALESCE(r.decision,s.status) display_status,
     COALESCE(r.received_at,(SELECT MAX(e.occurred_at) FROM shipment_events e WHERE e.shipment_id=s.id AND e.event_type=s.status),s.created_at) status_at
     FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id JOIN vehicles v ON v.id=s.vehicle_id JOIN facilities f ON f.id=sr.source_id JOIN facilities t ON t.id=sr.destination_id LEFT JOIN vehicle_types vt ON vt.id=s.vehicle_type_id
@@ -137,6 +137,6 @@ export async function getShipmentListShipmentEvents(s) {
   return rows(pool, 'SELECT id,shipment_id,event_type,occurred_at,detail,created_at FROM shipment_events WHERE shipment_id=? ORDER BY occurred_at,id', [s.id]);
 }
 export async function getShipmentListShipmentLots(s) {
-  return rows(pool, `SELECT l.shipment_id,l.procurement_id,l.quantity_g,p.external_ref,p.farmer_id,p.receipt_no FROM shipment_lots l JOIN procurement p ON p.id=l.procurement_id WHERE shipment_id=?`, [s.id]);
+  return rows(pool, `SELECT l.shipment_id,l.procurement_id,l.quantity_kg,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.farmer_id FROM shipment_lots l JOIN procurement p ON p.id=l.procurement_id WHERE shipment_id=?`, [s.id]);
 }
 

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import {quantityKg} from './quantity-kg-migration.js';
 import {capacityKg} from './capacity-kg-migration.js';
 import {capacityUnits} from './capacity-units-migration.js';
 import {removeBlockLocation} from './remove-block-location.js';
@@ -40,6 +41,7 @@ try {
     if(filename==='073_independent_vehicle_registration.sql')await independentVehicles(c);
     if(filename==='075_capacity_kilograms.sql')await capacityKg(c);
     if(filename==='076_preserve_capacity_units.sql')await capacityUnits(c);
+    if(filename==='078_quantity_kilograms.sql')await quantityKg(c);
     if(filename==='072_remove_procurement_references.sql') {
       const [uncovered]=await c.query(`SELECT r.external_ref FROM procurement_references r
         JOIN procurement p ON p.id=r.procurement_id

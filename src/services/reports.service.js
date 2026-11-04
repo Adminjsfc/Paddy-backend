@@ -1,5 +1,6 @@
+import {addKg} from '../utils/core.js';
 import * as repository from "../repositories/reports.repository.js";
-import { id, code, ensure, millerAccess, pageParams, scopedWhere, kg } from "../utils/core.js";
+import { id, code, ensure, millerAccess, pageParams, scopedWhere } from "../utils/core.js";
 import {listMappedSources} from '../repositories/paddy-orders.repository.js';
 export async function dashboardVehicles(context) {
   ensure(context.user.role==='MILLER'&&context.user.miller_id,'Miller facility is required','FORBIDDEN',403);
@@ -16,8 +17,8 @@ export async function liftingSummary(context) {
   const pagination=pageParams(context.query),season=context.query.season_id?id.parse(Number(context.query.season_id)):null;
   const scheme=context.query.scheme_code?code.parse(context.query.scheme_code):null;
   const result=flow==='PADDY'?await listMappedSources(context.user.miller_id,season,pagination,scheme):await repository.listCmrLiftingSummary(context.user.miller_id,season,pagination,scheme);
-  const data=flow==='PADDY'?result.data.map(row=>({...row,remaining_g:row.available_g})):result.data;
-  const totals=flow==='PADDY'?{...result.totals,remaining_g:result.totals.available_g}:result.totals;
+  const data=flow==='PADDY'?result.data.map(row=>({...row,remaining_kg:row.available_kg})):result.data;
+  const totals=flow==='PADDY'?{...result.totals,remaining_kg:result.totals.available_kg}:result.totals;
   return {body:{ok:true,data,totals,pagination:{page:pagination.page,limit:pagination.limit,total:totals.total}}};
 }
 export async function listStocks(context) {
@@ -53,9 +54,9 @@ export async function listStocks(context) {
       ok: true,
       data: data.map(s => ({
         ...s,
-        on_hand_kg: kg(s.on_hand_g),
-        reserved_kg: kg(s.reserved_g),
-        available_kg: kg(s.available_g)
+        on_hand_kg: Number(s.on_hand_kg),
+        reserved_kg: Number(s.reserved_kg),
+        available_kg: Number(s.available_kg)
       })),
       pagination: {
         page,
@@ -125,9 +126,9 @@ export async function getMillerReconciliation(context) {
     ...orders
   };
   for (const k of Object.keys(totals)) totals[k] = Number(totals[k]);
-  totals.rice_obligation_balance_g = totals.rice_obligation_g - totals.rice_delivered_g;
-  totals.unallocated_order_balance_g = totals.ordered_rice_g - totals.order_delivered_g - totals.order_committed_g;
-  totals.production_variance_g = totals.rice_produced_g - totals.production_expected_rice_g;
+  totals.rice_obligation_balance_kg = addKg(totals.rice_obligation_kg,-totals.rice_delivered_kg);
+  totals.unallocated_order_balance_kg = addKg(totals.ordered_rice_kg,-totals.order_delivered_kg,-totals.order_committed_kg);
+  totals.production_variance_kg = addKg(totals.rice_produced_kg,-totals.production_expected_rice_kg);
   return {
     body: {
       ok: true,
@@ -135,7 +136,7 @@ export async function getMillerReconciliation(context) {
         miller,
         season_id: seasonId,
         totals,
-        totals_kg: Object.fromEntries(Object.entries(totals).map(([k, v]) => [k.replace(/_g$/, '_kg'), kg(v)])),
+        totals_kg: Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, Number(v)])),
         stocks: stock
       }
     },
@@ -250,7 +251,9 @@ export async function listAvailableLots(context) {
     seasonId = id.parse(Number(context.query.season_id));
   if (context.user.role === 'MILLER') await repository.listAvailableLotsFindRouteTags(facilityId, context, seasonId);
   const args = [facilityId, seasonId];
-  const filter = "FROM procurement p WHERE p.facility_id=? AND p.season_id=? AND p.commodity_code='PADDY' AND p.available_g>p.reserved_g";
+  let filter = "FROM procurement p WHERE p.facility_id=? AND p.season_id=? AND p.commodity_code='PADDY' AND p.available_kg>p.reserved_kg";
+  const millerId=context.user.role==='MILLER'?context.user.miller_id:context.query.miller_id;
+  if(millerId!==undefined){filter+=' AND p.miller_id=?';args.push(id.parse(Number(millerId)));}
   return {
     body: {
       ok: true,

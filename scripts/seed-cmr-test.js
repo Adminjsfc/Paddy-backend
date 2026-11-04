@@ -26,7 +26,7 @@ try {
         order_no: 'SAMPLE-CMR-M001',
         ordered_at: new Date(),
         due_date: '2026-12-31',
-        rice_quantity_g: 5000000
+        rice_quantity_kg: 5000
       })
     };
     const reference = `SAMPLE-RICE:${miller.id}:${season.id}:SCMR`;
@@ -37,9 +37,9 @@ try {
         reference,
         facility_id: miller.id,
         season_id: season.id,
-        quantity_g: 10000000
+        quantity_kg: 10000
       });
-      await stock(c, miller.id, season.id, 'RICE', 10000000, 0, 'TEST_RICE', entry, 'SCMR');
+      await stock(c, miller.id, season.id, 'RICE', 10000, 0, 'TEST_RICE', entry, 'SCMR');
     }
     let type = await one(c, "SELECT id FROM vehicle_types WHERE code='SAMPLE-TRUCK'", [], false);
     if (!type) type = {

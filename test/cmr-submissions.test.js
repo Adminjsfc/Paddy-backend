@@ -3,6 +3,30 @@ import assert from 'node:assert/strict';
 import { cmrSubmissionSchema } from "../src/validators/cmr-submissions.schema.js";
 import { moduleForRequest } from "../src/middlewares/module-access.js";
 import { schemeStoreType, storeMatchesFacility } from "../src/services/store-locations.service.js";
+import {getSubmissionOptions} from '../src/services/cmr-submissions.service.js';
+import {pool} from '../src/config/database.js';
+
+test('district dropdown is independent of season, scheme and Miller mappings',async t=>{
+  const calls=[];
+  t.mock.method(pool,'execute',async(sql,args)=>{calls.push({sql,args});return [[{id:1,district_name:'District A'},{id:2,district_name:'District B'}]];});
+  const result=await getSubmissionOptions({user:{role:'MILLER',miller_id:3},query:{only:'districts',season_id:'invalid',scheme_type:'invalid'}});
+  assert.equal(result.body.data.districts.length,2);
+  assert.equal(calls.length,1);assert.deepEqual(calls[0].args,[]);
+  assert.match(calls[0].sql,/WHERE status=1/);
+  assert.doesNotMatch(calls[0].sql,/JOIN|season|miller|scheme/i);
+});
+
+test('CMR order-only dropdown filters destination and does not query core stores',async t=>{
+  t.mock.method(pool,'execute',async(sql,args)=>{
+    if(sql.includes('FROM cmr_orders'))return [[{id:1,destination_id:8,district_id:5},{id:2,destination_id:9,district_id:6}]];
+    if(sql.includes('FROM stocks'))return [[{available_kg:100}]];
+    throw new Error('Unexpected dropdown query: '+sql);
+  });
+  const result=await getSubmissionOptions({user:{role:'MILLER',miller_id:3},query:{only:'orders',season_id:'1',destination_id:'8',scheme_type:'SCMR'}});
+  assert.deepEqual(Object.keys(result.body.data).sort(),['orders','rice_stock']);
+  assert.deepEqual(result.body.data.orders.map(o=>o.id),[1]);
+  await assert.rejects(getSubmissionOptions({user:{role:'MILLER',miller_id:3},query:{only:'stores',season_id:'1'}}),/district_id is required/);
+});
 const submission = {
   season_id: 1,
   order_id: 1,
@@ -28,6 +52,9 @@ const submission = {
 test('CMR submission accepts one vehicle and validates dispatch-independent form details', () => {
   assert.equal(cmrSubmissionSchema.parse(submission).vehicle_id, 1);
   for (const invalid of [{
+    ...submission,
+    expected_completion_at:'2026-11-04T18:00:00Z'
+  }, {
     ...submission,
     vehicles: [1, 2]
   }, {

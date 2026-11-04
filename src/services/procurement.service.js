@@ -1,9 +1,10 @@
-import {capacityGrams} from '../utils/core.js';
+import {addKg} from '../utils/core.js';
+import {capacityKg} from '../utils/core.js';
 import {requireStockMasters} from '../repositories/stock-masters.repository.js';
 import * as repository from "../repositories/procurement.repository.js";
 import { stock } from "./stock.service.js";
 import { lockFacilities } from "../repositories/facilities.repository.js";
-import { ensure, grams, hash, millerAccess, recoveryGrams, pageParams, id, actor } from "../utils/core.js";
+import { ensure, kilograms, hash, millerAccess, recoveryKg, pageParams, id, actor } from "../utils/core.js";
 export async function activeSeason(connection, idOrCode, byCode = false) {
   return repository.activeSeasonFindSeasons(connection, byCode, idOrCode);
 }
@@ -15,20 +16,25 @@ export function inSeason(season, date) {
   ensure(day >= from && day <= to, `Transaction date ${day} is outside season ${season.code||season.id}: allowed dates are ${from} to ${to}. Check procured_at/ordered_at and season_code.`, 'OUTSIDE_SEASON', 400);
 }
 function requireSameProcurement(existing,data,digest) {
-  const received=grams(data.quantity);
+  const roDate = value => value == null ? null : value instanceof Date
+    ? value.toISOString().slice(0,10) : String(value).slice(0,10);
+  const received=kilograms(data.quantity);
   // After an explicit correction, a matching current receipt is a retry too.
   const matchesCurrent=existing.facility_code!==undefined
-    && Number(existing.quantity_g)===received
+    && Number(existing.quantity_kg)===received
     && existing.scheme_code===data.scheme_code&&existing.commodity_code===data.commodity_code
     && existing.season_code===data.season_code&&existing.facility_code===data.facility_code
+    && Number(existing.miller_id)===data.miller_id
+    && (data.district_id===undefined||Number(existing.district_id)===data.district_id)
     && (existing.farmer_code??undefined)===data.farmer_code
     && new Date(existing.procured_at).getTime()===data.procured_at.getTime()
-    && existing.receipt_no===data.receipt_no
+    && (existing.ro_no??null)===(data.ro_no??null)
+    && roDate(existing.ro_date)===roDate(data.ro_date)
     && (existing.moisture_percent==null?null:Number(existing.moisture_percent))===data.moisture_percent;
-  const difference=Number(existing.quantity_g)!==received
-    ?`quantity mismatch: stored=${Number(existing.quantity_g)/100000} QTL, received=${received/100000} QTL.`
+  const difference=Number(existing.quantity_kg)!==received
+    ?`quantity mismatch: stored=${Number(existing.quantity_kg)} kg, received=${received} kg.`
     :`external_ref=${data.external_ref}: already imported with different data.`;
-  ensure(existing.payload_hash===digest||matchesCurrent,difference,'EXTERNAL_REF_CONFLICT');
+  ensure(existing.payload_hash===digest&&Number(existing.miller_id)===data.miller_id||matchesCurrent,difference,'EXTERNAL_REF_CONFLICT');
 }
 async function ensureProcurementReferenceAvailable(connection,externalRef,procurementId) {
   const owner=await repository.procurementReferenceOwner(connection,externalRef);
@@ -49,6 +55,9 @@ export async function pushProcurement(connection, data, context = {}) {
   inSeason(season, data.procured_at);
   const farmer = data.farmer_code ? await repository.pushProcurementFindFarmers(connection, data) : null;
   const f = await repository.pushProcurementFindFacilities(connection, data);
+  ensure(data.district_id===undefined||Number(f.district_id)===data.district_id,
+    'district_id does not match the mapped MSP facility district', 'DISTRICT_MISMATCH', 400);
+  await repository.requireProcurementMiller(connection,id.parse(data.miller_id));
   const raced = await repository.pushProcurementFindProcurement2(connection, data);
   if (raced) {
     requireSameProcurement(raced,data,digest);
@@ -57,12 +66,12 @@ export async function pushProcurement(connection, data, context = {}) {
       duplicate: true
     };
   }
-  const amount = grams(data.quantity);
-  const id = await repository.pushProcurementInsertProcurement(connection, data, digest, season, farmer, f, amount, masters);
-  await stock(connection, f.id, season.id, 'PADDY', amount, 0, 'PROCUREMENT', id, data.scheme_code, context.user);
+  const amount = kilograms(data.quantity);
+  const procurementId = await repository.pushProcurementInsertProcurement(connection, data, digest, season, farmer, f, amount, masters);
+  await stock(connection, f.id, season.id, 'PADDY', amount, 0, 'PROCUREMENT', procurementId, data.scheme_code, context.user);
   return {
-    id,
-    quantity_g: amount,
+    id: procurementId,
+    quantity_kg: amount,
     duplicate: false
   };
 }
@@ -73,23 +82,33 @@ export async function updateProcurement(connection,data,context) {
   // Use the same facility -> procurement lock order as shipment allocation.
   await lockFacilities(connection,[existing.facility_id]);
   const current=await repository.findProcurementForCorrection(connection,procurementId,true);
-  const amount=data.quantity?grams(data.quantity):Number(current.quantity_g);
+  const amount=data.quantity?kilograms(data.quantity):Number(current.quantity_kg);
   const externalRef=data.external_ref??current.external_ref;
-  const delta=amount-Number(current.quantity_g);
-  const used=Number(current.quantity_g)-Number(current.available_g);
-  const minimum=used+Number(current.reserved_g);
-  ensure(amount>=minimum,`quantity must be at least ${minimum/100000} QTL (${used/100000} QTL dispatched + ${Number(current.reserved_g)/100000} QTL reserved).`,'PROCUREMENT_QUANTITY_IN_USE');
-  if(delta===0&&externalRef===current.external_ref)return {id:procurementId,external_ref:externalRef,quantity_g:amount,available_g:current.available_g,reserved_g:current.reserved_g,updated:false};
+  const millerId=data.miller_id??current.miller_id;
+  const millerChanged=Number(millerId)!==Number(current.miller_id);
+  const delta=addKg(amount,-Number(current.quantity_kg));
+  const used=addKg(current.quantity_kg,-Number(current.available_kg));
+  const minimum=addKg(used,current.reserved_kg);
+  ensure(amount>=minimum,`quantity must be at least ${minimum} kg (${used} kg dispatched + ${Number(current.reserved_kg)} kg reserved).`,'PROCUREMENT_QUANTITY_IN_USE');
+  if(millerChanged){
+    await repository.requireProcurementMiller(connection,millerId);
+    ensure(current.miller_id==null||used===0&&Number(current.reserved_kg)===0,
+      'Cannot reassign an RO with lifted or reserved quantity','PROCUREMENT_MILLER_IN_USE');
+    ensure(!(await repository.conflictingProcurementMiller(connection,procurementId,millerId)),
+      'RO is linked to a shipment for another miller','PROCUREMENT_MILLER_IN_USE');
+  }
+  if(delta===0&&externalRef===current.external_ref&&!millerChanged)return {id:procurementId,external_ref:externalRef,miller_id:millerId,quantity_kg:amount,available_kg:current.available_kg,reserved_kg:current.reserved_kg,updated:false};
   await ensureProcurementReferenceAvailable(connection,externalRef,procurementId);
   const correctionId=await repository.insertProcurementCorrection(connection,{
     procurement_id:procurementId,old_external_ref:current.external_ref,new_external_ref:externalRef,
-    old_quantity_g:current.quantity_g,new_quantity_g:amount,reason:data.reason,
+    old_quantity_kg:current.quantity_kg,new_quantity_kg:amount,reason:data.reason,
+    old_miller_id:current.miller_id??null,new_miller_id:millerId??null,
     created_by:context.user.id??null,created_by_actor:actor(context.user),request_id:context.requestId??null
   });
   if(delta!==0)await stock(connection,current.facility_id,current.season_id,'PADDY',delta,0,'PROCUREMENT_CORRECTION',correctionId,current.scheme_code,context.user);
-  const available=Number(current.available_g)+delta;
-  await repository.saveProcurementCorrection(connection,procurementId,externalRef,amount,available);
-  return {id:procurementId,external_ref:externalRef,quantity_g:amount,available_g:available,reserved_g:current.reserved_g,correction_id:correctionId,updated:true};
+  const available=addKg(current.available_kg,delta);
+  await repository.saveProcurementCorrection(connection,procurementId,externalRef,amount,available,millerId??null);
+  return {id:procurementId,external_ref:externalRef,miller_id:millerId,quantity_kg:amount,available_kg:available,reserved_kg:current.reserved_kg,correction_id:correctionId,updated:true};
 }
 export async function pushOrder(connection, data) {
   const digest = hash(data),
@@ -114,13 +133,15 @@ export async function pushOrder(connection, data) {
     };
   }
   const dest = await repository.pushOrderFindFacilities2(connection, data);
+  ensure(data.district_id===undefined||Number(dest.district_id)===data.district_id,
+    'district_id must match the destination depot district','DESTINATION_DISTRICT_MISMATCH',400);
   await repository.pushOrderFindMillerStoreAssignments(connection, season, miller, dest);
   ensure(data.due_date >= new Date(data.ordered_at.getTime() + 19800000).toISOString().slice(0, 10), 'Due date precedes order date', 'VALIDATION', 400);
-  const amount = grams(data.rice_quantity);
+  const amount = kilograms(data.rice_quantity);
   const id = await repository.pushOrderInsertCmrOrders(connection, data, digest, season, miller, dest, amount);
   return {
     id,
-    rice_quantity_g: amount,
+    rice_quantity_kg: amount,
     duplicate: false
   };
 }
@@ -167,6 +188,18 @@ export async function listProcurements(context) {
     const reference=String(context.query.external_ref);
     args.push(reference,reference,reference);
   }
+  if(context.query.ro_no){
+    filter+=' AND p.ro_no=?';
+    args.push(String(context.query.ro_no));
+  }
+  if(context.query.district_id!==undefined){
+    filter+=' AND p.district_id=?';
+    args.push(id.parse(Number(context.query.district_id)));
+  }
+  if(context.query.miller_id!==undefined){
+    filter+=' AND p.miller_id=?';
+    args.push(id.parse(Number(context.query.miller_id)));
+  }
   for(const [field,column] of [['scheme_code','p.scheme_code'],['commodity','p.commodity_code']])if(context.query[field]){
     filter+=` AND ${column}=?`;
     args.push(String(context.query[field]));
@@ -202,10 +235,11 @@ export async function listCmrOrders(context) {
     filter += ' AND o.miller_id=?';
     args.push(context.user.miller_id);
   }
-  for (const field of ['season_id', 'miller_id', 'status', 'external_ref', 'scheme_code', 'commodity']) if (context.query[field]) {
+  for (const field of ['season_id', 'miller_id', 'status', 'external_ref', 'scheme_code', 'commodity','order_no']) if (context.query[field]) {
     filter += ` AND o.${field}=?`;
     args.push(String(context.query[field]));
   }
+  if(context.query.district_id!==undefined){filter+=' AND o.district_id=?';args.push(id.parse(Number(context.query.district_id)));}
   const count = await repository.listCmrOrdersCountCmrOrders(filter, args);
   const data = await repository.listCmrOrdersListCmrOrders(filter, limit, offset, args);
   return {
@@ -225,18 +259,18 @@ export async function listCmrOrders(context) {
 export async function updateCmrOrder(connection, data, context) {
   const o = await repository.updateCmrOrderFindCmrOrders(connection, context);
   ensure(o.status !== 'CANCELLED', 'Cancelled order cannot be changed');
-  const qty = data.rice_quantity ? grams(data.rice_quantity) : o.rice_quantity_g;
-  ensure(qty >= o.committed_g + o.delivered_g, 'Quantity cannot be below committed plus accepted rice');
+  const qty = data.rice_quantity ? kilograms(data.rice_quantity) : o.rice_quantity_kg;
+  ensure(qty >= addKg(o.committed_kg,o.delivered_kg), 'Quantity cannot be below committed plus accepted rice');
   await repository.updateCmrOrderUpdateCmrOrders(connection, qty, data, o);
   return {
     id: o.id,
-    rice_quantity_g: qty,
+    rice_quantity_kg: qty,
     reason: data.reason
   };
 }
 export async function cancelCmrOrder(connection, data, context) {
   const o = await repository.cancelCmrOrderFindCmrOrders(connection, context);
-  ensure(o.committed_g === 0 && o.delivered_g === 0, 'Order already has committed or delivered rice');
+  ensure(o.committed_kg === 0 && o.delivered_kg === 0, 'Order already has committed or delivered rice');
   await repository.cancelCmrOrderUpdateCmrOrders(connection, o);
   return {
     id: o.id,
@@ -252,26 +286,26 @@ export async function recordMillingBatch(connection, data, context) {
   inSeason(season, data.milled_at);
   await lockFacilities(connection, [data.miller_id]);
   const miller = await repository.recordMillingBatchFindFacilities(connection, data);
-  const paddy = grams(data.paddy_quantity),
+  const paddy = kilograms(data.paddy_quantity),
     recovery = miller.recovery_percent ?? season.recovery_percent,
-    expected = recoveryGrams(paddy, recovery),
-    rice = data.rice_quantity ? grams(data.rice_quantity) : expected;
+    expected = recoveryKg(paddy, recovery),
+    rice = data.rice_quantity ? kilograms(data.rice_quantity) : expected;
   ensure(rice > 0 && rice <= paddy, 'Produced rice must be positive and cannot exceed consumed paddy');
   if (miller.milling_capacity_value_per_day) {
     const day = new Date(data.milled_at.getTime() + 19800000).toISOString().slice(0, 10);
     const start = new Date(day + 'T00:00:00+05:30'),
       end = new Date(start.getTime() + 86400000);
     const total = await repository.recordMillingBatchFindMillingBatches(connection, miller, start, end);
-    ensure(Number(total.amount) + paddy <= capacityGrams(miller, true), 'Daily paddy milling capacity exceeded', 'MILLING_CAPACITY_EXCEEDED');
+    ensure(addKg(total.amount,paddy) <= capacityKg(miller, true), 'Daily paddy milling capacity exceeded', 'MILLING_CAPACITY_EXCEEDED');
   }
   const id = await repository.recordMillingBatchInsertMillingBatches(connection, data, miller, season, paddy, rice, expected, recovery);
   await stock(connection, miller.id, season.id, 'PADDY', -paddy, 0, 'MILLING', id, data.scheme_code, context.user);
   await stock(connection, miller.id, season.id, 'RICE', rice, 0, 'MILLING', id, data.scheme_code, context.user);
   return {
     id,
-    paddy_consumed_g: paddy,
-    rice_produced_g: rice,
-    expected_rice_g: expected,
+    paddy_consumed_kg: paddy,
+    rice_produced_kg: rice,
+    expected_rice_kg: expected,
     recovery_percent: recovery
   };
 }

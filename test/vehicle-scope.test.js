@@ -20,7 +20,7 @@ test('DM cannot create a vehicle for a foreign or inactive Miller', async () => 
 test('DM capacity updates preserve active-load checks and block foreign records', async () => {
   const db = { execute: async (sql, args) => {
     if (sql.includes('FROM vehicles')) { assert.deepEqual(args, [9, 364]); return [[{ id: 9 }]]; }
-    if (sql.includes('MAX(quantity_g)')) return [[{ max_load: 30000000 }]];
+    if (sql.includes('MAX(quantity_kg)')) return [[{ max_load: 30000000 }]];
     throw Error('Unexpected write');
   } };
   await assert.rejects(updateMasterProfile(db, { capacity: { value: 25, unit: 'MT' } }, context, null, 'vehicles'), /Capacity is below active shipment load/);

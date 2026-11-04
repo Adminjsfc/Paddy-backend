@@ -19,6 +19,18 @@ let server, url, admin, millerToken, pacsToken, otherToken, transporterToken;
 const pass = 'Only-for-integration-tests-2026';
 const key = () => crypto.randomUUID();
 const at = minutes => new Date(Date.now() + minutes * 60000).toISOString();
+let receivingGpsSequence=0;
+async function arriveForReceipt(shipmentId){
+  const s=await one(pool,`SELECT s.source_lat,s.source_lng,s.destination_lat,s.destination_lng,i.imei
+    FROM shipments s JOIN gps_devices d ON d.vehicle_id=s.vehicle_id JOIN imeis i ON i.id=d.imei_id
+    WHERE s.id=?`,[shipmentId]);
+  const time=Date.now()-120000+(++receivingGpsSequence)*5000;
+  await request('POST','/gps/packets',{packets:[
+    {imei:s.imei,gps_at:new Date(time).toISOString(),latitude:Number(s.source_lat)+0.01,longitude:Number(s.source_lng),gps_fix:true},
+    {imei:s.imei,gps_at:new Date(time+1000).toISOString(),latitude:Number(s.destination_lat),longitude:Number(s.destination_lng),gps_fix:true}
+  ]},{apiKey:process.env.GPS_API_KEY});
+  assert.equal((await one(pool,'SELECT status FROM shipments WHERE id=?',[shipmentId])).status,'ARRIVED');
+}
 const qty = (value, unit = 'KG') => ({
   value,
   unit
@@ -79,7 +91,9 @@ after(async () => {
 });
 test('Shipment schema keeps master IDs and meaningful CMR metadata',async()=>{
   const fields=new Set((await rows(pool,'SHOW COLUMNS FROM shipments')).map(row=>row.Field));
-  for(const field of ['scheme_code','commodity_code','vehicle_type_id','submitted_on','cmr_lot_count','trip_status','trip_started_at','trip_completed_at','expected_completion_at'])assert(fields.has(field));
+  for(const field of ['scheme_code','commodity_code','vehicle_type_id','submitted_on','cmr_lot_count','trip_status','trip_started_at','trip_completed_at','expected_completion_at','quantity_kg','accepted_kg','shortage_kg','received_bags'])assert(fields.has(field));
+  assert(!fields.has('quantity_g'));
+  assert(!fields.has('delivery_receipt'));
   for(const field of ['scheme_id','commodity_id','scheme_type','commodity_type','submitted_vehicle_type','submitted_count'])assert(!fields.has(field));
 });
 test('Create masters, users and scoped transport registrations', async () => {
@@ -182,11 +196,46 @@ function procure(ref, value = 10000) {
     season_code: code('KMS'),
     farmer_code: code('FARMER'),
     facility_code: code('PACS'),
+    miller_id: ids.miller,
     procured_at: at(-60),
-    quantity: qty(value),
-    receipt_no: code('PROC-RECEIPT')
+    quantity: qty(value)
   };
 }
+test('Postman setup resolves a coherent mapping and never chooses an ambiguous setup',async()=>{
+  for(const name of ['seasons','schemes','commodities']){
+    const dropdown=await request('GET',`/cmr/dropdowns/${name}`,undefined,{auth:millerToken});
+    assert.deepEqual(Object.keys(dropdown.data),[name]);
+    assert(Array.isArray(dropdown.data[name]));
+  }
+  const unassignedDistrict=await insert(pool,'tbl_district_master',{id_old:999998,district_name:'Unassigned active district',status:1});
+  const inactiveDistrict=await insert(pool,'tbl_district_master',{id_old:999997,district_name:'Inactive district',status:0});
+  const simpleDistricts=await request('GET','/cmr/districts',undefined,{auth:millerToken});
+  assert.deepEqual(Object.keys(simpleDistricts.data),['districts']);
+  assert(simpleDistricts.data.districts.some(d=>d.id===ids.district));
+  assert(simpleDistricts.data.districts.some(d=>d.id===unassignedDistrict));
+  assert(!simpleDistricts.data.districts.some(d=>d.id===inactiveDistrict));
+  const mappings=await request('GET',`/pacs-mappings?season_id=${ids.season}`,undefined,{auth:pacsToken});
+  assert.equal(mappings.data.length,1);
+  assert.equal(mappings.data[0].miller_id,ids.miller);
+  assert.equal(mappings.data[0].source_id,ids.pacs);
+  await request('GET','/pacs-mappings?facility_id='+ids.other,undefined,{auth:pacsToken,status:403});
+  await request('GET','/pacs-mappings',undefined,{auth:millerToken,status:403});
+  const query=new URLSearchParams({season_code:code('KMS'),miller_code:code('MILLER'),
+    destination_code:code('GODOWN'),source_code:code('PACS')});
+  const vehicle=await one(pool,'SELECT registration_no FROM vehicles WHERE id=?',[ids.vehicle1]);
+  query.set('vehicle_no',vehicle.registration_no);
+  const result=await request('GET','/setup/postman?'+query);
+  assert.equal(result.data.ready_for_orders,true);assert.equal(result.data.ready_for_shipments,true);
+  assert.equal(result.data.context.miller_id,ids.miller);
+  assert.equal(result.data.context.destination_id,ids.godown);
+  assert.equal(result.data.context.pacs_id,ids.pacs);
+  assert.equal(result.data.vehicle.vehicle_id,ids.vehicle1);
+  const all=await request('GET','/setup/postman');
+  assert.equal(all.data.context,null);assert.equal(all.data.ready_for_orders,false);
+  await request('GET','/setup/postman',undefined,{auth:millerToken,status:403});
+  const missing=await request('GET','/setup/postman?miller_code=DOES-NOT-EXIST');
+  assert.equal(missing.data.ready_for_orders,false);assert(missing.data.missing.length>0);
+});
 function paddy(no, vehicle = ids.vehicle1, value = 10000) {
   return {
     shipment_no: code(no),
@@ -199,7 +248,6 @@ function paddy(no, vehicle = ids.vehicle1, value = 10000) {
     vehicle_id: vehicle,
     driver_name: 'Paddy Test Driver',
     driver_phone: '9999999999',
-    expected_completion_at: at(60),
     quantity: qty(value)
   };
 }
@@ -231,8 +279,8 @@ test('Push procurement once under concurrent retries; reject changed payloads', 
     apiKey: process.env.EUPARJAN_API_KEY,
     status: 409
   });
-  const stock = await one(pool, 'SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=?', [ids.pacs, ids.season]);
-  assert.equal(stock.on_hand_g, 10000000);
+  const stock = await one(pool, 'SELECT on_hand_kg FROM stocks WHERE facility_id=? AND season_id=?', [ids.pacs, ids.season]);
+  assert.equal(stock.on_hand_kg, 10000);
 });
 test('Reject invalid API key and atomically roll back partly invalid push batches', async () => {
   await request('POST', '/integrations/euparjan/procurements', ids.procBody, {
@@ -262,7 +310,7 @@ test('Reserve paddy, reject over-allocation and protect cross-miller data', asyn
   assert.deepEqual(driver,{driver_name:'Paddy Test Driver',driver_phone:'9999999999'});
   const planned=(await request('GET',`/shipments/${ids.paddy}`)).data;
   assert.equal(planned.trip_status,0);assert.equal(planned.trip_started_at,null);assert.equal(planned.trip_completed_at,null);
-  assert(planned.expected_completion_at);
+  assert.equal(planned.expected_completion_at,null);
   const stored=await one(pool,`SELECT s.scheme_code,s.commodity_code,s.vehicle_type_id
     FROM shipments s WHERE s.id=?`,[ids.paddy]);
   assert.equal(stored.scheme_code,'SCMR');assert.equal(stored.commodity_code,'PADDY');
@@ -335,6 +383,9 @@ test('Process sorted historical GPS, ignore duplicate and older packets, verify 
   const pending=await request('GET','/shipments?trip_status=0');assert(!pending.data.some(row=>row.id===ids.paddy));
   await request('GET','/shipments?trip_status=3',undefined,{status:400});
   ids.paddyTripCompleted=s.data.trip_completed_at;
+  const eta=await one(pool,`SELECT s.expected_completion_at,TIMESTAMPADD(MINUTE,r.duration_minutes,s.trip_started_at) calculated
+    FROM shipments s JOIN shipment_routes r ON r.id=s.route_id WHERE s.id=?`,[ids.paddy]);
+  assert.equal(new Date(eta.expected_completion_at).getTime(),new Date(eta.calculated).getTime());
   assert.equal(s.data.events.filter(e => e.event_type === 'ARRIVED').length, 1);
 });
 test('Accept paddy and freeze 68% rice obligation despite later configuration change', async () => {
@@ -342,21 +393,17 @@ test('Accept paddy and freeze 68% rice obligation despite later configuration ch
     recovery_percent: 67
   });
   const delivered = await request('POST', `/shipments/${ids.paddy}/deliver`, {
-    delivered_at: at(-39),
-    accepted_quantity: qty(10000),
-    receipt_no: 'PADDY-ACCEPTED'
+    received_bags: 10, ...qty(10000)
   }, {
     auth: millerToken
   });
-  assert.equal(delivered.data.expected_rice_g, 6800000);
+  assert.equal(delivered.data.expected_rice_kg, 6800);
   assert.equal(delivered.data.trip_status,2);assert.equal(delivered.data.trip_completed_at,ids.paddyTripCompleted);
   await request('PATCH', `/facilities/${ids.miller}`, {
     recovery_percent: 68
   });
   await request('POST', `/shipments/${ids.paddy}/deliver`, {
-    delivered_at: at(-39),
-    accepted_quantity: qty(10000),
-    receipt_no: 'DUPLICATE'
+    received_bags: 10, ...qty(10000)
   }, {
     status: 409
   });
@@ -372,8 +419,8 @@ test('Milling consumes available paddy, produces 6800 kg rice, and cannot double
   }, {
     auth: millerToken
   })).data.id;
-  const s = await one(pool, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE'", [ids.miller, ids.season]);
-  assert.equal(s.on_hand_g, 6800000);
+  const s = await one(pool, "SELECT on_hand_kg FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE'", [ids.miller, ids.season]);
+  assert.equal(s.on_hand_kg, 6800);
   await request('POST', '/milling-batches', {
     miller_id: ids.miller,
     season_id: ids.season,
@@ -386,6 +433,12 @@ test('Milling consumes available paddy, produces 6800 kg rice, and cannot double
   });
 });
 test('Import CMR orders for both SFC and FCI, reserve rice and release on cancellation', async () => {
+  const mismatch=await request('POST','/integrations/euparjan/cmr-orders',{
+    records:[{external_ref:code('BAD-ORDER-DISTRICT'),season_code:code('KMS'),miller_code:code('MILLER'),
+      destination_code:code('GODOWN'),order_no:code('BAD-ORDER-DISTRICT'),ordered_at:at(-34),
+      due_date:'2099-12-31',scheme_code:'SCMR',commodity_code:'RICE',rice_quantity:qty(1),district_id:ids.district+10000}]
+  },{apiKey:process.env.EUPARJAN_API_KEY,status:400});
+  assert.equal(mismatch.error.code,'DESTINATION_DISTRICT_MISMATCH');
   for (const [label, destination] of [['SFC', 'GODOWN'], ['FCI', 'FCI']]) {
     const r = await request('POST', '/integrations/euparjan/cmr-orders', {
       records: [{
@@ -394,6 +447,9 @@ test('Import CMR orders for both SFC and FCI, reserve rice and release on cancel
         miller_code: code('MILLER'),
         destination_code: code(destination),
         order_no: code(label),
+        district_id:ids.district,
+        lot_count:2,
+        stenciling_code:code('STENCIL-'+label),
         ordered_at: at(-34),
         due_date: '2099-12-31',
         scheme_code: 'SCMR',
@@ -404,6 +460,16 @@ test('Import CMR orders for both SFC and FCI, reserve rice and release on cancel
       apiKey: process.env.EUPARJAN_API_KEY
     });
     ids[label + 'order'] = r.data.records[0].id;
+    const listed=await request('GET','/cmr-orders?order_no='+encodeURIComponent(code(label)));
+    assert.equal(listed.data[0].district_id,ids.district);
+    assert.equal(listed.data[0].lot_count,2);
+    assert.equal(listed.data[0].stenciling_code,code('STENCIL-'+label));
+    const dropdown=await request('GET',`/cmr/submission-options?only=orders&season_id=${ids.season}&scheme_type=SCMR&destination_id=${label==='SFC'?ids.godown:ids.fci}`,undefined,{auth:millerToken});
+    assert(dropdown.data.orders.some(o=>o.id===ids[label+'order']));
+    assert(dropdown.data.orders.every(o=>o.destination_id===(label==='SFC'?ids.godown:ids.fci)));
+    assert(!Object.hasOwn(dropdown.data,'stores'));
+    const named=await request('GET',`/cmr/dropdowns/orders?season_id=${ids.season}&scheme_type=SCMR&destination_id=${label==='SFC'?ids.godown:ids.fci}`,undefined,{auth:millerToken});
+    assert(named.data.orders.some(o=>o.id===ids[label+'order']));
   }
   const fci = {
     shipment_no: code('FCI-CANCEL'),
@@ -427,8 +493,8 @@ test('Import CMR orders for both SFC and FCI, reserve rice and release on cancel
   }, {
     auth: millerToken
   });
-  const o = await one(pool, 'SELECT committed_g FROM cmr_orders WHERE id=?', [ids.FCIorder]);
-  assert.equal(o.committed_g, 0);
+  const o = await one(pool, 'SELECT committed_kg FROM cmr_orders WHERE id=?', [ids.FCIorder]);
+  assert.equal(o.committed_kg, 0);
   const cancelled=(await request('GET',`/shipments/${shipment}`)).data;
   assert.equal(cancelled.trip_status,0);assert.equal(cancelled.trip_started_at,null);assert.equal(cancelled.trip_completed_at,null);
   ids.riceBody = {
@@ -450,23 +516,18 @@ test('Import CMR orders for both SFC and FCI, reserve rice and release on cancel
     status: 409
   });
 });
-test('CMR receipt requires SFC role and arrival or explicit operator override; shortage reopens balance', async () => {
-  const expected=at(120);
+test('Direct CMR receipt requires operator and GPS arrival; shortage reopens balance', async () => {
   const dispatched=await request('POST', `/shipments/${ids.rice}/dispatch`, {
     dispatched_at: at(-30),
-    expected_completion_at: expected,
     receipt_no: 'RICE-DISPATCH',
     driver_name:'Test driver',driver_phone:'9999999999'
   }, {
     auth: transporterToken
   });
-  assert.equal(new Date(dispatched.data.expected_completion_at).getTime(),Math.floor(new Date(expected).getTime()/1000)*1000);
+  assert.equal(dispatched.data.expected_completion_at,null);
   assert.equal(dispatched.data.trip_status,0);
   const receipt = {
-    delivered_at: at(-20),
-    accepted_quantity: qty(6790),
-    receipt_no: 'RICE-RECEIPT',
-    remarks: '10 kg transit shortage recorded'
+    received_bags: 10, ...qty(6790)
   };
   await request('POST', `/shipments/${ids.rice}/deliver`, receipt, {
     auth: millerToken,
@@ -475,23 +536,21 @@ test('CMR receipt requires SFC role and arrival or explicit operator override; s
   await request('POST', `/shipments/${ids.rice}/deliver`, receipt, {
     status: 409
   });
-  await request('POST', `/shipments/${ids.rice}/deliver`, {
-    ...receipt,
-    gps_override_reason: 'GPS device offline; weighbridge receipt verified'
-  });
+  await arriveForReceipt(ids.rice);
+  await request('POST', `/shipments/${ids.rice}/deliver`, receipt);
   const overrideTrip=(await request('GET',`/shipments/${ids.rice}`)).data;
-  assert.equal(overrideTrip.trip_status,2);assert.equal(overrideTrip.trip_completed_at,overrideTrip.delivered_at);
-  assert.equal(overrideTrip.trip_started_at,null);
-  const o = await one(pool, 'SELECT delivered_g,committed_g,status FROM cmr_orders WHERE id=?', [ids.SFCorder]);
-  assert.equal(o.delivered_g, 6790000);
-  assert.equal(o.committed_g, 0);
+  assert.equal(overrideTrip.trip_status,2);assert(overrideTrip.trip_started_at);
+  assert(new Date(overrideTrip.delivered_at)>=new Date(overrideTrip.trip_completed_at));
+  const o = await one(pool, 'SELECT delivered_kg,committed_kg,status FROM cmr_orders WHERE id=?', [ids.SFCorder]);
+  assert.equal(o.delivered_kg, 6790);
+  assert.equal(o.committed_kg, 0);
   assert.equal(o.status, 'OPEN');
   const report = (await request('GET', `/reports/millers/${ids.miller}/reconciliation?season_id=${ids.season}`, undefined, {
     auth: millerToken
   })).data;
-  assert.equal(report.totals.rice_obligation_balance_g, 10000);
-  assert.equal(report.totals.rice_shortage_g, 10000);
-  assert.equal(report.totals.production_variance_g, 0);
+  assert.equal(report.totals.rice_obligation_balance_kg, 10);
+  assert.equal(report.totals.rice_shortage_kg, 10);
+  assert.equal(report.totals.production_variance_kg, 0);
 });
 test('Concurrent competing reservations cannot overspend stock; cancellation restores reservations', async () => {
   await request('POST', '/integrations/euparjan/procurements', {
@@ -504,7 +563,7 @@ test('Concurrent competing reservations cannot overspend stock; cancellation res
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${admin}`,
+        Authorization: `Bearer ${pacsToken}`,
         'Idempotency-Key': key()
       },
       body: JSON.stringify(body)
@@ -521,9 +580,9 @@ test('Concurrent competing reservations cannot overspend stock; cancellation res
   await request('POST', `/shipments/${accepted.body.data.id}/cancel`, {
     reason: 'Release concurrency test reservation'
   });
-  const s = await one(pool, 'SELECT on_hand_g,reserved_g FROM stocks WHERE facility_id=? AND season_id=?', [ids.pacs, ids.season]);
-  assert.equal(s.on_hand_g, 1000000);
-  assert.equal(s.reserved_g, 0);
+  const s = await one(pool, 'SELECT on_hand_kg,reserved_kg FROM stocks WHERE facility_id=? AND season_id=?', [ids.pacs, ids.season]);
+  assert.equal(s.on_hand_kg, 1000);
+  assert.equal(s.reserved_kg, 0);
 });
 test('Capacity, future GPS, ownership, reports and stock-ledger invariants', async () => {
   await request('PATCH', `/facilities/${ids.pacs}`, {
@@ -549,7 +608,7 @@ test('Capacity, future GPS, ownership, reports and stock-ledger invariants', asy
     status: 403
   });
   for (const endpoint of ['/reports/stocks', '/reports/ledger', '/reports/dashboard', '/reports/audit', '/milling-batches', '/cmr-orders', '/procurements']) await request('GET', endpoint);
-  const mismatches = await rows(pool, `SELECT s.facility_id FROM stocks s LEFT JOIN (SELECT facility_id,season_id,scheme_code,commodity_code,SUM(on_hand_delta_g) h,SUM(reserved_delta_g) r FROM stock_ledger GROUP BY facility_id,season_id,scheme_code,commodity_code) l ON l.facility_id=s.facility_id AND l.season_id=s.season_id AND l.commodity_code=s.commodity_code AND l.scheme_code=s.scheme_code WHERE s.season_id=? AND (s.on_hand_g<>COALESCE(l.h,0) OR s.reserved_g<>COALESCE(l.r,0))`, [ids.season]);
+  const mismatches = await rows(pool, `SELECT s.facility_id FROM stocks s LEFT JOIN (SELECT facility_id,season_id,scheme_code,commodity_code,SUM(on_hand_delta_kg) h,SUM(reserved_delta_kg) r FROM stock_ledger GROUP BY facility_id,season_id,scheme_code,commodity_code) l ON l.facility_id=s.facility_id AND l.season_id=s.season_id AND l.commodity_code=s.commodity_code AND l.scheme_code=s.scheme_code WHERE s.season_id=? AND (s.on_hand_kg<>COALESCE(l.h,0) OR s.reserved_kg<>COALESCE(l.r,0))`, [ids.season]);
   assert.equal(mismatches.length, 0);
 });
 
@@ -601,7 +660,7 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
   assert.equal(reservedAudit.updated_by_actor,`user:${reservedAudit.updated_by}`);
   await request('POST',`/shipments/${reservation}/cancel`,{reason:'Verify scheme reservation release'},{auth:millerToken});
   const sourceBalance=await one(pool,"SELECT * FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code='CCMR' AND commodity_code='PADDY'",[ids.pacs,ids.season]);
-  assert.equal(sourceBalance.reserved_g,0);
+  assert.equal(sourceBalance.reserved_kg,0);
   await rows(pool,'UPDATE stocks SET status=0 WHERE id=?',[stockAudit.id]);
   const inactive=await request('POST','/shipments',{
     ...ccBody,shipment_no:code('INACTIVE-BALANCE'),quantity:qty(100)
@@ -617,16 +676,15 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
   await request('POST',`/shipments/${trip}/dispatch`,{
     dispatched_at:at(-45),receipt_no:code('CCMR-PADDY-DISPATCH'),driver_name:'Test Driver',driver_phone:'9999999999'
   });
-  await request('POST',`/shipments/${trip}/deliver`,{
-    delivered_at:at(-40),accepted_quantity:qty(200),receipt_no:code('CCMR-PADDY-DELIVERY'),gps_override_reason:'Scheme isolation test arrival override'
-  });
+  await arriveForReceipt(trip);
+  await request('POST',`/shipments/${trip}/deliver`,{received_bags:10,...qty(200)});
   await request('POST','/milling-batches',{
     miller_id:ids.miller,season_id:ids.season,scheme_code:'CCMR',batch_no:code('CCMR-MILLING'),paddy_quantity:qty(200),milled_at:at(-35)
   },{auth:millerToken});
   // An unrelated SCMR balance must not fund a CCMR reservation.
   await transaction(async c=>{
     await lockFacilities(c,[ids.miller]);
-    await stock(c,ids.miller,ids.season,'RICE',1000000,0,'SCHEME_TEST',ids.miller,'SCMR');
+    await stock(c,ids.miller,ids.season,'RICE',1000,0,'SCHEME_TEST',ids.miller,'SCMR');
   });
   const order=(await request('POST','/integrations/euparjan/cmr-orders',{
     records:[{external_ref:code('CCMR-ORDER'),season_code:code('KMS'),miller_code:code('MILLER'),destination_code:code('GODOWN'),
@@ -642,11 +700,10 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
   await request('POST',`/shipments/${riceTrip}/dispatch`,{
     dispatched_at:at(-30),receipt_no:code('CCMR-RICE-DISPATCH'),driver_name:'Test Driver',driver_phone:'9999999999'
   });
-  await request('POST',`/shipments/${riceTrip}/deliver`,{
-    delivered_at:at(-20),accepted_quantity:qty(136),receipt_no:code('CCMR-RICE-DELIVERY'),gps_override_reason:'Scheme isolation test arrival override'
-  });
-  const godown=await one(pool,"SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code='CCMR' AND commodity_code='RICE'",[ids.godown,ids.season]);
-  assert.equal(godown.on_hand_g,136000);
+  await arriveForReceipt(riceTrip);
+  await request('POST',`/shipments/${riceTrip}/deliver`,{received_bags:10,...qty(136)});
+  const godown=await one(pool,"SELECT on_hand_kg FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code='CCMR' AND commodity_code='RICE'",[ids.godown,ids.season]);
+  assert.equal(godown.on_hand_kg,136);
   const ledger=await rows(pool,'SELECT DISTINCT l.scheme_code FROM stock_ledger l WHERE reference_type IN (\'RESERVE\',\'DISPATCH\',\'DELIVERY\') AND reference_id=?',[riceTrip]);
   assert.deepEqual(ledger.map(row=>row.scheme_code),['CCMR']);
   const invalid=await request('POST','/integrations/euparjan/procurements',{
@@ -655,19 +712,18 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
   assert.equal(invalid.ok,false);
   const unknown=await request('POST','/integrations/euparjan/procurements',{
     records:[{...procure('UNKNOWN-SCHEME'),scheme_code:'UNKNOWN'}]
-  },{apiKey:process.env.EUPARJAN_API_KEY,status:404});
-  assert.equal(unknown.error.code,'SCHEME_NOT_FOUND');
-  assert.match(unknown.error.message,/^scheme_code=UNKNOWN: not found or inactive\.$/);
+  },{apiKey:process.env.EUPARJAN_API_KEY,status:201});
+  assert.equal(unknown.ok,true); // Scheme codes are direct labels since migration 071.
   const missingSource=await request('POST','/integrations/euparjan/procurements',{
     records:[{...procure('MISSING-SOURCE'),facility_code:code('MISSING-LAMPS')}]
   },{apiKey:process.env.EUPARJAN_API_KEY,status:404});
   assert.equal(missingSource.error.code,'PADDY_SOURCE_NOT_FOUND');
   assert(missingSource.error.message.includes('facility_code='+code('MISSING-LAMPS')+':'));
   const mismatches=await rows(pool,`SELECT s.facility_id FROM stocks s LEFT JOIN (
-    SELECT facility_id,season_id,scheme_code,commodity_code,SUM(on_hand_delta_g) h,SUM(reserved_delta_g) r
+    SELECT facility_id,season_id,scheme_code,commodity_code,SUM(on_hand_delta_kg) h,SUM(reserved_delta_kg) r
     FROM stock_ledger GROUP BY facility_id,season_id,scheme_code,commodity_code
     ) l ON l.facility_id=s.facility_id AND l.season_id=s.season_id AND l.scheme_code=s.scheme_code AND l.commodity_code=s.commodity_code
-    WHERE s.season_id=? AND (s.on_hand_g<>COALESCE(l.h,0) OR s.reserved_g<>COALESCE(l.r,0))`,[ids.season]);
+    WHERE s.season_id=? AND (s.on_hand_kg<>COALESCE(l.h,0) OR s.reserved_kg<>COALESCE(l.r,0))`,[ids.season]);
   assert.equal(mismatches.length,0);
 });
 
@@ -683,12 +739,12 @@ test('Procurement corrections update reference/quantity once, preserve retries a
   const first=await request('PATCH',path,patch,{apiKey,idem});
   const replay=await request('PATCH',path,patch,{apiKey,idem});
   assert.equal(first.data.id,procurementId);assert.equal(replay.replayed,true);
-  assert.equal(first.data.quantity_g,200000);assert.equal((await balance()).on_hand_g,start.on_hand_g+100000);
+  assert.equal(first.data.quantity_kg,200);assert.equal((await balance()).on_hand_kg,start.on_hand_kg+100);
   for(const record of [original,{...original,external_ref:newRef,quantity:qty(200)}]){
     const retried=await request('POST','/integrations/euparjan/procurements',{records:[record]},{apiKey});
     assert.equal(retried.data.records[0].id,procurementId);assert.equal(retried.data.records[0].duplicate,true);
   }
-  assert.equal((await balance()).on_hand_g,start.on_hand_g+100000);
+  assert.equal((await balance()).on_hand_kg,start.on_hand_kg+100);
   const found=await request('GET',`/procurements?external_ref=${encodeURIComponent(original.external_ref)}`);
   assert.equal(found.data.length,1);assert.equal(found.data[0].external_ref,newRef);
   const otherRef=code('OTHER-PURCHASE');
@@ -700,7 +756,7 @@ test('Procurement corrections update reference/quantity once, preserve retries a
     ...paddy('CORRECTION-RESERVATION',ids.vehicle1,60),lots:[{procurement_id:procurementId,quantity:qty(60)}]
   },{auth:pacsToken})).data.id;
   const reserved=await request('PATCH',path,{quantity:qty(50),reason:'Below reservation'},{apiKey,status:409});
-  assert.equal(reserved.error.code,'PROCUREMENT_QUANTITY_IN_USE');assert.match(reserved.error.message,/60 QTL|0.6 QTL/);
+  assert.equal(reserved.error.code,'PROCUREMENT_QUANTITY_IN_USE');assert.match(reserved.error.message,/60 kg/);
   await request('PATCH',`/procurements/${procurementId}`,{quantity:qty(180),reason:'Correct remaining purchase weight'});
   await request('POST',`/shipments/${trip}/dispatch`,{dispatched_at:at(-45),receipt_no:code('CORRECTION-DISPATCH'),driver_name:'Test Driver',driver_phone:'9999999999'});
   const used=await request('PATCH',path,{quantity:qty(50),reason:'Below dispatched weight'},{apiKey,status:409});
@@ -709,11 +765,11 @@ test('Procurement corrections update reference/quantity once, preserve retries a
   const beforeFailure=await balance();
   const failedRef=code('CAPACITY-ROLLBACK');
   await request('PATCH',path,{external_ref:failedRef,quantity:qty(2000,'MT'),reason:'Exceeds facility capacity'},{apiKey,status:409});
-  assert.equal((await balance()).on_hand_g,beforeFailure.on_hand_g);
+  assert.equal((await balance()).on_hand_kg,beforeFailure.on_hand_kg);
   assert.equal((await one(pool,'SELECT COUNT(*) n FROM procurement WHERE external_ref=?',[failedRef])).n,0);
   assert.equal((await one(pool,'SELECT COUNT(*) n FROM procurement_corrections WHERE new_external_ref=?',[failedRef])).n,0);
   const record=await one(pool,'SELECT * FROM procurement WHERE id=?',[procurementId]);
-  assert.equal(record.external_ref,newRef);assert.equal(record.quantity_g,80000);assert.equal(record.available_g,20000);assert.equal(record.reserved_g,0);
+  assert.equal(record.external_ref,newRef);assert.equal(record.quantity_kg,80);assert.equal(record.available_kg,20);assert.equal(record.reserved_kg,0);
   const beforeRename=await one(pool,"SELECT COUNT(*) n FROM stock_ledger WHERE reference_type='PROCUREMENT_CORRECTION'");
   const refOnly=code('REFERENCE-ONLY');
   await request('PATCH',path,{external_ref:refOnly,reason:'Correct reference only'},{apiKey});
@@ -721,15 +777,60 @@ test('Procurement corrections update reference/quantity once, preserve retries a
   assert.equal(noOp.data.updated,false);
   assert.equal((await one(pool,"SELECT COUNT(*) n FROM stock_ledger WHERE reference_type='PROCUREMENT_CORRECTION'")).n,beforeRename.n);
   const history=await rows(pool,'SELECT * FROM procurement_corrections WHERE procurement_id=? ORDER BY id',[procurementId]);
-  assert.equal(history.length,4);assert.equal(history[0].created_by_actor,'integration');assert.equal(history[0].old_quantity_g,100000);assert.equal(history[0].new_quantity_g,200000);
+  assert.equal(history.length,4);assert.equal(history[0].created_by_actor,'integration');assert.equal(history[0].old_quantity_kg,100);assert.equal(history[0].new_quantity_kg,200);
   assert.equal(history[1].created_by_actor,`user:${history[1].created_by}`);
-  await request('POST',`/shipments/${trip}/deliver`,{accepted_quantity:qty(60),delivered_at:at(-40),receipt_no:code('CORRECTION-DELIVERY'),gps_override_reason:'Correction test arrival override'});
+  await arriveForReceipt(trip);
+  await request('POST',`/shipments/${trip}/deliver`,{received_bags:10,...qty(60)});
   const mismatch=await rows(pool,`SELECT s.id FROM stocks s LEFT JOIN (
-    SELECT facility_id,season_id,scheme_code,commodity_code,SUM(on_hand_delta_g) h,SUM(reserved_delta_g) r
+    SELECT facility_id,season_id,scheme_code,commodity_code,SUM(on_hand_delta_kg) h,SUM(reserved_delta_kg) r
     FROM stock_ledger GROUP BY facility_id,season_id,scheme_code,commodity_code
     ) l ON l.facility_id=s.facility_id AND l.season_id=s.season_id AND l.scheme_code=s.scheme_code AND l.commodity_code=s.commodity_code
-    WHERE s.season_id=? AND (s.on_hand_g<>COALESCE(l.h,0) OR s.reserved_g<>COALESCE(l.r,0))`,[ids.season]);
+    WHERE s.season_id=? AND (s.on_hand_kg<>COALESCE(l.h,0) OR s.reserved_kg<>COALESCE(l.r,0))`,[ids.season]);
   assert.equal(mismatch.length,0);
+});
+
+test('RO allotment isolates Miller lifting, blocks reassignment in use and allows audited legacy correction',async()=>{
+  const apiKey=process.env.EUPARJAN_API_KEY;
+  const record={...procure('ALLOTTED-OTHER',10),miller_id:ids.other};
+  const invalid=await request('POST','/integrations/euparjan/procurements',{
+    records:[{...record,external_ref:code('NOT-A-MILLER'),miller_id:ids.pacs}]
+  },{apiKey,status:404});
+  assert.equal(invalid.error.code,'MILLER_NOT_FOUND');
+  await request('POST','/route-tags',{season_id:ids.season,source_id:ids.pacs,destination_id:ids.other});
+  const imported=await request('POST','/integrations/euparjan/procurements',{records:[record]},{apiKey});
+  const procurementId=imported.data.records[0].id;
+  const patchPath=`/integrations/euparjan/procurements/${procurementId}`;
+  const before=await one(pool,"SELECT reserved_kg FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code='SCMR' AND commodity_code='PADDY'",[ids.pacs,ids.season]);
+  const wrong=await request('POST','/shipments',{
+    ...paddy('WRONG-RO-MILLER',ids.vehicle1,1),lots:[{procurement_id:procurementId,quantity:qty(1)}]
+  },{status:409});
+  assert.equal(wrong.error.code,'PROCUREMENT_MILLER_MISMATCH');
+  const after=await one(pool,"SELECT reserved_kg FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code='SCMR' AND commodity_code='PADDY'",[ids.pacs,ids.season]);
+  assert.equal(after.reserved_kg,before.reserved_kg);
+  const dropdown=await request('GET',`/procurements/available-lots?facility_id=${ids.pacs}&season_id=${ids.season}`,undefined,{auth:otherToken});
+  assert(dropdown.data.length>0&&dropdown.data.every(row=>row.miller_id===ids.other));
+  const mapped=await request('GET',`/paddy/mapped-sources?season_id=${ids.season}`,undefined,{auth:otherToken});
+  assert.equal(mapped.data.find(row=>row.source_id===ids.pacs&&row.scheme_code==='SCMR').available_kg,10);
+  const allocated=await request('POST','/shipments',{
+    ...paddy('CORRECT-RO-MILLER',ids.vehicle1,1),miller_id:ids.other,destination_id:ids.other
+  });
+  const detail=await request('GET',`/shipments/${allocated.data.id}`);
+  assert.deepEqual(detail.data.lots.map(l=>l.procurement_id),[procurementId]);
+  const inUse=await request('PATCH',patchPath,{miller_id:ids.miller,reason:'Verified operator allocation correction'},{apiKey,status:409});
+  assert.equal(inUse.error.code,'PROCUREMENT_MILLER_IN_USE');
+  await request('POST',`/shipments/${allocated.data.id}/cancel`,{reason:'Cancel test reservation before reassignment'});
+  const reassigned=await request('PATCH',patchPath,{miller_id:ids.miller,reason:'Verified operator allocation correction'},{apiKey});
+  assert.equal(reassigned.data.miller_id,ids.miller);
+  await request('POST','/integrations/euparjan/procurements',{records:[record]},{apiKey,status:409});
+  const audit=await one(pool,'SELECT old_miller_id,new_miller_id FROM procurement_corrections WHERE procurement_id=? ORDER BY id DESC LIMIT 1',[procurementId]);
+  assert.equal(audit.old_miller_id,ids.other);assert.equal(audit.new_miller_id,ids.miller);
+  // Simulate unresolved legacy metadata without inventing an allocation.
+  await rows(pool,'UPDATE procurement SET miller_id=NULL WHERE id=?',[procurementId]);
+  const missing=await request('POST','/shipments',{
+    ...paddy('UNASSIGNED-RO',ids.vehicle1,1),lots:[{procurement_id:procurementId,quantity:qty(1)}]
+  },{status:409});
+  assert.equal(missing.error.code,'PROCUREMENT_MILLER_REQUIRED');
+  await request('PATCH',patchPath,{miller_id:ids.miller,reason:'Resolve verified legacy RO miller'},{apiKey});
 });
 
 test('CMR submission stores master IDs and preserves date, lots, driver and vehicle history through receiving',async()=>{
@@ -739,7 +840,7 @@ test('CMR submission stores master IDs and preserves date, lots, driver and vehi
   const response=await request('POST','/cmr/submissions',{
     season_id:ids.season,order_id:ids.SFCorder,destination_id:ids.godown,district_id:ids.district,
     store_location_id:storeId,scheme_type:'SCMR',commodity_type:'RICE',vehicle_id:ids.vehicle1,
-    quantity:qty(1),expected_completion_at:at(90),submitted_on:submittedOn,lot_count:2,stenciling_code:code('STENCIL'),
+    quantity:qty(1),submitted_on:submittedOn,lot_count:2,stenciling_code:code('STENCIL'),
     gunny_bag_year:2026,gunny_bag_type:'New jute',total_bags:2,driver_name:'CMR Test Driver',driver_phone:'9999999999'
   },{auth:millerToken});
   const shipmentId=response.data.id;
@@ -748,7 +849,7 @@ test('CMR submission stores master IDs and preserves date, lots, driver and vehi
   assert.equal(shipment.scheme_code,response.data.scheme_code);assert.equal(shipment.commodity_code,response.data.commodity_code);
   assert.equal(shipment.cmr_lot_count,2);assert.equal(shipment.submitted_on.slice(0,10),submittedOn);
   assert.equal(shipment.driver_name,'CMR Test Driver');assert.equal(shipment.vehicle_type_id,ids.vehicleType);
-  assert(shipment.expected_completion_at);assert.equal(shipment.trip_status,0);
+  assert.equal(shipment.expected_completion_at,null);assert.equal(shipment.trip_status,0);
   const newType=(await request('POST','/vehicle-types',{code:code('NEW-TYPE'),name:'Later vehicle type'})).data.id;
   try {
     await rows(pool,'UPDATE vehicles SET vehicle_type_id=? WHERE id=?',[newType,ids.vehicle1]);
@@ -763,11 +864,74 @@ test('CMR submission stores master IDs and preserves date, lots, driver and vehi
   await request('POST',`/shipments/${shipmentId}/dispatch`,{dispatched_at:at(-5),receipt_no:code('CMR-ID-DISPATCH')},{auth:millerToken});
   const accepted=await transaction(c=>receiving.receiveCMR(c,receivingSchema.parse({
     decision:'ACCEPTED',receipt_no:code('CMR-ID-RECEIPT'),received_at:new Date().toISOString(),
-    stacks:[{stack_no:code('ID-STACK'),received_quantity_qtl:'0.01000',bags:2}],gross_weight_kg:'2.160',empty_bag_weight_kg:'0.580',
+    stacks:[{stack_no:code('ID-STACK'),received_quantity_kg: '1.000',bags:2}],gross_weight_kg:'2.160',empty_bag_weight_kg:'0.580',
     red_grains_percent:0,chalky_grains_percent:0,moisture_percent:12,broken_rice_percent:1,
     other_standards:'Test receipt',compliance_confirmed:true,remarks:'',gps_override_reason:'Integration test arrival override'
   }),context));
-  assert.equal(accepted.net_g,1000);
+  assert.equal(accepted.net_kg,1);
   const received=await receiving.listStock(context);
   assert(received.body.data.some(row=>row.shipment_no===shipment.shipment_no&&row.scheme_code==='SCMR'));
+  const stored=await one(pool,'SELECT accepted_kg,received_bags,total_bags FROM shipments WHERE id=?',[shipmentId]);
+  assert.equal(stored.accepted_kg,1);
+  assert.equal(stored.received_bags,2);
+});
+
+test('fractional kg RO, lifting and receiving preserve one-gram shortage and independent bags',async()=>{
+  const record={...procure('FRACTIONAL-KG'),quantity:{value:'426.47'},ro_no:code('RO-KG'),ro_date:'2026-02-26'};
+  const wrongDistrict=await request('POST','/integrations/euparjan/procurements',{
+    records:[{...record,external_ref:code('WRONG-DISTRICT'),district_id:ids.district+1}]
+  },{apiKey:process.env.EUPARJAN_API_KEY,status:400});
+  assert.equal(wrongDistrict.error.code,'DISTRICT_MISMATCH');
+  const ro=await request('POST','/integrations/euparjan/procurements',{
+    records:[record]
+  },{apiKey:process.env.EUPARJAN_API_KEY});
+  assert.equal(ro.data.records[0].quantity_kg,426.47);
+  const listed=await request('GET','/procurements?district_id='+ids.district+'&ro_no='+encodeURIComponent(record.ro_no));
+  assert.equal(listed.data.length,1);
+  assert.equal(listed.data[0].ro_no,record.ro_no);
+  assert.equal(listed.data[0].ro_date,'2026-02-26');
+  assert(!Object.hasOwn(listed.data[0],'receipt_no'));
+  assert.equal(listed.data[0].district_id,ids.district);
+  const duplicate=await request('POST','/integrations/euparjan/procurements',{
+    records:[{...record,district_id:ids.district}]
+  },{apiKey:process.env.EUPARJAN_API_KEY});
+  assert.equal(duplicate.data.records[0].duplicate,true);
+  await request('POST','/integrations/euparjan/procurements',{
+    records:[{...record,ro_date:'2026-02-25'}]
+  },{apiKey:process.env.EUPARJAN_API_KEY,status:409});
+  const created=await request('POST','/shipments',{
+    ...paddy('FRACTIONAL-KG',ids.vehicle1),quantity:{value:'0.300'},
+    lots:[{procurement_id:ro.data.records[0].id,quantity:{value:'0.300'}}]
+  });
+  const shipmentId=created.data.id;
+  const details=await request('GET',`/shipments/${shipmentId}`);
+  assert.equal(details.data.lots[0].ro_no,record.ro_no);
+  assert.equal(details.data.lots[0].ro_date,'2026-02-26');
+  await request('POST',`/shipments/${shipmentId}/dispatch`,{
+    dispatched_at:at(-5),receipt_no:code('FRACTIONAL-DISPATCH')
+  });
+  await arriveForReceipt(shipmentId);
+  const receipt={value:'0.299',unit:'KG'};
+  await request('POST',`/shipments/${shipmentId}/deliver`,{...receipt,received_bags:0},{status:400});
+  const idem=key(),beforeReceipt=Date.now();
+  const result=await request('POST',`/shipments/${shipmentId}/deliver`,{...receipt,received_bags:1},{idem});
+  const replay=await request('POST',`/shipments/${shipmentId}/deliver`,{...receipt,received_bags:1},{idem});
+  assert.equal(replay.replayed,true);assert.equal(replay.data.delivered_at,result.data.delivered_at);
+  assert(new Date(result.data.delivered_at).getTime()>=beforeReceipt-1000);
+  assert(new Date(result.data.delivered_at).getTime()<=Date.now());
+  assert.equal(result.data.accepted_kg,0.299);
+  assert.equal(result.data.shortage_kg,0.001);
+  assert.equal(result.data.received_bags,1);
+  const shipment=await one(pool,'SELECT quantity_kg,accepted_kg,shortage_kg,received_bags,total_bags FROM shipments WHERE id=?',[shipmentId]);
+  assert.equal(shipment.quantity_kg,0.3);
+  assert.equal(shipment.accepted_kg,0.299);
+  assert.equal(shipment.shortage_kg,0.001);
+  assert.equal(shipment.received_bags,1);
+  assert.equal(shipment.total_bags,null);
+  const mismatch=await rows(pool,`SELECT s.id FROM stocks s LEFT JOIN
+    (SELECT facility_id,season_id,scheme_code,commodity_code,SUM(on_hand_delta_kg) h,SUM(reserved_delta_kg) r
+     FROM stock_ledger GROUP BY facility_id,season_id,scheme_code,commodity_code) l
+    ON l.facility_id=s.facility_id AND l.season_id=s.season_id AND l.scheme_code=s.scheme_code AND l.commodity_code=s.commodity_code
+    WHERE s.season_id=? AND (s.on_hand_kg<>COALESCE(l.h,0) OR s.reserved_kg<>COALESCE(l.r,0))`,[ids.season]);
+  assert.equal(mismatch.length,0);
 });

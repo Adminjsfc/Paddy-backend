@@ -1,5 +1,5 @@
 import * as repository from "../repositories/masters.repository.js";
-import { ensure, capacityFields, capacityGrams, millerAccess, vehicleAccess, scopedWhere, pageParams } from "../utils/core.js";
+import { ensure, capacityFields, capacityKg, millerAccess, vehicleAccess, scopedWhere, pageParams } from "../utils/core.js";
 import { readSelectedStore } from "./store-locations.service.js";
 export async function ensureLocation(connection, districtId) {
   await repository.ensureLocationFindTblDistrictMaster(connection, districtId);
@@ -261,7 +261,7 @@ export async function updateFacility(connection, data, context) {
     Object.assign(update, capacityFields(data.capacity));
     delete update.capacity;
     const s = await repository.updateFacilityFindStocks(connection, f);
-    ensure(capacityGrams(update) >= Number(s.total), 'Capacity is less than current stock');
+    ensure(capacityKg(update) >= Number(s.total), 'Capacity is less than current stock');
   }
   if ('milling_capacity_per_day' in data) {
     Object.assign(update, capacityFields(data.milling_capacity_per_day, true));
@@ -351,7 +351,7 @@ export async function updateMasterProfile(connection, data, context, schema, typ
     Object.assign(update, capacityFields(data.capacity));
     delete update.capacity;
     const s = await repository.updateMasterProfileFindShipments(connection, record);
-    ensure(!s.max_load || capacityGrams(update) >= Number(s.max_load), 'Capacity is below active shipment load');
+    ensure(!s.max_load || capacityKg(update) >= Number(s.max_load), 'Capacity is below active shipment load');
   }
   if (type === 'vehicles' && data.vehicle_type_id) await repository.updateMasterProfileFindVehicleTypes(connection, data);
   if ('district_id' in data) await ensureLocation(connection, update.district_id ?? record.district_id);

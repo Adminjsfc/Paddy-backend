@@ -56,7 +56,16 @@ export function errorHandler(err, req, res, next) {
       message = 'Mobile number already registered.';
     }
   }
-  if (['ER_NO_REFERENCED_ROW_2', 'ER_CHECK_CONSTRAINT_VIOLATED'].includes(err.code)) {
+  if (['ER_NO_REFERENCED_ROW_2','ER_NO_REFERENCED_ROW'].includes(err.code)) {
+    status=400;code='REFERENCE_NOT_FOUND';
+    const foreign=(err.sqlMessage||'').match(/FOREIGN KEY\s*\(\s*`?([a-z_]+)`?\s*\)\s*REFERENCES\s+(?:`?[a-z0-9_]+`?\.)?`?([a-z_]+)`?/i);
+    message=foreign?`${foreign[1]} must reference an existing ${foreign[2]} record in this backend. Load /setup/postman or create/list the parent record first.`
+      :'A referenced master record is missing. Load /setup/postman and use IDs from this backend.';
+  }
+  if (['ER_ROW_IS_REFERENCED_2','ER_ROW_IS_REFERENCED'].includes(err.code)) {
+    status=409;code='RECORD_IN_USE';message='This record is used by other records. Update its dependent records before deleting it.';
+  }
+  if (['ER_CHECK_CONSTRAINT_VIOLATED','ER_CONSTRAINT_FAILED'].includes(err.code)) {
     status = 409;
     code = 'DATA_CONSTRAINT';
     message = 'Referenced record or database constraint is invalid.';

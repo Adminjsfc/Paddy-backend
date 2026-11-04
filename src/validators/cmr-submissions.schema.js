@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {withDriverContact} from './driver-contact.js';
-import { id, quantity, dateOnly, name, phone, timestamp } from "../utils/core.js";
+import { id, quantity, dateOnly, name, phone } from "../utils/core.js";
 export const cmrSubmissionSchema = withDriverContact(z.object({
   season_id: id,
   order_id: id,
@@ -8,7 +8,6 @@ export const cmrSubmissionSchema = withDriverContact(z.object({
   district_id: id,
   store_location_id: id,
   vehicle_id: id,
-  expected_completion_at: timestamp.nullable().default(null),
   quantity,
   submitted_on: dateOnly.refine(value => value <= new Date(Date.now() + 19800000).toISOString().slice(0, 10), 'Submission date cannot be in the future'),
   scheme_type: z.enum(['SCMR', 'CCMR']),

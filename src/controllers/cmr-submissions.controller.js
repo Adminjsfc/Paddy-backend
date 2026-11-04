@@ -5,6 +5,10 @@ import { cmrSubmissionSchema } from "../validators/cmr-submissions.schema.js";
 export const getSubmissionOptions = async (req, res) => {
   return respond(res, await service.getSubmissionOptions(requestContext(req)));
 };
+export const dropdown=only=>async(req,res)=>{
+  const context=requestContext(req);
+  return respond(res,await service.getSubmissionOptions({...context,query:{...context.query,only}}));
+};
 export const listEligibleVehicles = async (req, res) => {
   return respond(res, await service.listEligibleVehicles(requestContext(req)));
 };

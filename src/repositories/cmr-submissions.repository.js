@@ -19,6 +19,8 @@ export async function submitCMRFindVehicles(connection, data) {
 export async function getSubmissionOptionsListSeasons() {
   return rows(pool, 'SELECT id,code,name FROM seasons WHERE active=1 ORDER BY start_date DESC,id DESC');
 }
+export const listDistricts=()=>rows(pool,
+  'SELECT id,district_name FROM tbl_district_master WHERE status=1 ORDER BY district_name,id');
 export async function getSubmissionOptionsListTblDistrictMaster(context, seasonId) {
   return rows(pool, `SELECT d.id,d.district_name FROM tbl_district_master d
     WHERE d.status=1 AND EXISTS (
@@ -34,15 +36,15 @@ export async function getSubmissionOptionsListFacilities(districtId, context, se
         WHERE a.store_id=f.id AND a.miller_id=? AND a.season_id=? AND a.active=1)`, [districtId, context.user.miller_id, seasonId]);
 }
 export async function getSubmissionOptionsListCmrOrders(context, seasonId, scheme) {
-  return rows(pool, `SELECT o.id,o.order_no,o.destination_id,o.scheme_code,o.commodity,o.rice_quantity_g-o.committed_g-o.delivered_g available_g,
-      f.name destination_name,f.kind,f.district_id,d.district_name
+  return rows(pool, `SELECT o.id,o.order_no,o.district_id,o.lot_count,o.stenciling_code,o.destination_id,o.scheme_code,o.commodity,o.rice_quantity_kg-o.committed_kg-o.delivered_kg available_kg,
+      f.name destination_name,f.kind,d.district_name
       FROM cmr_orders o JOIN facilities f ON f.id=o.destination_id JOIN tbl_district_master d ON d.id=f.district_id
       JOIN miller_store_assignments a ON a.season_id=o.season_id AND a.miller_id=o.miller_id AND a.store_id=o.destination_id AND a.active=1
       WHERE o.miller_id=? AND o.season_id=? AND o.scheme_code=? AND o.commodity='RICE' AND o.status='OPEN' AND f.active=1 AND d.status=1
-      AND o.rice_quantity_g>o.committed_g+o.delivered_g ORDER BY d.district_name,f.name,o.id`, [context.user.miller_id, seasonId, scheme]);
+      AND o.rice_quantity_kg>o.committed_kg+o.delivered_kg ORDER BY d.district_name,f.name,o.id`, [context.user.miller_id, seasonId, scheme]);
 }
 export async function getSubmissionOptionsFindStocks(context, seasonId, scheme) {
-  return one(pool, "SELECT s.id,s.scheme_code,s.commodity_code,s.status,s.on_hand_g,s.reserved_g,CASE WHEN s.status=1 THEN s.on_hand_g-s.reserved_g ELSE 0 END available_g FROM stocks s WHERE s.facility_id=? AND s.season_id=? AND s.commodity_code='RICE' AND s.scheme_code=?", [context.user.miller_id, seasonId, scheme], false);
+  return one(pool, "SELECT s.id,s.scheme_code,s.commodity_code,s.status,s.on_hand_kg,s.reserved_kg,CASE WHEN s.status=1 THEN s.on_hand_kg-s.reserved_kg ELSE 0 END available_kg FROM stocks s WHERE s.facility_id=? AND s.season_id=? AND s.commodity_code='RICE' AND s.scheme_code=?", [context.user.miller_id, seasonId, scheme], false);
 }
 export async function listEligibleVehiclesListVehicles(context) {
   return rows(pool, `SELECT v.id,v.registration_no,v.capacity_value,v.capacity_unit,vt.name vehicle_type,1 gps_active,0 busy

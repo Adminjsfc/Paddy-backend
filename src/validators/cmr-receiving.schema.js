@@ -8,7 +8,7 @@ export const receivingSchema = z.object({
   received_at: pastTimestamp,
   stacks: z.array(z.object({
     stack_no: z.string().trim().min(1).max(100),
-    received_quantity_qtl: decimal(5),
+    received_quantity_kg: decimal(3),
     bags: z.number().int().positive().max(1000000)
   }).strict()).min(1).max(100),
   gross_weight_kg: decimal(3),

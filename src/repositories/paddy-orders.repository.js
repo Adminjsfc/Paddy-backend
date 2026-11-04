@@ -6,13 +6,13 @@ export async function sourceProcurementReport(sourceId,seasonId,{limit,offset},s
   const args=[sourceId,...(seasonId?[seasonId]:[]),...(schemeCode?[schemeCode]:[])];
   const filter=`WHERE p.facility_id=? AND p.commodity_code='PADDY'${seasonId?' AND p.season_id=?':''}${schemeCode?' AND p.scheme_code=?':''}`;
   const totals=await one(pool,`SELECT COUNT(p.id) procurement_count,
-    COALESCE(SUM(p.quantity_g),0) quantity_g,COALESCE(SUM(p.available_g),0) available_g,
-    COALESCE(SUM(p.reserved_g),0) reserved_g,COALESCE(SUM(p.available_g-p.reserved_g),0) unreserved_g
+    COALESCE(SUM(p.quantity_kg),0) quantity_kg,COALESCE(SUM(p.available_kg),0) available_kg,
+    COALESCE(SUM(p.reserved_kg),0) reserved_kg,COALESCE(SUM(p.available_kg-p.reserved_kg),0) unreserved_kg
     FROM procurement p ${filter}`,args);
-  const data=await rows(pool,`SELECT p.id,p.external_ref,p.facility_id,p.facility_id source_id,
+  const data=await rows(pool,`SELECT p.id,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.facility_id,p.district_id,p.facility_id source_id,
     src.name source_name,src.code source_code,p.season_id,se.name season_name,p.scheme_code,p.commodity_code,
-    p.farmer_id,p.procured_at,p.quantity_g,p.available_g,p.reserved_g,p.available_g-p.reserved_g unreserved_g,
-    p.moisture_percent,p.receipt_no,p.created_at
+    p.farmer_id,p.procured_at,p.quantity_kg,p.available_kg,p.reserved_kg,p.available_kg-p.reserved_kg unreserved_kg,
+    p.moisture_percent,p.created_at
     FROM procurement p JOIN facilities src ON src.id=p.facility_id JOIN seasons se ON se.id=p.season_id
     ${filter} ORDER BY p.procured_at DESC,p.id DESC LIMIT ${limit} OFFSET ${offset}`,args);
   const bySeason=new Map();
@@ -34,7 +34,7 @@ export async function sourceProcurementReport(sourceId,seasonId,{limit,offset},s
   }
   for(const row of data) {
     row.procurement_ids=[Number(row.id)];
-    row.mapped_millers=[...(bySeason.get(Number(row.season_id))?.values()||[])].map(mapping=>({...mapping}));
+    row.mapped_millers=[...(bySeason.get(Number(row.season_id))?.values()||[])].filter(mapping=>Number(mapping.miller_id)===Number(row.miller_id)).map(mapping=>({...mapping}));
     row.has_route_tag=row.mapped_millers.length>0;
   }
   return {data,totals,total:Number(totals.procurement_count)};
@@ -42,23 +42,26 @@ export async function sourceProcurementReport(sourceId,seasonId,{limit,offset},s
 
 export async function listMappedSources(millerId,seasonId,{limit,offset},schemeCode=null) {
   const args=[millerId,...(seasonId?[seasonId]:[]),...(schemeCode?[schemeCode]:[])];
+  const allottedSum=expression=>`COALESCE((SELECT SUM(${expression}) FROM procurement p
+    WHERE p.facility_id=f.id AND p.season_id=m.season_id AND p.scheme_code=st.scheme_code
+      AND p.miller_id=m.destination_id),0)`;
   const base=`SELECT f.id source_id,f.code,f.kind,f.name source_name,f.address,
     d.district_name,m.season_id,se.name season_name,st.scheme_code,st.commodity_code,
-    COALESCE(st.on_hand_g,0) on_hand_g,COALESCE(st.reserved_g,0) reserved_g,
-    CASE WHEN st.status=1 THEN st.on_hand_g-st.reserved_g ELSE 0 END available_g,
-    COALESCE((SELECT SUM(p.quantity_g) FROM procurement p WHERE p.facility_id=f.id AND p.season_id=m.season_id AND p.scheme_code=st.scheme_code),0) procured_g,
-    COALESCE((SELECT SUM(l.quantity_g) FROM shipments l JOIN shipment_routes lr ON lr.id=l.route_id
+    COALESCE(st.on_hand_kg,0) on_hand_kg,${allottedSum('p.reserved_kg')} reserved_kg,
+    CASE WHEN st.status=1 THEN LEAST(st.on_hand_kg-st.reserved_kg,${allottedSum('p.available_kg-p.reserved_kg')}) ELSE 0 END available_kg,
+    ${allottedSum('p.quantity_kg')} procured_kg,
+    COALESCE((SELECT SUM(l.quantity_kg) FROM shipments l JOIN shipment_routes lr ON lr.id=l.route_id
       WHERE lr.source_id=f.id AND lr.destination_id=m.destination_id AND l.season_id=m.season_id
-      AND l.scheme_code=st.scheme_code AND l.leg='PADDY' AND l.status IN ('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED')),0) lifted_g
+      AND l.scheme_code=st.scheme_code AND l.leg='PADDY' AND l.status IN ('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED')),0) lifted_kg
     FROM (SELECT DISTINCT source_id,destination_id,season_id FROM route_tags WHERE active=1 AND destination_id=?${seasonId?' AND season_id=?':''}) m
     JOIN facilities f ON f.id=m.source_id AND f.kind IN ('PACS','LAMPS')
     JOIN seasons se ON se.id=m.season_id
     LEFT JOIN tbl_district_master d ON d.id=f.district_id
     LEFT JOIN stocks st ON st.facility_id=f.id AND st.season_id=m.season_id AND st.commodity_code='PADDY'${schemeCode?' WHERE st.scheme_code=?':''}`;
-  const totals=await one(pool,`SELECT COUNT(*) total,COALESCE(SUM(procured_g),0) procured_g,
-    COALESCE(SUM(available_g),0) available_g,COALESCE(SUM(reserved_g),0) reserved_g,
-    COALESCE(SUM(lifted_g),0) lifted_g FROM (${base}) summary`,args);
-  const data=await rows(pool,`SELECT summary.source_id,summary.code,summary.kind,summary.source_name,summary.address,summary.district_name,summary.season_id,summary.season_name,summary.scheme_code,summary.commodity_code,summary.on_hand_g,summary.reserved_g,summary.available_g,summary.procured_g,summary.lifted_g,available_g liftable_g FROM (${base}) summary
+  const totals=await one(pool,`SELECT COUNT(*) total,COALESCE(SUM(procured_kg),0) procured_kg,
+    COALESCE(SUM(available_kg),0) available_kg,COALESCE(SUM(reserved_kg),0) reserved_kg,
+    COALESCE(SUM(lifted_kg),0) lifted_kg FROM (${base}) summary`,args);
+  const data=await rows(pool,`SELECT summary.source_id,summary.code,summary.kind,summary.source_name,summary.address,summary.district_name,summary.season_id,summary.season_name,summary.scheme_code,summary.commodity_code,summary.on_hand_kg,summary.reserved_kg,summary.available_kg,summary.procured_kg,summary.lifted_kg,available_kg liftable_kg FROM (${base}) summary
     ORDER BY source_name,source_id,season_id DESC,scheme_code LIMIT ${limit} OFFSET ${offset}`,args);
   return {data,totals};
 }

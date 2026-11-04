@@ -65,15 +65,21 @@ export const procurement = z.object({
   scheme_code: code,
   commodity_code: z.literal('PADDY'),
   external_ref: z.string().min(1).max(120),
+  ro_no: z.string().trim().min(1).max(255).nullable().optional(),
+  ro_date: dateOnly.nullable().optional(),
+  miller_id: id,
+  district_id: id.optional(),
   season_code: code,
   farmer_code: code.optional(),
   facility_code: code,
   procured_at: pastTimestamp,
   quantity,
-  moisture_percent: nullable(z.number().min(0).max(100)),
-  receipt_no: z.string().min(1).max(100)
+  moisture_percent: nullable(z.number().min(0).max(100))
 }).strict();
 export const cmrOrder = z.object({
+  district_id: id.optional(),
+  lot_count: z.number().int().positive().max(10000).optional(),
+  stenciling_code: z.string().trim().min(1).max(100).optional(),
   scheme_code: code,
   commodity_code: z.literal('RICE'),
   external_ref: z.string().min(1).max(120),
@@ -89,10 +95,11 @@ export const procurementBatch = z.object({
   records: z.array(procurement).min(1).max(100)
 }).strict();
 export const procurementPatch = z.object({
+  miller_id: id.optional(),
   external_ref: z.string().trim().min(1).max(120).optional(),
   quantity: quantity.optional(),
   reason: z.string().trim().min(3).max(500)
-}).strict().refine(value=>value.external_ref!==undefined||value.quantity!==undefined,'Provide external_ref or quantity to update');
+}).strict().refine(value=>value.external_ref!==undefined||value.quantity!==undefined||value.miller_id!==undefined,'Provide external_ref, quantity or miller_id to update');
 export const orderBatch = z.object({
   records: z.array(cmrOrder).min(1).max(100)
 }).strict();
@@ -118,7 +125,6 @@ export const shipment = withDriverContact(z.object({
   order_id: nullable(id),
   driver_name: nullable(name),
   driver_phone: nullable(phone),
-  expected_completion_at: nullable(timestamp),
   quantity,
   lots: z.array(z.object({
     procurement_id: id,
@@ -130,17 +136,13 @@ export const shipment = withDriverContact(z.object({
 }));
 export const dispatch = withDriverContact(z.object({
   dispatched_at: pastTimestamp,
-  expected_completion_at: timestamp.nullable().optional(),
   receipt_no: z.string().min(1).max(100),
   driver_name: name.optional(),
   driver_phone: phone.optional()
 }).strict());
 export const delivery = z.object({
-  delivered_at: pastTimestamp,
-  accepted_quantity: quantity,
-  receipt_no: z.string().min(1).max(100),
-  remarks: nullable(z.string().max(500)),
-  gps_override_reason: nullable(z.string().min(10).max(500))
+  ...quantity.shape,
+  received_bags: z.number().int().nonnegative().max(10000000)
 }).strict();
 export const reason = z.object({
   reason: z.string().min(10).max(500)
@@ -204,6 +206,8 @@ export const seasonPatch = z.object({
   recovery_percent: percent.optional()
 }).strict().refine(v => Object.keys(v).length > 0, 'At least one field required');
 export const orderPatch = z.object({
+  lot_count: z.number().int().positive().max(10000).optional(),
+  stenciling_code: z.string().trim().min(1).max(100).optional(),
   rice_quantity: quantity.optional(),
   due_date: dateOnly.optional(),
   reason: z.string().min(10).max(500)

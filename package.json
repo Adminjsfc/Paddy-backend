@@ -15,12 +15,15 @@
     "db:seed-cmr-test": "node --env-file-if-exists=.env scripts/seed-cmr-test.js",
     "admin:create": "node --env-file-if-exists=.env scripts/create-admin.js",
     "postman:sync": "node --env-file-if-exists=.env scripts/sync-postman-local-credentials.js",
-    "test": "node --test test/trip-correction.test.js test/unit.test.js test/location-prerequisites.test.js test/cookie-auth.test.js test/core-dm.test.js test/modules.test.js test/cmr-submissions.test.js test/store-facility-import.test.js test/cmr-receiving.test.js test/architecture.test.js test/paddy-orders.test.js test/seasons.test.js test/paddy-dashboard.test.js test/common-lifting.test.js test/drivers.test.js test/google-routes.test.js",
+    "test": "node --test test/postman-setup.test.js test/procurement-ro.test.js test/quantity-kg.test.js test/trip-correction.test.js test/unit.test.js test/location-prerequisites.test.js test/cookie-auth.test.js test/core-dm.test.js test/modules.test.js test/cmr-submissions.test.js test/store-facility-import.test.js test/cmr-receiving.test.js test/architecture.test.js test/paddy-orders.test.js test/seasons.test.js test/paddy-dashboard.test.js test/common-lifting.test.js test/drivers.test.js test/google-routes.test.js",
     "test:integration": "node --env-file-if-exists=.env.test --test --test-concurrency=1 test/integration.test.js",
     "test:shipment-migration": "node --env-file-if-exists=.env scripts/validate-shipment-master-migration.js",
     "test:all": "npm test && npm run test:integration",
     "gps:mqtt": "node --env-file-if-exists=.env src/mqtt-worker.js",
-    "check": "node scripts/check.js"
+    "check": "node scripts/check.js",
+    "test:quantity-migration": "node --env-file-if-exists=.env scripts/validate-quantity-kg.js",
+    "test:kg-integration": "node --env-file-if-exists=.env scripts/validate-kg-integration.js",
+    "postman:simplify": "node scripts/simplify-postman.js"
   },
   "dependencies": {
     "@googlemaps/google-maps-services-js": "^3.4.2",

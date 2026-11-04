@@ -31,15 +31,17 @@ Master endpoints are create-only. Existing master corrections use the authentica
 {
   "records":[{
     "external_ref":"EUP/KMS2026/PACS001/PURCHASE0001",
+    "ro_no":"DHN/KRP/34/KMS 2025-26/206",
+    "ro_date":"2026-02-26",
     "scheme_code":"SCMR",
     "commodity_code":"PADDY",
     "season_code":"KMS2026",
     "farmer_code":"FARMER0001",
     "facility_code":"PACS001",
+    "miller_id":123,
     "procured_at":"2026-10-09T10:30:00+05:30",
     "quantity":{"value":100,"unit":"QTL"},
-    "moisture_percent":14.5,
-    "receipt_no":"PURCHASE0001"
+    "moisture_percent":14.5
   }]
 }
 ```
@@ -47,15 +49,18 @@ Master endpoints are create-only. Existing master corrections use the authentica
 | Field | Meaning |
 |---|---|
 | external_ref | Stable globally unique procurement reference, including year/season if needed |
+| ro_no | Optional RO number; map source RONo here. It is not a unique transaction identifier. |
+| ro_date | Optional RO issue date in YYYY-MM-DD. Convert source RODate 26-02-2026 to 2026-02-26. Separate from procured_at and receiving dates. |
 | scheme_code | Required active receiver scheme code; preserved through lifting and milling |
 | commodity_code | Required PADDY for procurement; CMR orders require RICE |
 | season_code | Registered receiver season code |
 | farmer_code | Optional registered farmer source code. Omit it when a PACS/LAMPS stock receipt is not farmer-wise. |
 | facility_code | Registered PACS/LAMPS code |
+| miller_id | Required local active MILLER facility ID allotted in the RO. Map upstream MillerId to this ID before import. |
+| district_id | Optional local district-master ID; must match the mapped MSP facility. Omit to derive it from the facility. Map upstream district IDs before sending. |
 | procured_at | Actual purchase/receipt time with explicit timezone |
 | quantity | Paddy actually procured; unit explicitly KG/QTL/MT |
 | moisture_percent | Optional observation; it does not automatically change accepted weight |
-| receipt_no | Source purchase receipt/reference |
 
 One batch contains 1–100 records and is transactional. Any unknown code or business-rule conflict rolls back the entire batch. Return record order matches input order. A schema error also rejects the full batch.
 
@@ -72,7 +77,10 @@ One batch contains 1–100 records and is transactional. Any unknown code or bus
     "season_code":"KMS2026",
     "miller_code":"MILLER001",
     "destination_code":"SFC001",
-    "order_no":"CMR-0001",
+    "order_no":"20095/CAPL/25-26/M53626",
+    "district_id":123,
+    "lot_count":2,
+    "stenciling_code":"GML/JSFC/COR/004/2025-26",
     "ordered_at":"2026-10-09T11:00:00+05:30",
     "due_date":"2026-11-09",
     "rice_quantity":{"value":68,"unit":"QTL"}
@@ -90,12 +98,12 @@ For central-pool deliveries, set `destination_code` to the code of a registered 
 {
   "ok":true,
   "replayed":false,
-  "data":{"records":[{"id":101,"quantity_g":10000000,"duplicate":false}]},
+  "data":{"records":[{"id":101,"quantity_kg":10000,"duplicate":false}]},
   "request_id":"server-generated-uuid"
 }
 ```
 
-The CMR response uses `rice_quantity_g` instead of `quantity_g`. Same-key replay returns the original response. A later identical record under a different batch key returns `duplicate:true` and its original ID without increasing stock/order quantity. A conflicting reference returns `409 EXTERNAL_REF_CONFLICT`. Keep the original body for retries, including consistent units and value types.
+The CMR response uses `rice_quantity_kg` instead of `quantity_kg`. Same-key replay returns the original response. A later identical record under a different batch key returns `duplicate:true` and its original ID without increasing stock/order quantity. A conflicting reference returns `409 EXTERNAL_REF_CONFLICT`. Keep the original body for retries, including consistent units and value types.
 
 Recommended sender behavior:
 
@@ -130,6 +138,6 @@ Migration 037 stores scheme_id and commodity_id in stocks and stock_ledger as we
 
 PATCH /api/v1/integrations/euparjan/procurements/:id uses the integration key. ADMIN/OPERATOR may use PATCH /api/v1/procurements/:id. Body example: {"external_ref":"CORRECTED-PURCHASE-001","quantity":{"value":200,"unit":"QTL"},"reason":"Correct source purchase reference and weight"}. The number is the new total quantity, not an increment. Either editable field may be omitted. A reason and an Idempotency-Key are required.
 
-The procurement ID and shipment-lot links stay stable. Quantity changes adjust available_g and source stock by the difference, preserve reservations, enforce capacity and append a PROCUREMENT_CORRECTION ledger entry. New quantity must cover already dispatched plus reserved quantities. External references are unique across current and historical references; renaming cannot reuse another procurement's former reference. Former references remain attached to the same procurement, so an original source retry cannot add a duplicate stock receipt. Matching current receipt payloads also return duplicate:true; the original import hash remains unchanged.
+The procurement ID and shipment-lot links stay stable. Quantity changes adjust available_kg and source stock by the difference, preserve reservations, enforce capacity and append a PROCUREMENT_CORRECTION ledger entry. New quantity must cover already dispatched plus reserved quantities. External references are unique across current and historical references; renaming cannot reuse another procurement's former reference. Former references remain attached to the same procurement, so an original source retry cannot add a duplicate stock receipt. Matching current receipt payloads also return duplicate:true; the original import hash remains unchanged.
 
 Migration 038 backfills procurement_references for existing records and creates procurement_corrections with old/new references and quantities, reason, actor and request ID. Repeating the same correction/key returns the stored response; sending current values with a new key has no additional stock movement. Failed corrections roll back the reference binding, history and stock changes together. GET /procurements?external_ref=... resolves a current or former reference.

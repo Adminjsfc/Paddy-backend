@@ -1,11 +1,12 @@
 import {Router} from 'express';
 import {roles} from '../middlewares/auth.js';
 import {liftingMillers,listMappedSources,liftingVehicles,sourceLiftingSummary} from '../controllers/paddy-orders.controller.js';
-import {listMappings} from '../controllers/miller-mappings.controller.js';
+import {listMappings,listSourceMappings} from '../controllers/miller-mappings.controller.js';
 
 export const paddyOrderRoutes=Router();
 paddyOrderRoutes.get('/paddy/lifting-summary',roles('PACS','LAMPS'),sourceLiftingSummary);
 paddyOrderRoutes.get('/miller-mappings',roles('MILLER'),listMappings);
+paddyOrderRoutes.get('/pacs-mappings',roles('PACS','LAMPS'),listSourceMappings);
 paddyOrderRoutes.get('/paddy/mapped-sources',roles('MILLER'),listMappedSources);
 paddyOrderRoutes.get('/paddy/lifting-vehicles',roles('PACS','LAMPS'),liftingVehicles);
 paddyOrderRoutes.get('/paddy/lifting-millers',roles('PACS','LAMPS'),liftingMillers);

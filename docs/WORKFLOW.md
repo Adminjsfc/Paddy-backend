@@ -50,7 +50,7 @@ Each `external_ref` is unique across all seasons. Prefix it with system/year/rec
 
 1. Allocate a quantity to a tagged miller and an available vehicle belonging to that miller.
 2. Explicit lot allocations must total the consignment quantity; omit `lots` for FIFO by procurement time and ID.
-3. Allocation increases `reserved_g`; it does not remove physical on-hand stock.
+3. Allocation increases `reserved_kg`; it does not remove physical on-hand stock.
 4. A vehicle can have only one active consignment (`PLANNED`, `DISPATCHED`, `IN_TRANSIT`, `ARRIVED`). Database uniqueness also enforces this under concurrency.
 5. At dispatch, on-hand and reserved quantities both decrease; farmer lot availability and reservations decrease in the same transaction.
 6. A receiving miller records accepted weight after GPS arrival. An SFC operator can instead provide an explicit, audited GPS override reason.
@@ -71,7 +71,7 @@ The Miller CMR submission form creates one planned consignment for one vehicle. 
 
 An imported CMR order identifies its season, miller, tagged SFC/FCI destination, rice quantity, due date and source order reference. Paddy-based official order formats must be converted to an explicit rice quantity by the sender according to the agreed rule; the receiver will not guess the source unit.
 
-Rice allocation reserves both miller rice stock and the order balance. Multiple trips can serve an order. `delivered_g + committed_g` must never exceed its target. All accepted rice deliveries require an `ADMIN` or `OPERATOR`; a miller cannot self-accept CMR delivery. SFC/FCI accepted rice becomes destination stock.
+Rice allocation reserves both miller rice stock and the order balance. Multiple trips can serve an order. `delivered_kg + committed_kg` must never exceed its target. All accepted rice deliveries require an `ADMIN` or `OPERATOR`; a miller cannot self-accept CMR delivery. SFC/FCI accepted rice becomes destination stock.
 
 At receipt, the full dispatched commitment is released and accepted quantity is credited. A shortage therefore reopens that quantity for a replacement consignment. The order becomes `FULFILLED` only when its accepted deliveries equal the target. An unused order can be cancelled; its quantity can otherwise be amended only above existing committed plus delivered quantity.
 
@@ -108,9 +108,9 @@ GPS arrival never credits inventory or confirms quantity. A destination packet c
 
 | Balance | Meaning |
 |---|---|
-| `on_hand_g` | Physical stock currently received but not dispatched/consumed |
-| `reserved_g` | Part of on-hand stock committed to planned shipments |
-| Available | `on_hand_g - reserved_g` |
+| `on_hand_kg` | Physical stock currently received but not dispatched/consumed |
+| `reserved_kg` | Part of on-hand stock committed to planned shipments |
+| Available | `on_hand_kg - reserved_kg` |
 | Paddy obligation | Sum of accepted paddy receipt obligations at their frozen ratios |
 | Rice delivered | Sum of accepted SFC/FCI CMR deliveries |
 | Obligation balance | Expected receipt-based rice minus accepted rice deliveries; negative values expose excess delivery |

@@ -4,7 +4,7 @@ import * as repository from "../repositories/dm-setup.repository.js";
 import crypto from 'node:crypto';
 import { stock } from "./stock.service.js";
 import { lockFacilities } from "../repositories/facilities.repository.js";
-import { ensure, grams, passwordHash } from "../utils/core.js";
+import { ensure, kilograms, passwordHash } from "../utils/core.js";
 import { createMaster } from "./masters.service.js";
 import * as S from "../validators/schemas.js";
 export async function scopedDMFacility(connection, user, facilityId, kind) {
@@ -141,12 +141,12 @@ export async function addTestRice(connection, data, context) {
   await requireStockMasters(connection,data.scheme_code,'RICE');
   await repository.addTestRiceFindSeasons(connection, data);
   await lockFacilities(connection, [data.miller_id]);
-  const amount = grams(data.quantity);
+  const amount = kilograms(data.quantity);
   const entry = await repository.addTestRiceInsertTestStockEntries(connection, data, amount);
   await stock(connection, data.miller_id, data.season_id, 'RICE', amount, 0, 'TEST_RICE', entry, data.scheme_code, context.user);
   return {
     id: entry,
-    quantity_g: amount
+    quantity_kg: amount
   };
 }
 export async function registerVehicleWithGps(connection, data, context) {

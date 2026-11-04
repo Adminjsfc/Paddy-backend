@@ -7,7 +7,7 @@ import {procurementBatch} from '../src/validators/schemas.js';
 import {importProcurements} from '../src/services/procurement.service.js';
 
 test('Procurement import identifies the only the missing field and supplied value',async()=>{
- const record={external_ref:'MISSING-MASTER',scheme_code:'SCMR',commodity_code:'PADDY',season_code:'KMS',facility_code:'LAMPS-REAL-CODE',procured_at:new Date('2026-01-02T10:00:00Z'),quantity:{value:200,unit:'QTL'},receipt_no:'TEST',moisture_percent:null};
+ const record={external_ref:'MISSING-MASTER',scheme_code:'SCMR',commodity_code:'PADDY',season_code:'KMS',facility_code:'LAMPS-REAL-CODE',procured_at:new Date('2026-01-02T10:00:00Z'),quantity:{value:200,unit:'QTL'},moisture_percent:null};
  for(const [table,errorCode,field] of [['seasons','SEASON_NOT_FOUND','season_code'],['facilities','PADDY_SOURCE_NOT_FOUND','facility_code']]){
   const connection={execute:async(sql)=>{
    if(sql.includes('FROM procurement')||sql.includes('FROM '+table))return [[]];
@@ -24,16 +24,16 @@ test('Procurement import identifies the only the missing field and supplied valu
 });
 
 test('Repeated procurement reference reports stored and received quantity on conflict',async()=>{
- const connection={execute:async()=>[[{id:1,payload_hash:'different',quantity_g:10000000}]]};
+ const connection={execute:async()=>[[{id:1,payload_hash:'different',quantity_kg:10000}]]};
  await assert.rejects(importProcurements(connection,{records:[{external_ref:'ALREADY-IMPORTED',quantity:{value:200,unit:'QTL'}}]}),error=>{
   assert.equal(error.code,'EXTERNAL_REF_CONFLICT');
-  assert.match(error.message,/^quantity mismatch: stored=100 QTL, received=200 QTL\.$/);
+  assert.match(error.message,/^quantity mismatch: stored=10000 kg, received=20000 kg\.$/);
   return true;
  });
 });
 
 test('Star-wrapped Postman codes identify the invalid field with a useful hint',()=>{
- const result=procurementBatch.safeParse({records:[{external_ref:'TEST',season_code:'*KMS*',scheme_code:'*SCMR*',facility_code:'LAMPS-REAL',commodity_code:'PADDY',procured_at:'2026-01-02T10:00:00Z',quantity:{value:200,unit:'QTL'},receipt_no:'TEST'}]});
+ const result=procurementBatch.safeParse({records:[{external_ref:'TEST',season_code:'*KMS*',scheme_code:'*SCMR*',facility_code:'LAMPS-REAL',commodity_code:'PADDY',procured_at:'2026-01-02T10:00:00Z',quantity:{value:200,unit:'QTL'}}]});
  assert.equal(result.success,false);
  for(const field of ['season_code','scheme_code']){
   const issue=result.error.issues.find(row=>row.path.join('.')==='records.0.'+field);
@@ -49,14 +49,13 @@ test('Shipment accepts driver details at creation and rejects incomplete contact
  assert.throws(()=>shipment.parse({...body(),driver_phone:'9999999999'}));
  assert.throws(()=>shipment.parse({...body(),driver_name:'Paddy Driver',driver_phone:'wrong'}));
 });
-test('Expected completion accepts offset timestamps and trip actuals remain server controlled',()=>{
+test('Shipment ETA and trip actuals are server controlled',()=>{
  const expected='2026-10-22T18:30:00+05:30';
- const parsed=shipment.parse({...body(),expected_completion_at:expected});
- assert.equal(parsed.expected_completion_at.toISOString(),'2026-10-22T13:00:00.000Z');
+ assert.throws(()=>shipment.parse({...body(),expected_completion_at:expected}));
  assert.throws(()=>shipment.parse({...body(),expected_completion_at:'2026-10-22 18:30:00'}));
  for(const field of ['trip_status','trip_started_at','trip_completed_at'])assert.throws(()=>shipment.parse({...body(),[field]:1}));
 });
-function database({mapped=true,stock=2000000,lots=2000000,capacityKg=3000,capacityUnit='KG'}={}) {
+function database({mapped=true,stock=2000,lots=2000,capacityKg=3000,capacityUnit='KG'}={}) {
  const queries=[];
  const connection={execute:async(sql,args)=>{
   queries.push({sql,args});
@@ -71,9 +70,9 @@ function database({mapped=true,stock=2000000,lots=2000000,capacityKg=3000,capaci
   if(sql.includes('FROM vehicles'))return [[{id:4,vehicle_type_id:7,district_id:1,created_by:99,active:1,capacity_value:capacityKg,capacity_unit:capacityUnit}]];
   if(sql.includes('FROM gps_devices'))return [[{id:1}]];
   if(sql.includes('FROM shipments'))return [[]];
-  if(sql.includes(' FROM stocks '))return [[{id:1,status:1,on_hand_g:stock,reserved_g:0}]];
-  if(sql.startsWith('SELECT p.id,p.available_g'))return [[{id:8,available_g:lots,reserved_g:0}]];
-  if(sql.includes('FROM procurement p '))return [[{id:8,facility_id:153,season_id:2,scheme_code:'SCMR',commodity_code:'PADDY',commodity:'PADDY',available_g:lots,reserved_g:0}]];
+  if(sql.includes(' FROM stocks '))return [[{id:1,status:1,on_hand_kg:stock,reserved_kg:0}]];
+  if(sql.startsWith('SELECT p.id,p.available_kg'))return [[{id:8,available_kg:lots,reserved_kg:0}]];
+  if(sql.includes('FROM procurement p '))return [[{id:8,miller_id:3,facility_id:153,season_id:2,scheme_code:'SCMR',commodity_code:'PADDY',commodity:'PADDY',available_kg:lots,reserved_kg:0}]];
   if(sql.startsWith('INSERT')||sql.startsWith('UPDATE'))return [{insertId:20}];
   throw new Error('Unexpected query: '+sql);
  }};
@@ -85,13 +84,13 @@ test('PACS and LAMPS create PADDY from mapped procurement stock without a releas
   const result=await createShipment(connection,body(),{user:{...user,id:1}});
   assert.equal(result.status,'PLANNED');
   assert.equal(result.trip_status,0);assert.equal(result.trip_started_at,null);assert.equal(result.trip_completed_at,null);
-  assert.equal(result.quantity_g,1000000);
+  assert.equal(result.quantity_kg,1000);
   assert.equal(result.scheme_code,'SCMR');assert.equal(result.commodity_code,'PADDY');assert.equal(result.vehicle_type_id,7);
   const saved=queries.find(q=>q.sql.startsWith('INSERT INTO shipments '));
   assert(saved.sql.includes('scheme_code')&&saved.sql.includes('commodity_code')&&saved.sql.includes('vehicle_type_id'));
   assert(!/scheme_id|commodity_id|scheme_type|commodity_type|submitted_vehicle_type/.test(saved.sql));
   assert(queries.some(q=>q.sql.startsWith('INSERT INTO shipment_lots')&&q.args.includes(8)));
-  assert(queries.some(q=>q.sql.startsWith('UPDATE procurement SET reserved_g')));
+  assert(queries.some(q=>q.sql.startsWith('UPDATE procurement SET reserved_kg')));
   assert(!queries.some(q=>/release_order/.test(q.sql)));
  }
 });
@@ -114,7 +113,7 @@ test('Shipment creation enforces PACS/LAMPS for Paddy and Miller for CMR before 
 test('Vehicle capacity stored in kg accepts the exact load and rejects one gram over',async()=>{
  const context={user:{role:'PACS',facility_id:153,id:1}};
  const exact=database({capacityKg:1000});
- assert.equal((await createShipment(exact.connection,body(),context)).quantity_g,1000000);
+ assert.equal((await createShipment(exact.connection,body(),context)).quantity_kg,1000);
  const below=database({capacityKg:999.999});
  await assert.rejects(createShipment(below.connection,body(),context),e=>e.code==='VEHICLE_OVERLOAD');
  assert(!below.queries.some(q=>q.sql.startsWith('INSERT INTO shipments')));
@@ -123,7 +122,7 @@ test('Vehicle capacity stored in kg accepts the exact load and rejects one gram 
 test('MT vehicle capacity is compared correctly against QTL shipment quantities',async()=>{
  const context={user:{role:'PACS',facility_id:153,id:1}};
  const exact=database({capacityKg:1,capacityUnit:'MT'});
- assert.equal((await createShipment(exact.connection,body(),context)).quantity_g,1000000);
+ assert.equal((await createShipment(exact.connection,body(),context)).quantity_kg,1000);
  const below=database({capacityKg:0.999999,capacityUnit:'MT'});
  await assert.rejects(createShipment(below.connection,body(),context),e=>e.code==='VEHICLE_OVERLOAD');
 });
@@ -151,27 +150,27 @@ test('Dispatch links an existing driver using saved shipment contact without iss
  const execute=connection.execute;
  connection.execute=async(sql,args)=>{
   if(sql.includes('FROM users WHERE phone='))return [[{id:55,name:'Saved Driver',phone:'9999999999',role:'DRIVER',active:1}]];
-  if(sql.startsWith('SELECT s.') && sql.includes('FROM shipments s'))return [[{id:20,leg:'PADDY',status:'PLANNED',miller_id:3,source_id:153,season_id:2,vehicle_id:4,quantity_g:1000000,scheme_code:'SCMR',driver_name:'Saved Driver',driver_phone:'9999999999'}]];
+  if(sql.startsWith('SELECT s.') && sql.includes('FROM shipments s'))return [[{id:20,leg:'PADDY',status:'PLANNED',miller_id:3,source_id:153,season_id:2,vehicle_id:4,quantity_kg:1000,scheme_code:'SCMR',driver_name:'Saved Driver',driver_phone:'9999999999'}]];
   if(sql.startsWith('SELECT active FROM facilities'))return [[{active:1}]];
-  if(sql.includes('FROM shipment_lots'))return [[]];
-  if(sql.includes(' FROM stocks '))return [[{id:1,status:1,on_hand_g:2000000,reserved_g:1000000}]];
+  if(sql.includes('FROM shipment_lots'))return [[{procurement_id:8,miller_id:3,quantity_kg:1000,procured_at:'2026-01-01T09:00:00Z'}]];
+  if(sql.includes(' FROM stocks '))return [[{id:1,status:1,on_hand_kg:2000,reserved_kg:1000}]];
   return execute(sql,args);
  };
  const result=await dispatchShipment(connection,{dispatched_at:new Date('2026-01-01T10:00:00Z'),receipt_no:'R-1'},{user:{id:1,role:'PACS',facility_id:153},params:{id:20}});
  assert.equal(result.driver_user_id,55);
- assert.equal(result.expected_completion_at.toISOString(),'2026-01-01T10:03:00.000Z');
+ assert.equal(result.expected_completion_at,null);
  assert.equal(result.driver_account.created,false);
  assert(!Object.hasOwn(result.driver_account,'initial_password'));
  const update=queries.find(q=>q.sql.startsWith("UPDATE shipments SET status='DISPATCHED'"));
  assert.equal(update.args.at(-2),55);
 });
 test('Paddy still requires an active mapping, unreserved stock and procurement lots',async()=>{
- for(const [options,code] of [[{mapped:false},'PADDY_MAPPING_NOT_FOUND'],[{stock:500000},'INSUFFICIENT_STOCK'],[{lots:500000},'INSUFFICIENT_LOTS']]){
+ for(const [options,code] of [[{mapped:false},'PADDY_MAPPING_NOT_FOUND'],[{stock:500},'INSUFFICIENT_STOCK'],[{lots:500},'INSUFFICIENT_LOTS']]){
   const {connection}=database(options);
   await assert.rejects(createShipment(connection,body(),{user:{role:'PACS',facility_id:153}}),e=>{
    assert.equal(e.code,code);
    if(code==='PADDY_MAPPING_NOT_FOUND')assert.match(e.message,/source_id=153.*destination_id=3.*season_id=2/);
-   if(code==='INSUFFICIENT_STOCK')assert.match(e.message,/Available=5 QTL; requested=10 QTL/);
+   if(code==='INSUFFICIENT_STOCK')assert.match(e.message,/Available=500 kg; requested=1000 kg/);
    return true;
   });
  }

@@ -10,7 +10,7 @@ const payload = () => ({
   received_at: new Date().toISOString(),
   stacks: [{
     stack_no: 'A1',
-    received_quantity_qtl: '289.43740',
+    received_quantity_kg: '28943.740',
     bags: 580
   }],
   gross_weight_kg: '29280.140',
@@ -26,11 +26,11 @@ const payload = () => ({
 test('Receiving calculation preserves the supplied five-decimal quintal example exactly', () => {
   const data = receivingSchema.parse(payload()),
     calc = receivingCalculation(data);
-  assert.equal(calc.tare_g, 336400);
-  assert.equal(calc.gross_g, 29280140);
-  assert.equal(calc.net_g, 28943740);
+  assert.equal(calc.tare_kg, 336.4);
+  assert.equal(calc.gross_kg, 29280.14);
+  assert.equal(calc.net_kg, 28943.74);
   assert.equal(calc.total_bags, 580);
-  assert.equal(calc.stacks[0].quantity_g, calc.net_g);
+  assert.equal(calc.stacks[0].quantity_kg, calc.net_kg);
   assert.throws(() => receivingCalculation({
     ...data,
     gross_weight_kg: '29280.139'
@@ -48,7 +48,7 @@ test('Receiving calculation preserves the supplied five-decimal quintal example 
     decision: 'REJECTED',
     compliance_confirmed: false,
     remarks: 'Quality standards failed'
-  }).net_g, 28943740);
+  }).net_kg, 28943.74);
   assert.throws(() => receivingCalculation({
     ...data,
     stacks: [...data.stacks, {
@@ -64,7 +64,7 @@ test('Receiving calculation preserves the supplied five-decimal quintal example 
     ...payload(),
     stacks: [{
       stack_no: 'A1',
-      received_quantity_qtl: '1.000001',
+      received_quantity_kg: '1.0001',
       bags: 1
     }]
   }).success);

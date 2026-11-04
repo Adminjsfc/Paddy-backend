@@ -316,16 +316,16 @@ test('Capacity preserves input value and unit while checks compare the same weig
 test('Storage capacity in kg is checked against gram stock across all seasons',async()=>{
   let changed=false;
   const connection={execute:async(sql)=>{
-    if(sql.startsWith('SELECT id,on_hand_g'))return [[{id:1,on_hand_g:500,reserved_g:0,status:1}]];
+    if(sql.startsWith('SELECT id,on_hand_kg'))return [[{id:1,on_hand_kg:0.5,reserved_kg:0,status:1}]];
     if(sql.startsWith('SELECT capacity_value'))return [[{capacity_value:1.001,capacity_unit:'KG'}]];
-    if(sql.startsWith('SELECT COALESCE(SUM(on_hand_g)'))return [[{amount:1000}]];
+    if(sql.startsWith('SELECT COALESCE(SUM(on_hand_kg)'))return [[{amount:1}]];
     if(sql.startsWith('UPDATE stocks'))changed=true;
     return [{insertId:1}];
   }};
-  await stock(connection,1,1,'PADDY',1,0,'TEST',1,'SCMR',{id:1,role:'ADMIN'});
+  await stock(connection,1,1,'PADDY',0.001,0,'TEST',1,'SCMR',{id:1,role:'ADMIN'});
   assert(changed);
   changed=false;
-  await assert.rejects(stock(connection,1,1,'PADDY',2,0,'TEST',1,'SCMR',{id:1,role:'ADMIN'}),e=>e.code==='CAPACITY_EXCEEDED');
+  await assert.rejects(stock(connection,1,1,'PADDY',0.002,0,'TEST',1,'SCMR',{id:1,role:'ADMIN'}),e=>e.code==='CAPACITY_EXCEEDED');
   assert.equal(changed,false);
 });
 

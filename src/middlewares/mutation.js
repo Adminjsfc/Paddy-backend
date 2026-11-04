@@ -1,6 +1,7 @@
 import { ensure, hash, actor } from "../utils/core.js";
 import * as repository from '../repositories/request-keys.repository.js';
 import { transaction } from "../utils/transaction.js";
+import { kilogramResponse } from '../utils/quantity-response.js';
 export function mutation(schema, fn) {
   return async (req, res) => {
     const data = schema.parse(req.body);
@@ -15,7 +16,7 @@ export function mutation(schema, fn) {
       ensure(record.payload_hash === digest, 'Idempotency-Key already used with a different body', 'IDEMPOTENCY_CONFLICT');
       if (record.response) return {
         replayed: true,
-        data: typeof record.response === 'string' ? JSON.parse(record.response) : record.response
+        data: kilogramResponse(typeof record.response === 'string' ? JSON.parse(record.response) : record.response)
       };
       const out = await fn(connection, data, req);
       await repository.saveResponse(connection, who, route, key, out);

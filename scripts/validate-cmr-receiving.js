@@ -55,7 +55,7 @@ try {
     imei_id: imei.id,
     district_id: base.district_id
   }), actor);
-  await stock(c, miller.id, season.id, 'RICE', 500000, 0, 'VALIDATION', miller.id, 'SCMR');
+  await stock(c, miller.id, season.id, 'RICE', 500, 0, 'VALIDATION', miller.id, 'SCMR');
   await insert(c, 'miller_store_assignments', {
     season_id: season.id,
     miller_id: miller.id,
@@ -72,9 +72,9 @@ try {
     order_no: 'VALIDATE-' + suffix,
     ordered_at: new Date(Date.now() - 60000),
     due_date: '2026-12-31',
-    rice_quantity_g: 500000
+    rice_quantity_kg: 500
   });
-  const initial = await one(c, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE' AND scheme_code='SCMR'", [dest.id, season.id], false);
+  const initial = await one(c, "SELECT on_hand_kg FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE' AND scheme_code='SCMR'", [dest.id, season.id], false);
   const receiver = {
     role: 'CORE_RECEIVER',
     actor: 'receiving-validation',
@@ -103,7 +103,7 @@ try {
     }), {
       user: actor
     });
-    await stock(c, miller.id, season.id, 'RICE', -100000, -100000, 'DISPATCH', s.id, 'SCMR');
+    await stock(c, miller.id, season.id, 'RICE', -100, -100, 'DISPATCH', s.id, 'SCMR');
     await rows(c, "UPDATE shipments SET status='ARRIVED',dispatched_at=?,trip_completed_at=? WHERE id=?", [new Date(Date.now() - 30000), new Date(Date.now() - 10000), s.id]);
     return s.id;
   };
@@ -113,7 +113,7 @@ try {
     received_at: new Date().toISOString(),
     stacks: [{
       stack_no: 'A',
-      received_quantity_qtl: '1.00000',
+      received_quantity_kg: '100.000',
       bags: 2
     }],
     gross_weight_kg: '101.160',
@@ -133,9 +133,9 @@ try {
       id: acceptedId
     }
   });
-  assert.equal(accepted.net_g, 100000);
+  assert.equal(accepted.net_kg, 100);
   assert.equal((await one(c, 'SELECT status FROM shipments WHERE id=?', [acceptedId])).status, 'DELIVERED');
-  assert.equal((await one(c, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE'", [dest.id, season.id])).on_hand_g, Number(initial?.on_hand_g || 0) + 100000);
+  assert.equal((await one(c, "SELECT on_hand_kg FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE'", [dest.id, season.id])).on_hand_kg, Number(initial?.on_hand_kg || 0) + 100);
   await assert.rejects(receiveCMR(c, body('ACCEPTED'), {
     user: receiver,
     params: {
@@ -150,10 +150,10 @@ try {
     }
   });
   assert.equal((await one(c, 'SELECT status FROM shipments WHERE id=?', [rejectedId])).status, 'ARRIVED');
-  assert.equal((await one(c, "SELECT on_hand_g FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE'", [dest.id, season.id])).on_hand_g, Number(initial?.on_hand_g || 0) + 100000);
-  const order = await one(c, 'SELECT delivered_g,committed_g FROM cmr_orders WHERE id=?', [orderId]);
-  assert.equal(order.delivered_g, 100000);
-  assert.equal(order.committed_g, 100000);
+  assert.equal((await one(c, "SELECT on_hand_kg FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE'", [dest.id, season.id])).on_hand_kg, Number(initial?.on_hand_kg || 0) + 100);
+  const order = await one(c, 'SELECT delivered_kg,committed_kg FROM cmr_orders WHERE id=?', [orderId]);
+  assert.equal(order.delivered_kg, 100);
+  assert.equal(order.committed_kg, 100);
   await assert.rejects(receiveCMR(c, body('REJECTED'), {
     user: {
       ...receiver,

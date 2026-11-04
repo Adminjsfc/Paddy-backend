@@ -7,7 +7,25 @@ import {shipment as shipmentSchema} from '../src/validators/schemas.js';
 import {grams} from '../src/utils/core.js';
 import {liftingSummary,dashboardVehicles} from '../src/services/reports.service.js';
 import {moduleForRequest} from '../src/middlewares/module-access.js';
-import {listMappings} from '../src/services/miller-mappings.service.js';
+import {listMappings,listSourceMappings} from '../src/services/miller-mappings.service.js';
+import {pool} from '../src/config/database.js';
+
+test('PACS/LAMPS mapping report is limited to the logged-in source for both roles',async t=>{
+  const calls=[];
+  t.mock.method(pool,'execute',async(sql,args)=>{calls.push({sql,args});return [sql.includes('COUNT(')?[{total:1}]:[{mapping_id:4,miller_id:3}]];});
+  for(const role of ['PACS','LAMPS']){
+    calls.length=0;
+    const result=await listSourceMappings({user:{role,facility_id:153},query:{season_id:'2'}});
+    assert.equal(result.body.pagination.total,1);
+    assert.equal(result.body.data[0].miller_id,3);
+    assert.equal(calls.length,2);
+    for(const {sql,args} of calls){assert.match(sql,/a.source_id=\?/);assert.match(sql,/a.active=1/);assert.deepEqual(args,[153,2]);}
+    await assert.rejects(listSourceMappings({user:{role,facility_id:153},query:{facility_id:'999'}}),e=>e.status===403);
+  }
+  for(const user of [{role:'MILLER',miller_id:3},{role:'ADMIN'},{role:'PACS'}])
+    await assert.rejects(listSourceMappings({user,query:{}}),e=>e.status===403);
+  await assert.rejects(listSourceMappings({user:{role:'PACS',facility_id:153},query:{season_id:'bad'}}));
+});
 
 test('Miller vehicle dashboard is scoped and uses dashboard view permission',async()=>{
   assert.equal(moduleForRequest({path:'/reports/dashboard/vehicles'}),'dashboard');
@@ -49,7 +67,7 @@ test('Common shipment schema supports both legs and scopes PACS to its PADDY sou
  const body={shipment_no:'TEST-1',leg:'PADDY',scheme_code:'SCMR',season_id:2,miller_id:3,source_id:153,destination_id:3,vehicle_id:4,quantity:{value:'10.125',unit:'QTL'}};
  assert.equal(grams(shipmentSchema.parse(body).quantity),1012500);
  assert.equal(shipmentSchema.parse({...body,leg:'CMR',order_id:5}).order_id,5);
- assert.throws(()=>shipmentSchema.parse({...body,lifted_g:0}));
+ assert.throws(()=>shipmentSchema.parse({...body,lifted_kg:0}));
  assert.deepEqual(scopedWhere({role:'PACS',facility_id:153}),{sql:" AND s.leg='PADDY' AND EXISTS (SELECT 1 FROM shipment_routes scope_route WHERE scope_route.id=s.route_id AND scope_route.source_id=?)",params:[153]});
  assert.throws(()=>scopedWhere({role:'LAMPS'}),e=>e.status===403);
  assert.throws(()=>shipmentSchema.parse({...body,release_order_id:1}));

@@ -2,7 +2,7 @@ import { pool } from "../config/database.js";
 import { rows, one, insert } from "../repositories/database.js";
 import { id } from "../utils/core.js";
 export async function receiveCMRFindShipments(connection, scope, context) {
-  return one(connection, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_g,s.accepted_g,s.shortage_g,s.recovery_percent,s.expected_rice_g,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.delivery_receipt,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,sr.source_id,sr.destination_id FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id JOIN facilities f ON f.id=sr.destination_id
+  return one(connection, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_kg,s.accepted_kg,s.shortage_kg,s.recovery_percent,s.expected_rice_kg,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.received_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,sr.source_id,sr.destination_id FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id JOIN facilities f ON f.id=sr.destination_id
     WHERE s.id=? AND s.leg='CMR' AND f.active=1 AND f.kind IN ('SFC_GODOWN','FCI') AND ${scope.sql} FOR UPDATE`, [id.parse(Number(context.params.id)), ...scope.args]);
 }
 export async function receiveCMRFindCmrReceipts(connection, shipment) {
@@ -13,10 +13,10 @@ export async function receiveCMRInsertCmrReceipts(connection, shipment, data, ca
     shipment_id: shipment.id,
     decision: data.decision,
     receipt_no: data.receipt_no,
-    gross_g: calc.gross_g,
-    tare_per_bag_g: calc.tare_per_bag_g,
-    tare_g: calc.tare_g,
-    net_g: calc.net_g,
+    gross_kg: calc.gross_kg,
+    tare_per_bag_kg: calc.tare_per_bag_kg,
+    tare_kg: calc.tare_kg,
+    net_kg: calc.net_kg,
     total_bags: calc.total_bags,
     red_grains_percent: data.red_grains_percent,
     chalky_grains_percent: data.chalky_grains_percent,
@@ -35,7 +35,7 @@ export async function receiveCMRInsertCmrReceiptStacks(connection, receiptId, st
   return insert(connection, 'cmr_receipt_stacks', {
     receipt_id: receiptId,
     stack_no: stack.stack_no,
-    quantity_g: stack.quantity_g,
+    quantity_kg: stack.quantity_kg,
     bags: stack.bags
   });
 }
@@ -43,29 +43,29 @@ export async function listShipmentsCountRecords(base, args) {
   return one(pool, `SELECT COUNT(s.id) total ${base}`, args);
 }
 export async function listShipmentsListRecords(base, limit, offset, args) {
-  return rows(pool, `SELECT s.id,s.shipment_no,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.quantity_g,s.accepted_g,s.shortage_g,s.stenciling_code,s.total_bags,s.dispatched_at,s.submitted_on,
-    s.scheme_code,s.commodity_code,s.scheme_code scheme_type,se.name season_name,f.name destination_name,m.name miller_name,m.address source_address,v.registration_no,r.id receipt_id,r.decision,r.net_g,r.received_at ${base}
+  return rows(pool, `SELECT s.id,s.shipment_no,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.quantity_kg,s.accepted_kg,s.shortage_kg,s.stenciling_code,s.total_bags,s.received_bags,s.dispatched_at,s.submitted_on,
+    s.scheme_code,s.commodity_code,s.scheme_code scheme_type,se.name season_name,f.name destination_name,m.name miller_name,m.address source_address,v.registration_no,r.id receipt_id,r.decision,r.net_kg,r.received_at ${base}
     ORDER BY s.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function listStockCountRecords(base, scope) {
-  return one(pool, `SELECT COUNT(st.id) total,COALESCE(SUM(st.quantity_g),0) received_g ${base}`, scope.args);
+  return one(pool, `SELECT COUNT(st.id) total,COALESCE(SUM(st.quantity_kg),0) received_kg ${base}`, scope.args);
 }
 export async function listStockListRecords(base, limit, offset, scope) {
-  return rows(pool, `SELECT st.id,st.receipt_id,st.stack_no,st.quantity_g,st.bags,r.receipt_no,r.received_at,s.shipment_no,s.scheme_code,s.commodity_code,s.stenciling_code,m.name miller_name,f.name destination_name,se.name season_name ${base}
+  return rows(pool, `SELECT st.id,st.receipt_id,st.stack_no,st.quantity_kg,st.bags,r.receipt_no,r.received_at,s.shipment_no,s.scheme_code,s.commodity_code,s.stenciling_code,m.name miller_name,f.name destination_name,se.name season_name ${base}
     ORDER BY r.received_at DESC,st.id DESC LIMIT ${limit} OFFSET ${offset}`, scope.args);
 }
 export async function listStockListStocks(scope) {
-  return rows(pool, `SELECT f.id,f.name,se.name season_name,s.scheme_code,s.commodity_code,s.commodity_code commodity,s.status,s.on_hand_g,s.reserved_g,CASE WHEN s.status=1 THEN s.on_hand_g-s.reserved_g ELSE 0 END available_g
+  return rows(pool, `SELECT f.id,f.name,se.name season_name,s.scheme_code,s.commodity_code,s.commodity_code commodity,s.status,s.on_hand_kg,s.reserved_kg,CASE WHEN s.status=1 THEN s.on_hand_kg-s.reserved_kg ELSE 0 END available_kg
     FROM stocks s JOIN facilities f ON f.id=s.facility_id JOIN seasons se ON se.id=s.season_id WHERE s.commodity_code='RICE' AND ${scope.sql}`, scope.args);
 }
 export async function getShipmentFindShipments(scope, context) {
-  return one(pool, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_g,s.accepted_g,s.shortage_g,s.recovery_percent,s.expected_rice_g,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.delivery_receipt,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,sr.source_id,sr.destination_id,s.scheme_code scheme_type,vt.name vehicle_type,f.name destination_name,m.name miller_name,v.registration_no FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id LEFT JOIN vehicle_types vt ON vt.id=s.vehicle_type_id
+  return one(pool, `SELECT s.id,s.shipment_no,s.leg,s.flow_type,s.season_id,s.miller_id,s.route_id,s.district_id,s.vehicle_id,s.order_id,s.quantity_kg,s.accepted_kg,s.shortage_kg,s.recovery_percent,s.expected_rice_kg,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,s.source_geofence,s.destination_geofence,s.dispatched_at,s.delivered_at,s.last_gps_at,s.dispatch_receipt,s.driver_name,s.driver_phone,s.remarks,s.created_at,s.submitted_on,s.agency,s.cmr_lot_count,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.received_bags,s.core_store_location_id,s.scheme_code,s.commodity_code,s.vehicle_type_id,s.driver_user_id,sr.source_id,sr.destination_id,s.scheme_code scheme_type,vt.name vehicle_type,f.name destination_name,m.name miller_name,v.registration_no FROM shipments s JOIN shipment_routes sr ON sr.id=s.route_id LEFT JOIN vehicle_types vt ON vt.id=s.vehicle_type_id
     JOIN facilities f ON f.id=sr.destination_id JOIN facilities m ON m.id=s.miller_id JOIN vehicles v ON v.id=s.vehicle_id
     WHERE s.id=? AND s.leg='CMR' AND ${scope.sql}`, [id.parse(Number(context.params.id)), ...scope.args]);
 }
 export async function getShipmentFindCmrReceipts(shipment) {
-  return one(pool, 'SELECT id,shipment_id,decision,receipt_no,gross_g,tare_per_bag_g,tare_g,net_g,total_bags,red_grains_percent,chalky_grains_percent,moisture_percent,broken_rice_percent,other_standards,compliance_confirmed,remarks,gps_override_reason,received_at,created_at,core_user_id,core_user_type FROM cmr_receipts WHERE shipment_id=?', [shipment.id], false);
+  return one(pool, 'SELECT id,shipment_id,decision,receipt_no,gross_kg,tare_per_bag_kg,tare_kg,net_kg,total_bags,red_grains_percent,chalky_grains_percent,moisture_percent,broken_rice_percent,other_standards,compliance_confirmed,remarks,gps_override_reason,received_at,created_at,core_user_id,core_user_type FROM cmr_receipts WHERE shipment_id=?', [shipment.id], false);
 }
 export async function getShipmentListCmrReceiptStacks(receipt) {
-  return rows(pool, 'SELECT id,receipt_id,stack_no,quantity_g,bags FROM cmr_receipt_stacks WHERE receipt_id=? ORDER BY id', [receipt.id]);
+  return rows(pool, 'SELECT id,receipt_id,stack_no,quantity_kg,bags FROM cmr_receipt_stacks WHERE receipt_id=? ORDER BY id', [receipt.id]);
 }

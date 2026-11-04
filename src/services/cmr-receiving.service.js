@@ -1,3 +1,4 @@
+import {addKg} from '../utils/core.js';
 import * as repository from "../repositories/cmr-receiving.repository.js";
 import { z } from 'zod';
 import { event } from "../repositories/events.repository.js";
@@ -11,26 +12,26 @@ export function receivingCalculation(data) {
   ensure(new Set(data.stacks.map(row => row.stack_no.toUpperCase())).size === data.stacks.length, 'Duplicate stack numbers', 'VALIDATION', 400);
   const stacks = data.stacks.map(row => ({
     ...row,
-    quantity_g: scaled(row.received_quantity_qtl, 5)
+    quantity_kg: scaled(row.received_quantity_kg, 3) / 1000
   }));
   const totalBags = stacks.reduce((sum, row) => sum + row.bags, 0),
-    received = stacks.reduce((sum, row) => sum + row.quantity_g, 0);
+    received = stacks.reduce((sum, row) => sum + Math.round(row.quantity_kg * 1000), 0);
   const gross = scaled(data.gross_weight_kg, 3),
     perBag = scaled(data.empty_bag_weight_kg, 3),
     tare = perBag * totalBags,
     net = gross - tare;
   ensure([gross, perBag, tare, net, received].every(Number.isSafeInteger), 'Weights are outside allowed range', 'VALIDATION', 400);
-  ensure(stacks.every(row => row.quantity_g > 0) && perBag > 0 && net > 0, 'Rice and bag weights must be positive', 'VALIDATION', 400);
+  ensure(stacks.every(row => row.quantity_kg > 0) && perBag > 0 && net > 0, 'Rice and bag weights must be positive', 'VALIDATION', 400);
   ensure(received === net, 'Stack received quantities must equal gross weight minus total empty bag weight', 'WEIGHT_MISMATCH', 400);
   ensure(data.decision !== 'ACCEPTED' || data.compliance_confirmed, 'Confirm rice quality compliance before accepting', 'QUALITY_CONFIRMATION_REQUIRED', 400);
   ensure(data.decision !== 'REJECTED' || data.remarks.length >= 10, 'Provide the rejection reason (at least 10 characters)', 'VALIDATION', 400);
   return {
     stacks,
     total_bags: totalBags,
-    gross_g: gross,
-    tare_per_bag_g: perBag,
-    tare_g: tare,
-    net_g: net
+    gross_kg: gross / 1000,
+    tare_per_bag_kg: perBag / 1000,
+    tare_kg: tare / 1000,
+    net_kg: net / 1000
   };
 }
 export function receivingScope(user, alias = 'f') {
@@ -48,8 +49,8 @@ export async function receiveCMR(connection, data, context) {
   ensure(shipment.status === 'ARRIVED' || data.gps_override_reason, 'GPS arrival is missing; provide an arrival override reason', 'GPS_ARRIVAL_REQUIRED', 409);
   ensure(data.received_at >= new Date(shipment.trip_completed_at || shipment.trip_started_at || shipment.dispatched_at), 'Receipt precedes transport events', 'VALIDATION', 400);
   const calc = receivingCalculation(data);
-  ensure(calc.net_g <= shipment.quantity_g, 'Net rice weight exceeds dispatched quantity', 'OVER_RECEIPT', 400);
-  ensure(calc.net_g === shipment.quantity_g || data.remarks.length > 0, 'Remarks are required for a shortage', 'VALIDATION', 400);
+  ensure(calc.net_kg <= shipment.quantity_kg, 'Net rice weight exceeds dispatched quantity', 'OVER_RECEIPT', 400);
+  ensure(calc.net_kg === shipment.quantity_kg || data.remarks.length > 0, 'Remarks are required for a shortage', 'VALIDATION', 400);
   const receiptId = await repository.receiveCMRInsertCmrReceipts(connection, shipment, data, calc, context);
   for (const stack of calc.stacks) await repository.receiveCMRInsertCmrReceiptStacks(connection, receiptId, stack);
   if (data.decision === 'ACCEPTED') {
@@ -57,10 +58,11 @@ export async function receiveCMR(connection, data, context) {
     // capacity, order commitment and shipment reconciliation in this transaction.
     await deliverShipment(connection, {
       accepted_quantity: {
-        value: (calc.net_g / 1000).toFixed(3),
+        value: calc.net_kg.toFixed(3),
         unit: 'KG'
       },
       delivered_at: data.received_at,
+      received_bags: calc.total_bags,
       receipt_no: data.receipt_no,
       remarks: data.remarks || null,
       gps_override_reason: data.gps_override_reason
@@ -75,15 +77,15 @@ export async function receiveCMR(connection, data, context) {
   await event(connection, shipment.id, `CMR_${data.decision}`, data.received_at, {
     receipt_id: receiptId,
     actor: context.user.actor,
-    net_g: calc.net_g,
+    net_kg: calc.net_kg,
     remarks: data.remarks
   });
   return {
     id: receiptId,
     shipment_id: shipment.id,
     decision: data.decision,
-    net_g: calc.net_g,
-    shortage_g: shipment.quantity_g - calc.net_g
+    net_kg: calc.net_kg,
+    shortage_kg: addKg(shipment.quantity_kg,-calc.net_kg)
   };
 }
 export async function listShipments(context) {
@@ -142,7 +144,7 @@ export async function listStock(context) {
       ok: true,
       data,
       balances,
-      received_g: count.received_g,
+      received_kg: count.received_kg,
       pagination: {
         page,
         limit,

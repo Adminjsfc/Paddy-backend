@@ -1,6 +1,6 @@
 import { pool } from "../config/database.js";
 import { rows, one, insert } from "../repositories/database.js";
-import { grams, hash } from "../utils/core.js";
+import { kilograms, hash } from "../utils/core.js";
 export function createPaddyUser(connection,data) {
   return insert(connection,'users',data);
 }
@@ -47,10 +47,10 @@ export async function getSetupOptionsListMillerStoreAssignments(marks, ids) {
   return rows(pool, `SELECT a.id,a.season_id,a.miller_id,a.store_id,a.active,a.created_by,a.created_at,a.unassigned_by,a.unassigned_at,m.name miller_name,f.name destination_name FROM miller_store_assignments a JOIN facilities m ON m.id=a.miller_id JOIN facilities f ON f.id=a.store_id WHERE m.district_id IN (${marks}) ORDER BY a.id DESC LIMIT 200`, ids);
 }
 export async function getSetupOptionsListCmrOrders(marks, ids) {
-  return rows(pool, `SELECT o.id,o.external_ref,o.payload_hash,o.season_id,o.miller_id,o.destination_id,o.order_no,o.ordered_at,o.due_date,o.rice_quantity_g,o.committed_g,o.delivered_g,o.status,o.scheme_code,o.commodity,m.name miller_name,f.name destination_name FROM cmr_orders o JOIN facilities m ON m.id=o.miller_id JOIN facilities f ON f.id=o.destination_id WHERE m.district_id IN (${marks}) ORDER BY o.id DESC LIMIT 200`, ids);
+  return rows(pool, `SELECT o.id,o.external_ref,o.payload_hash,o.season_id,o.miller_id,o.destination_id,o.order_no,o.ordered_at,o.due_date,o.rice_quantity_kg,o.committed_kg,o.delivered_kg,o.status,o.scheme_code,o.commodity,m.name miller_name,f.name destination_name FROM cmr_orders o JOIN facilities m ON m.id=o.miller_id JOIN facilities f ON f.id=o.destination_id WHERE m.district_id IN (${marks}) ORDER BY o.id DESC LIMIT 200`, ids);
 }
 export async function getSetupOptionsListStocks(marks, ids) {
-  return rows(pool, `SELECT s.id,s.facility_id,s.season_id,s.on_hand_g,s.reserved_g,s.scheme_code,s.commodity_code,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,s.commodity_code commodity,f.name miller_name FROM stocks s JOIN facilities f ON f.id=s.facility_id WHERE f.kind='MILLER' AND f.district_id IN (${marks}) AND s.commodity_code='RICE'`, ids);
+  return rows(pool, `SELECT s.id,s.facility_id,s.season_id,s.on_hand_kg,s.reserved_kg,s.scheme_code,s.commodity_code,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,s.commodity_code commodity,f.name miller_name FROM stocks s JOIN facilities f ON f.id=s.facility_id WHERE f.kind='MILLER' AND f.district_id IN (${marks}) AND s.commodity_code='RICE'`, ids);
 }
 export async function getSetupOptionsListGpsDevices(marks, ids) {
   return rows(pool, `SELECT v.id,v.registration_no,v.transporter_name,v.transporter_contact_no,v.district_id,v.capacity_value,v.capacity_unit,(SELECT i.imei FROM gps_devices linked_device JOIN imeis i ON i.id=linked_device.imei_id WHERE linked_device.vehicle_id=v.id AND linked_device.active=1 ORDER BY linked_device.id DESC LIMIT 1) imei,EXISTS(SELECT 1 FROM gps_devices d WHERE d.vehicle_id=v.id AND d.active=1) gps_active FROM vehicles v WHERE v.district_id IN (${marks}) ORDER BY v.id DESC LIMIT 200`, ids);
@@ -82,7 +82,7 @@ export async function createCmrOrderInsertCmrOrders(connection, context, data) {
     order_no: data.order_no,
     ordered_at: new Date(),
     due_date: data.due_date,
-    rice_quantity_g: grams(data.rice_quantity)
+    rice_quantity_kg: kilograms(data.rice_quantity)
   });
 }
 export async function addTestRiceFindSeasons(connection, data) {
@@ -94,7 +94,7 @@ export async function addTestRiceInsertTestStockEntries(connection, data, amount
     scheme_code: data.scheme_code,
     facility_id: data.miller_id,
     season_id: data.season_id,
-    quantity_g: amount
+    quantity_kg: amount
   });
 }
 
