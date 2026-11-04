@@ -1,6 +1,7 @@
 import * as repository from "../repositories/store-assignments.repository.js";
 import { ensure, id, pageParams } from "../utils/core.js";
 export async function createMillerStoreAssignments(connection, data, context) {
+  if(context.user.role==='INTEGRATION')return repository.pushMillerStoreAssignment(connection,data);
   await repository.createMillerStoreAssignmentsFindSeasons(connection, data);
   await repository.createMillerStoreAssignmentsFindFacilities(connection, data);
   await repository.createMillerStoreAssignmentsFindFacilities2(connection, data);

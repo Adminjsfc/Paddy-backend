@@ -16,7 +16,8 @@ export function allowedModule(permission, method) {
 }
 export async function moduleGuard(context, res, next) {
   if (context.user.role === 'DRIVER') {
-    ensure(context.method === 'GET' && /^\/shipments(?:\/\d+)?$/.test(context.path), 'Drivers can only view their assigned shipments', 'FORBIDDEN', 403);
+    const summary=context.method==='POST'&&['/tripsummary_for_driver','/driver_detailsList','/active_tripList','/getTripDetailsForDriver','/alert_report_for_driver'].includes(context.path);
+    ensure(summary||context.method === 'GET' && /^\/shipments(?:\/\d+)?$/.test(context.path), 'Drivers can only view their assigned shipments and trip summary', 'FORBIDDEN', 403);
     return next();
   }
   if (context.user.role !== 'MILLER') return next();

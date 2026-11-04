@@ -1,6 +1,19 @@
 import * as repository from '../repositories/drivers.repository.js';
 import {ensure, passwordHash} from '../utils/core.js';
 import {driverPassword} from '../utils/driver-password.js';
+import { z } from 'zod';
+import {id} from '../utils/core.js';
+
+const summaryInput=z.object({driver_id:id.optional()}).strict();
+export async function tripSummary(context) {
+  const input=summaryInput.parse(context.body??{});
+  ensure(context.user.role==='DRIVER','Driver login required','FORBIDDEN',403);
+  ensure(input.driver_id===undefined||input.driver_id===Number(context.user.id),
+    'Cannot view another driver summary','FORBIDDEN',403);
+  const summary=await repository.tripSummary(context.user.id);
+  const data=Object.fromEntries(['total_trips','active_trips','completed_trips'].map(key=>[key,Number(summary[key])]));
+  return {status:200,body:{ok:true,data}};
+}
 
 export function ownerFacility(user) {
   ensure(['PACS','LAMPS','MILLER'].includes(user.role), 'Only PACS/LAMPS and millers can manage drivers', 'FORBIDDEN', 403);

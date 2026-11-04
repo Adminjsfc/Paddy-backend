@@ -20,7 +20,7 @@ for (const type of ['farmers', 'vehicles', 'gps-devices', 'route-tags', 'vehicle
   masters.patch(`/${type}/:id/status`, roles(...(['route-tags', 'farmers', 'vehicle-types', 'imeis'].includes(type) ? ['ADMIN', 'OPERATOR'] : configs[type].roles)), controller.setMasterStatus(type));
 }
 export const masterPush = Router();
-for (const type of ['farmers', 'facilities', 'route-tags']) {
+for (const type of ['farmers', 'facilities', 'route-tags', 'seasons']) {
   masterPush.post('/' + type, controller.importMasterRecord(type));
 }
 for (const [type, schema] of Object.entries(profilePatches)) {

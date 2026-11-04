@@ -12,6 +12,7 @@ import {lockFacilities} from '../src/repositories/facilities.repository.js';
 import {transaction} from '../src/utils/transaction.js';
 import * as receiving from '../src/services/cmr-receiving.service.js';
 import {receivingSchema} from '../src/validators/cmr-receiving.schema.js';
+import {ensureTenRecords} from '../scripts/push-api-examples.js';
 if (!process.env.DB_NAME?.endsWith('_test')) throw new Error('Use a migrated DB_NAME ending in _test');
 const suffix = crypto.randomBytes(4).toString('hex'),
   ids = {};
@@ -39,6 +40,7 @@ const code = name => `${name}-${suffix}`;
 async function request(method, path, body, {
   auth = method === 'POST' && path === '/shipments' ? (body?.leg === 'PADDY' ? pacsToken : millerToken) : admin,
   apiKey,
+  pushMode,
   idem = key(),
   status
 } = {}) {
@@ -48,6 +50,7 @@ async function request(method, path, body, {
   };
   if (auth) headers.Authorization = `Bearer ${auth}`;
   if (apiKey) headers['X-API-Key'] = apiKey;
+  if (pushMode) headers['X-Push-Mode'] = pushMode;
   const r = await fetch(url + '/api/v1' + path, {
     method,
     headers,
@@ -88,6 +91,16 @@ before(async () => {
 after(async () => {
   if (server) await new Promise(r => server.close(r));
   await pool.end();
+});
+
+test('Integration key pushes season and both mappings without login',async()=>{
+  const apiKey=process.env.EUPARJAN_API_KEY;
+  const payload={code:code('PUSH-SEASON'),name:'External season',start_date:'2026-01-01',end_date:'2099-12-31',recovery_percent:68};
+  await request('POST','/integrations/euparjan/masters/seasons',payload,{auth:null,status:401});
+  const idem=key();
+  const season=await request('POST','/integrations/euparjan/masters/seasons',payload,{auth:null,apiKey,idem});
+  const replay=await request('POST','/integrations/euparjan/masters/seasons',payload,{auth:null,apiKey,idem,status:200});
+  assert.equal(replay.data.id,season.data.id);
 });
 test('Shipment schema keeps master IDs and meaningful CMR metadata',async()=>{
   const fields=new Set((await rows(pool,'SHOW COLUMNS FROM shipments')).map(row=>row.Field));
@@ -289,13 +302,13 @@ test('Reject invalid API key and atomically roll back partly invalid push batche
   });
   const body = {
     records: [procure('ROLLBACK'), {
-      ...procure('BAD-FARMER'),
-      farmer_code: 'MISSING'
+      ...ids.procBody.records[0],
+      quantity:qty(9999)
     }]
   };
   await request('POST', '/integrations/euparjan/procurements', body, {
     apiKey: process.env.EUPARJAN_API_KEY,
-    status: 404
+    status: 409
   });
   assert.equal((await one(pool, 'SELECT COUNT(*) n FROM procurement WHERE external_ref=?', [code('ROLLBACK')])).n, 0);
 });
@@ -434,18 +447,18 @@ test('Milling consumes available paddy, produces 6800 kg rice, and cannot double
 });
 test('Import CMR orders for both SFC and FCI, reserve rice and release on cancellation', async () => {
   const mismatch=await request('POST','/integrations/euparjan/cmr-orders',{
-    records:[{external_ref:code('BAD-ORDER-DISTRICT'),season_code:code('KMS'),miller_code:code('MILLER'),
-      destination_code:code('GODOWN'),order_no:code('BAD-ORDER-DISTRICT'),ordered_at:at(-34),
+    records:[{external_ref:code('BAD-ORDER-DISTRICT'),season_id:ids.season,miller_id:ids.miller,
+      destination_id:ids.godown,order_no:code('BAD-ORDER-DISTRICT'),ordered_at:at(-34),
       due_date:'2099-12-31',scheme_code:'SCMR',commodity_code:'RICE',rice_quantity:qty(1),district_id:ids.district+10000}]
-  },{apiKey:process.env.EUPARJAN_API_KEY,status:400});
-  assert.equal(mismatch.error.code,'DESTINATION_DISTRICT_MISMATCH');
+  },{apiKey:process.env.EUPARJAN_API_KEY,status:201});
+  assert(mismatch.data.records[0].id);
   for (const [label, destination] of [['SFC', 'GODOWN'], ['FCI', 'FCI']]) {
     const r = await request('POST', '/integrations/euparjan/cmr-orders', {
       records: [{
         external_ref: code(label),
-        season_code: code('KMS'),
-        miller_code: code('MILLER'),
-        destination_code: code(destination),
+        season_id: ids.season,
+        miller_id: ids.miller,
+        destination_id: destination==='GODOWN'?ids.godown:ids.fci,
         order_no: code(label),
         district_id:ids.district,
         lot_count:2,
@@ -687,7 +700,7 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
     await stock(c,ids.miller,ids.season,'RICE',1000,0,'SCHEME_TEST',ids.miller,'SCMR');
   });
   const order=(await request('POST','/integrations/euparjan/cmr-orders',{
-    records:[{external_ref:code('CCMR-ORDER'),season_code:code('KMS'),miller_code:code('MILLER'),destination_code:code('GODOWN'),
+    records:[{external_ref:code('CCMR-ORDER'),season_id:ids.season,miller_id:ids.miller,destination_id:ids.godown,
       order_no:code('CCMR-ORDER'),ordered_at:at(-34),due_date:'2099-12-31',scheme_code:'CCMR',commodity_code:'RICE',rice_quantity:qty(300)}]
   },{apiKey:process.env.EUPARJAN_API_KEY})).data.records[0].id;
   const riceBody={shipment_no:code('CCMR-RICE-OVER'),leg:'CMR',season_id:ids.season,scheme_code:'CCMR',miller_id:ids.miller,
@@ -716,9 +729,8 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
   assert.equal(unknown.ok,true); // Scheme codes are direct labels since migration 071.
   const missingSource=await request('POST','/integrations/euparjan/procurements',{
     records:[{...procure('MISSING-SOURCE'),facility_code:code('MISSING-LAMPS')}]
-  },{apiKey:process.env.EUPARJAN_API_KEY,status:404});
-  assert.equal(missingSource.error.code,'PADDY_SOURCE_NOT_FOUND');
-  assert(missingSource.error.message.includes('facility_code='+code('MISSING-LAMPS')+':'));
+  },{apiKey:process.env.EUPARJAN_API_KEY,status:201});
+  assert(missingSource.data.records[0].id);
   const mismatches=await rows(pool,`SELECT s.facility_id FROM stocks s LEFT JOIN (
     SELECT facility_id,season_id,scheme_code,commodity_code,SUM(on_hand_delta_kg) h,SUM(reserved_delta_kg) r
     FROM stock_ledger GROUP BY facility_id,season_id,scheme_code,commodity_code
@@ -793,9 +805,9 @@ test('RO allotment isolates Miller lifting, blocks reassignment in use and allow
   const apiKey=process.env.EUPARJAN_API_KEY;
   const record={...procure('ALLOTTED-OTHER',10),miller_id:ids.other};
   const invalid=await request('POST','/integrations/euparjan/procurements',{
-    records:[{...record,external_ref:code('NOT-A-MILLER'),miller_id:ids.pacs}]
-  },{apiKey,status:404});
-  assert.equal(invalid.error.code,'MILLER_NOT_FOUND');
+    records:[{...record,external_ref:code('NOT-A-MILLER'),miller_id:ids.pacs,facility_code:code('UNLINKED-PACS')}]
+  },{apiKey,status:201});
+  assert(invalid.data.records[0].id);
   await request('POST','/route-tags',{season_id:ids.season,source_id:ids.pacs,destination_id:ids.other});
   const imported=await request('POST','/integrations/euparjan/procurements',{records:[record]},{apiKey});
   const procurementId=imported.data.records[0].id;
@@ -879,9 +891,9 @@ test('CMR submission stores master IDs and preserves date, lots, driver and vehi
 test('fractional kg RO, lifting and receiving preserve one-gram shortage and independent bags',async()=>{
   const record={...procure('FRACTIONAL-KG'),quantity:{value:'426.47'},ro_no:code('RO-KG'),ro_date:'2026-02-26'};
   const wrongDistrict=await request('POST','/integrations/euparjan/procurements',{
-    records:[{...record,external_ref:code('WRONG-DISTRICT'),district_id:ids.district+1}]
-  },{apiKey:process.env.EUPARJAN_API_KEY,status:400});
-  assert.equal(wrongDistrict.error.code,'DISTRICT_MISMATCH');
+    records:[{...record,external_ref:code('WRONG-DISTRICT'),ro_no:code('RO-UNLINKED-DISTRICT'),facility_code:code('UNLINKED-DISTRICT-PACS'),district_id:ids.district+1}]
+  },{apiKey:process.env.EUPARJAN_API_KEY,status:201});
+  assert(wrongDistrict.data.records[0].id);
   const ro=await request('POST','/integrations/euparjan/procurements',{
     records:[record]
   },{apiKey:process.env.EUPARJAN_API_KEY});
@@ -934,4 +946,147 @@ test('fractional kg RO, lifting and receiving preserve one-gram shortage and ind
     ON l.facility_id=s.facility_id AND l.season_id=s.season_id AND l.scheme_code=s.scheme_code AND l.commodity_code=s.commodity_code
     WHERE s.season_id=? AND (s.on_hand_kg<>COALESCE(l.h,0) OR s.reserved_kg<>COALESCE(l.r,0))`,[ids.season]);
   assert.equal(mismatch.length,0);
+});
+
+test('Push both mapping types and ten-record procurement/CMR batches using only API key',async()=>{
+  const options={auth:null,apiKey:process.env.EUPARJAN_API_KEY};
+  const season=(await request('POST','/integrations/euparjan/masters/seasons',{
+    code:code('PUSH-MAPPINGS'),name:'Push mappings',start_date:'2026-01-01',end_date:'2099-12-31',recovery_percent:68
+  },options)).data;
+  const tag=await request('POST','/integrations/euparjan/masters/route-tags',{
+    season_id:season.id,source_id:ids.pacs,destination_id:ids.miller
+  },options);
+  assert(tag.data.id);
+  const mapping=await request('POST','/integrations/euparjan/miller-store-assignments',{
+    season_id:season.id,miller_id:ids.miller,store_id:ids.godown
+  },options);
+  assert.equal(mapping.data.store_id,ids.godown);
+  assert.equal(mapping.data.created_by,null);
+  const procurementRecords=ensureTenRecords([{...procure('PUSH-TEN',1),ro_no:code('RO-PUSH-TEN')}],'procurement');
+  const purchases=await request('POST','/integrations/euparjan/procurements',{records:procurementRecords},options);
+  assert.equal(new Set(purchases.data.records.map(r=>r.id)).size,10);
+  const records=ensureTenRecords([{
+    external_ref:code('CMR-PUSH-TEN'),season_id:ids.season,miller_id:ids.miller,
+    destination_id:ids.godown,order_no:code('ORDER-PUSH-TEN'),ordered_at:at(-30),
+    due_date:'2099-12-31',scheme_code:'SCMR',commodity_code:'RICE',rice_quantity:qty(1)
+  }],'cmr');
+  const idem=key();
+  const orders=await request('POST','/integrations/euparjan/cmr-orders',{records},{...options,idem});
+  assert.equal(new Set(orders.data.records.map(r=>r.id)).size,10);
+  const retry=await request('POST','/integrations/euparjan/cmr-orders',{records},{...options,idem,status:200});
+  assert.equal(retry.replayed,true);
+});
+
+
+test('Push APIs insert directly into original tables without linked master records',async()=>{
+  const options={auth:null,apiKey:process.env.EUPARJAN_API_KEY};
+  const refs={season_code:code('NO-SEASON'),facility_code:code('NO-PACS'),farmer_code:code('NO-FARMER')};
+  const record={...procure('UNLINKED-PROC',5),...refs,miller_id:4000000000,district_id:999999,ro_no:code('UNLINKED-RO')};
+  const result=await request('POST','/integrations/euparjan/procurements',{records:[record]},options);
+  const stored=await one(pool,'SELECT * FROM procurement WHERE id=?',[result.data.records[0].id]);
+  assert.equal(stored.season_id,null);assert.equal(stored.facility_id,null);assert.equal(stored.farmer_id,null);
+  assert.equal(stored.miller_id,4000000000);assert.equal(stored.season_code,refs.season_code);
+  assert.equal(stored.facility_code,refs.facility_code);assert.equal(stored.farmer_code,refs.farmer_code);
+  assert.equal(Number(stored.quantity_kg),5);
+  await request('POST','/integrations/euparjan/procurements',{records:[{...record,external_ref:code('UNLINKED-DUPLICATE-RO')}]},{...options,status:409});
+  const repeat=await request('POST','/integrations/euparjan/procurements',{records:[record]},options);
+  assert.equal(repeat.data.records[0].id,stored.id);assert.equal(repeat.data.records[0].duplicate,true);
+  const order={external_ref:code('UNLINKED-CMR'),season_id:4000000000,miller_id:4000000001,
+    destination_id:4000000002,scheme_code:'SCMR',commodity_code:'RICE',order_no:code('UNLINKED-ORDER'),
+    ordered_at:at(-15),due_date:'2099-12-31',rice_quantity:qty(5)};
+  const imported=await request('POST','/integrations/euparjan/cmr-orders',{records:[order]},options);
+  const cmr=await one(pool,'SELECT * FROM cmr_orders WHERE id=?',[imported.data.records[0].id]);
+  assert.equal(cmr.season_id,order.season_id);assert.equal(cmr.miller_id,order.miller_id);assert.equal(cmr.destination_id,order.destination_id);
+  for(const field of ['season_code','miller_code','destination_code'])assert(!Object.hasOwn(cmr,field));
+  await request('POST','/integrations/euparjan/cmr-orders',{records:[{...order,external_ref:code('UNLINKED-DUPLICATE-ORDER')}]},{...options,status:409});
+  for(const [path,table,body] of [
+    ['masters/route-tags','route_tags',{season_id:4000000000,source_id:4000000001,destination_id:4000000002}],
+    ['miller-store-assignments','miller_store_assignments',{season_id:4000000000,miller_id:4000000002,store_id:4000000003}]
+  ]){
+    const saved=await request('POST','/integrations/euparjan/'+path,body,options);
+    const row=await one(pool,'SELECT * FROM '+table+' WHERE id=?',[saved.data.id]);
+    assert.equal(row.season_id,body.season_id);
+    await request('POST','/integrations/euparjan/'+path,body,{...options,status:409});
+  }
+  const list=await request('GET','/procurements?ro_no='+encodeURIComponent(record.ro_no));
+  assert(list.data.some(row=>row.id===stored.id));
+  const constraints=await rows(pool,`SELECT TABLE_NAME FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('procurement','cmr_orders','route_tags','miller_store_assignments')
+    AND REFERENCED_TABLE_NAME IN ('seasons','facilities','farmers')`);
+  assert.equal(constraints.length,0);
+});
+
+test('Driver Paddy summary counts assigned trips, excludes CMR/cancelled, and cannot read another driver',async()=>{
+  const driverId=await insert(pool,'users',{name:'Summary driver',email:code('summary-driver')+'@test.invalid',phone:'9111111101',role:'DRIVER',active:1,password_hash:await passwordHash(pass),facility_id:ids.pacs});
+  const otherDriverId=await insert(pool,'users',{name:'Other summary driver',email:code('other-summary-driver')+'@test.invalid',phone:'9111111102',role:'DRIVER',active:1,password_hash:await passwordHash(pass),facility_id:ids.pacs});
+  const driverLogin=await request('POST','/auth/login',{phone:'9111111101',password:pass},{auth:null});
+  const auth=driverLogin.data.token;
+  assert.deepEqual((await request('POST','/tripsummary_for_driver',{}, {auth})).data,{total_trips:0,active_trips:0,completed_trips:0});
+  const vehicle=(await request('POST','/vehicles',{transporter_name:'Summary transporter',transporter_contact_no:'9111111101',district_id:ids.district,vehicle_type_id:ids.vehicleType,registration_no:'SUM'+suffix.toUpperCase(),capacity:qty(20,'MT')})).data.id;
+  const examples=await rows(pool,"SELECT id,leg FROM shipments WHERE status IN ('DELIVERED','CANCELLED') ORDER BY id");
+  const paddyRows=examples.filter(row=>row.leg==='PADDY').slice(0,5);
+  const cmrRow=examples.find(row=>row.leg==='CMR');
+  assert.equal(paddyRows.length,5);assert(cmrRow);
+  const assignments=[
+    [paddyRows[0].id,driverId,1,'IN_TRANSIT'],[paddyRows[1].id,driverId,2,'DELIVERED'],
+    [paddyRows[2].id,driverId,2,'DELIVERED'],[paddyRows[3].id,driverId,1,'CANCELLED'],
+    [paddyRows[4].id,otherDriverId,2,'DELIVERED'],[cmrRow.id,driverId,2,'DELIVERED']
+  ];
+  for(const [shipmentId,userId,tripStatus,status] of assignments)
+    await rows(pool,'UPDATE shipments SET driver_user_id=?,trip_status=?,status=?,vehicle_id=IF(?=1 AND ?=\'IN_TRANSIT\',?,vehicle_id) WHERE id=?',[userId,tripStatus,status,tripStatus,status,vehicle,shipmentId]);
+  const result=await request('POST','/tripsummary_for_driver',{}, {auth});
+  assert.deepEqual(result.data,{total_trips:3,active_trips:1,completed_trips:2});
+  assert.deepEqual((await request('POST','/tripsummary_for_driver',{driver_id:driverId},{auth})).data,result.data);
+  await request('POST','/tripsummary_for_driver',{driver_id:otherDriverId},{auth,status:403});
+  await request('POST','/tripsummary_for_driver',{}, {auth:null,status:401});
+  await request('POST','/tripsummary_for_driver',{}, {status:403});
+  const active=await request('GET','/shipments?leg=PADDY&trip_status=1&exclude_cancelled=true',undefined,{auth});
+  assert.equal(active.data.length,1);assert.equal(active.data[0].id,paddyRows[0].id);
+  await request('GET','/shipments/'+paddyRows[4].id,undefined,{auth,status:404});
+});
+
+test('Driver profile, active trip, history and persistent alerts enforce the Paddy session scope',async()=>{
+  const driver=await one(pool,'SELECT id FROM users WHERE phone=?',['9111111101']);
+  const other=await one(pool,'SELECT id FROM users WHERE phone=?',['9111111102']);
+  const auth=(await request('POST','/auth/login',{phone:'9111111101',password:pass},{auth:null})).data.token;
+  const options={auth};
+  const profile=await request('POST','/driver_detailsList',{},options);
+  assert.equal(profile.data.driver_id,driver.id);assert.equal(profile.data.contact,'9111111101');
+  assert.equal(profile.data.total_trips,3);assert.equal(profile.data.dl_no,null);
+  assert(!Object.hasOwn(profile.data,'password'));assert(!Object.hasOwn(profile.data,'password_hash'));
+  const active=await request('POST','/active_tripList',{},options);
+  assert.equal(active.data.driver_id,driver.id);assert.equal(active.data.trip_status,1);
+  assert.equal(active.data.quantity_unit,'KG');assert(!Object.hasOwn(active.data,'subtrips'));
+  const history=await request('POST','/getTripDetailsForDriver',{page:1,limit:1},options);
+  assert.equal(history.count,1);assert.equal(history.pagination.total,3);
+  const detail=await request('POST','/getTripDetailsForDriver',{trip_id:active.data.id},options);
+  assert.equal(detail.data[0].trip_id,active.data.id);assert(!Object.hasOwn(detail.data[0],'subtrips'));
+  const otherTrip=await one(pool,'SELECT id FROM shipments WHERE driver_user_id=? LIMIT 1',[other.id]);
+  await request('POST','/getTripDetailsForDriver',{trip_id:otherTrip.id},{auth,status:404});
+  const empty=await request('POST','/getTripDetailsForDriver',{from_date:'2099-01-01'},options);
+  assert.equal(empty.count,0);
+  await request('POST','/getTripDetailsForDriver',{from_date:'2026-11-05',to_date:'2026-11-01'},{auth,status:400});
+  const old=new Date(Date.now()-3*3600000),eta=new Date(Date.now()-2*3600000);
+  await rows(pool,'UPDATE shipments SET trip_started_at=?,last_gps_at=?,expected_completion_at=? WHERE id=?',[old,old,eta,active.data.id]);
+  const alerts=await request('POST','/alert_report_for_driver',{page:1,limit:20},options);
+  assert.equal(alerts.count,2);
+  assert.deepEqual(alerts.data.map(row=>row.alert_name).sort(),['ETA Delayed','GPS Offline']);
+  for(const row of alerts.data){assert.equal(row.driver_id,driver.id);assert.equal(row.trip_id,active.data.id);assert(row.alert_message);}
+  const again=await request('POST','/alert_report_for_driver',{},options);
+  assert.equal(again.count,2);
+  const otherAuth=(await request('POST','/auth/login',{phone:'9111111102',password:pass},{auth:null})).data.token;
+  assert.equal((await request('POST','/alert_report_for_driver',{}, {auth:otherAuth})).count,0);
+  await rows(pool,"UPDATE shipments SET status='ARRIVED',trip_status=2 WHERE id=?",[active.data.id]);
+  assert.equal((await request('POST','/active_tripList',{},options)).data,null);
+  assert.equal((await request('POST','/alert_report_for_driver',{},options)).count,2);
+  const now=new Date();
+  await rows(pool,"UPDATE shipments SET status='IN_TRANSIT',trip_status=1,last_gps_at=?,expected_completion_at=? WHERE id=?",[now,new Date(Date.now()+3600000),active.data.id]);
+  assert.equal((await request('POST','/alert_report_for_driver',{},options)).count,2);
+  await rows(pool,'UPDATE shipments SET last_gps_at=? WHERE id=?',[new Date(Date.now()-20*60000),active.data.id]);
+  assert.equal((await request('POST','/alert_report_for_driver',{},options)).count,3);
+  for(const endpoint of ['/driver_detailsList','/active_tripList','/getTripDetailsForDriver','/alert_report_for_driver']){
+    await request('POST',endpoint,{driver_id:other.id},{auth,status:403});
+    await request('POST',endpoint,{}, {auth:null,status:401});
+    await request('POST',endpoint,{}, {status:403});
+  }
 });

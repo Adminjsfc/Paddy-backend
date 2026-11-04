@@ -6,21 +6,19 @@ import {shipment} from '../src/validators/schemas.js';
 import {procurementBatch} from '../src/validators/schemas.js';
 import {importProcurements} from '../src/services/procurement.service.js';
 
-test('Procurement import identifies the only the missing field and supplied value',async()=>{
- const record={external_ref:'MISSING-MASTER',scheme_code:'SCMR',commodity_code:'PADDY',season_code:'KMS',facility_code:'LAMPS-REAL-CODE',procured_at:new Date('2026-01-02T10:00:00Z'),quantity:{value:200,unit:'QTL'},moisture_percent:null};
- for(const [table,errorCode,field] of [['seasons','SEASON_NOT_FOUND','season_code'],['facilities','PADDY_SOURCE_NOT_FOUND','facility_code']]){
-  const connection={execute:async(sql)=>{
-   if(sql.includes('FROM procurement')||sql.includes('FROM '+table))return [[]];
-   if(sql.includes('FROM seasons'))return [[{id:1,start_date:'2026-01-01',end_date:'2026-12-31'}]];
-   return [[{id:1}]];
-  }};
-  await assert.rejects(importProcurements(connection,{records:[record]}),error=>{
-   assert.equal(error.code,errorCode);assert.equal(error.status,404);
-   assert(error.message.startsWith(field+'='+record[field]+':'));
-   assert(!error.message.includes('records['));assert(!error.message.includes('external_ref'));
-   return true;
-  });
- }
+test('Procurement push preserves codes and inserts the original row when all masters are missing',async()=>{
+ const record={external_ref:'MISSING-MASTER',scheme_code:'SCMR',commodity_code:'PADDY',miller_id:999,
+   season_code:'KMS',facility_code:'LAMPS-REAL-CODE',farmer_code:'MISSING-FARMER',
+   procured_at:new Date('2026-01-02T10:00:00Z'),quantity:{value:200,unit:'QTL'},moisture_percent:null};
+ let insertSql,insertValues;
+ const connection={execute:async(sql,values)=>{
+   if(sql.startsWith('INSERT INTO procurement')){insertSql=sql;insertValues=values;return [{insertId:7}];}
+   assert(!sql.includes('stocks'));return [[]];
+ }};
+ const result=await importProcurements(connection,{records:[record]});
+ assert.equal(result.records[0].id,7);assert.equal(result.records[0].quantity_kg,20000);
+ assert(insertSql.includes('season_code'));assert(insertValues.includes(record.season_code));
+ assert(insertValues.includes(record.facility_code));assert(insertValues.includes(record.farmer_code));
 });
 
 test('Repeated procurement reference reports stored and received quantity on conflict',async()=>{

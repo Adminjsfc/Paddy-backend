@@ -1,5 +1,9 @@
 import { pool } from "../config/database.js";
-import { one, rows } from "../repositories/database.js";
+import { one, rows, insert } from "../repositories/database.js";
+export async function pushMillerStoreAssignment(connection,data){
+  const id=await insert(connection,'miller_store_assignments',{...data,created_by:null});
+  return {...data,id,active:1,created_by:null};
+}
 import { id } from "../utils/core.js";
 export async function createMillerStoreAssignmentsFindSeasons(connection, data) {
   return one(connection, "SELECT id FROM seasons WHERE id=? AND active=1", [data.season_id]);

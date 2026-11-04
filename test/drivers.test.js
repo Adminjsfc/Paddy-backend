@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ensureDriver,ownerFacility} from '../src/services/drivers.service.js';
+import {ensureDriver,ownerFacility,tripSummary} from '../src/services/drivers.service.js';
 import {verifyPassword,scopedWhere} from '../src/utils/core.js';
 import {driver,login,shipment,dispatch} from '../src/validators/schemas.js';
 import {moduleGuard} from '../src/middlewares/module-access.js';
 import {login as authenticate} from '../src/services/auth.service.js';
 import {pool} from '../src/config/database.js';
 import {passwordHash} from '../src/utils/core.js';
+import {pendingAlerts} from '../src/services/driver-alerts.service.js';
+import {tripView,eta} from '../src/services/driver-reports.service.js';
 
 const context = {user:{id:2,role:'PACS',facility_id:153}};
 const data = {name:'Driver One',phone:'9999999999'};
@@ -78,8 +80,48 @@ test('Driver access is limited to assigned shipments and cannot mutate data', as
     await moduleGuard({user,path,method:'GET'},null,()=>{allowed=true;});
     assert(allowed);
   }
+  let summaryAllowed=false;
+  await moduleGuard({user,path:'/tripsummary_for_driver',method:'POST'},null,()=>{summaryAllowed=true;});
+  assert(summaryAllowed);
   for(const [method,path] of [['POST','/shipments'],['GET','/vehicles'],['GET','/reports/dashboard'],['POST','/shipments/1/dispatch']])
     await assert.rejects(moduleGuard({user,path,method},null,()=>assert.fail()),e=>e.status===403);
+});
+
+test('Driver summary uses session identity and converts counts to numbers',async t=>{
+  const queries=[];
+  t.mock.method(pool,'execute',async(sql,args)=>{
+    queries.push({sql,args});
+    return [[{total_trips:'3',active_trips:'1',completed_trips:'2'}]];
+  });
+  const result=await tripSummary({user:{id:42,role:'DRIVER'},body:{}});
+  assert.deepEqual(result.body,{ok:true,data:{total_trips:3,active_trips:1,completed_trips:2}});
+  assert.deepEqual(queries[0].args,[42]);
+  await assert.rejects(tripSummary({user:{id:42,role:'DRIVER'},body:{driver_id:43}}),e=>e.status===403);
+  await assert.rejects(tripSummary({user:{id:42,role:'ADMIN'},body:{}}),e=>e.status===403);
+  assert.equal(queries.length,1);
+});
+
+test('Driver alert thresholds and ETA use actual timestamps without manufacturing ignition alerts',()=>{
+  const now=Date.parse('2026-11-04T12:00:00Z');
+  const row={gps_reference:'2026-11-04T11:45:00Z',expected_completion_at:null,registration_no:'JH10AF5535',shipment_no:'P-1'};
+  assert.deepEqual(pendingAlerts(row,now,15),[]);
+  const alerts=pendingAlerts({...row,gps_reference:'2026-11-04T11:44:59Z',expected_completion_at:'2026-11-04T11:00:00Z'},now,15);
+  assert.deepEqual(alerts.map(a=>a.type),['GPS_OFFLINE','ETA_DELAYED']);
+  assert.deepEqual(eta({expected_completion_at:null},now),{eta_state:'UNKNOWN',eta_status:null,eta_hours:null});
+  assert.equal(eta({expected_completion_at:'2026-11-04T11:00:00Z'},now).eta_state,'DELAYED');
+  assert.equal(eta({expected_completion_at:'2026-11-04T11:59:59Z'},now).eta_state,'DELAYED');
+});
+
+test('Driver trip view preserves zero receipt quantities, units and no-subtrip contract',()=>{
+  const row={id:1,shipment_no:'P-1',quantity_kg:'1000.000',trip_status:2,total_bags:'20',received_bags:0,
+    accepted_kg:'0.000',delivered_at:'2026-11-04T11:00:00Z',trip_completed_at:'2026-11-04T10:00:00Z',
+    procurement_lots:'[]',source_name:'PACS',destination_name:'Miller',distance_km:'26.4',duration_minutes:'120'};
+  const view=tripView(row);
+  assert.equal(view.received_quantity,0);assert.equal(view.received_number_of_bags,0);
+  assert.equal(view.quantity_unit,'KG');assert.equal(view.route_distance,26.4);assert.equal(view.route_time_duration,120);
+  assert.equal(view.trip_date,null);assert.equal(view.completion_date,'2026-11-04T10:00:00Z');
+  assert(!Object.hasOwn(view,'subtrips'));assert(!Object.hasOwn(view,'transporter_id'));
+  assert.equal(tripView({...row,delivered_at:null}).received_quantity,null);
 });
 test('Shipment and dispatch accept driver_contact alias and reject conflicting contacts', () => {
   const body={shipment_no:'D-1',leg:'PADDY',scheme_code:'SCMR',season_id:1,miller_id:3,source_id:153,destination_id:3,vehicle_id:4,quantity:{value:10,unit:'QTL'},driver_name:data.name,driver_contact:data.phone};

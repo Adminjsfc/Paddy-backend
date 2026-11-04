@@ -50,14 +50,8 @@ export async function pushProcurement(connection, data, context = {}) {
       duplicate: true
     };
   }
-  const masters=await requireStockMasters(connection,data.scheme_code,data.commodity_code);
-  const season = await activeSeason(connection, data.season_code, true);
-  inSeason(season, data.procured_at);
-  const farmer = data.farmer_code ? await repository.pushProcurementFindFarmers(connection, data) : null;
-  const f = await repository.pushProcurementFindFacilities(connection, data);
-  ensure(data.district_id===undefined||Number(f.district_id)===data.district_id,
-    'district_id does not match the mapped MSP facility district', 'DISTRICT_MISMATCH', 400);
-  await repository.requireProcurementMiller(connection,id.parse(data.miller_id));
+  const masters={scheme_code:data.scheme_code,commodity_code:data.commodity_code};
+  const {season,farmer,facility:f}=await repository.pushMasterReferences(connection,data);
   const raced = await repository.pushProcurementFindProcurement2(connection, data);
   if (raced) {
     requireSameProcurement(raced,data,digest);
@@ -68,7 +62,7 @@ export async function pushProcurement(connection, data, context = {}) {
   }
   const amount = kilograms(data.quantity);
   const procurementId = await repository.pushProcurementInsertProcurement(connection, data, digest, season, farmer, f, amount, masters);
-  await stock(connection, f.id, season.id, 'PADDY', amount, 0, 'PROCUREMENT', procurementId, data.scheme_code, context.user);
+  if(f&&season)await stock(connection, f.id, season.id, 'PADDY', amount, 0, 'PROCUREMENT', procurementId, data.scheme_code, context.user);
   return {
     id: procurementId,
     quantity_kg: amount,
@@ -120,10 +114,6 @@ export async function pushOrder(connection, data) {
       duplicate: true
     };
   }
-  const season = await activeSeason(connection, data.season_code, true);
-  inSeason(season, data.ordered_at);
-  await requireStockMasters(connection,data.scheme_code,data.commodity_code);
-  const miller = await repository.pushOrderFindFacilities(connection, data);
   const raced = await repository.pushOrderFindCmrOrders2(connection, data);
   if (raced) {
     ensure(raced.payload_hash === digest, 'CMR reference already exists with different data', 'EXTERNAL_REF_CONFLICT');
@@ -132,13 +122,9 @@ export async function pushOrder(connection, data) {
       duplicate: true
     };
   }
-  const dest = await repository.pushOrderFindFacilities2(connection, data);
-  ensure(data.district_id===undefined||Number(dest.district_id)===data.district_id,
-    'district_id must match the destination depot district','DESTINATION_DISTRICT_MISMATCH',400);
-  await repository.pushOrderFindMillerStoreAssignments(connection, season, miller, dest);
   ensure(data.due_date >= new Date(data.ordered_at.getTime() + 19800000).toISOString().slice(0, 10), 'Due date precedes order date', 'VALIDATION', 400);
   const amount = kilograms(data.rice_quantity);
-  const id = await repository.pushOrderInsertCmrOrders(connection, data, digest, season, miller, dest, amount);
+  const id = await repository.pushOrderInsertCmrOrders(connection, data, digest, amount);
   return {
     id,
     rice_quantity_kg: amount,

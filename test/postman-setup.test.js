@@ -45,15 +45,19 @@ test('repeated Admin login preserves existing vehicle, dates and setup IDs',()=>
   assert.equal(s.c.get('order_at'),'2026-02-26T10:00:00Z');
 });
 
-test('failed setup prevents CMR order requests using stale references',()=>{
+test('push requests are independent of failed saved setup; shipment guards remain',()=>{
   const s=sandbox({setup_attempted:'true',setup_ready:'false'});
   s.pm.request.method='POST';s.pm.request.url.toString=()=>'/api/v1/integrations/euparjan/cmr-orders';
+  assert.doesNotThrow(()=>s.run(savedDefaults));assert.notEqual(s.pm.skipped,true);
+  s.pm.request.url.toString=()=>'/api/v1/integrations/euparjan/procurements';
+  assert.doesNotThrow(()=>s.run(savedDefaults));assert.notEqual(s.pm.skipped,true);
+  s.pm.request.url.toString=()=>'/api/v1/shipments';
   assert.throws(()=>s.run(savedDefaults),/Load saved setup first/);assert.equal(s.pm.skipped,true);
 });
 
 test('CMR order accepts full source LotNo as order_no and validates new metadata',()=>{
-  const body={external_ref:'CMR-1',scheme_code:'SCMR',commodity_code:'RICE',season_code:'KMS',
-    miller_code:'MILL',destination_code:'DEPOT',order_no:'20095/CAPL/25-26/M53626',
+  const body={external_ref:'CMR-1',scheme_code:'SCMR',commodity_code:'RICE',season_id:1,
+    miller_id:3,destination_id:4,order_no:'20095/CAPL/25-26/M53626',
     ordered_at:'2026-02-25T10:00:00Z',due_date:'2026-02-26',rice_quantity:{value:290},
     district_id:5,lot_count:2,stenciling_code:'GML/JSFC/COR/004/2025-26'};
   assert.equal(cmrOrder.parse(body).order_no,body.order_no);

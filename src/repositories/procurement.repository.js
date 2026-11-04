@@ -6,6 +6,14 @@ export async function activeSeasonFindSeasons(connection, byCode, idOrCode) {
 export async function pushProcurementFindProcurement(connection, data) {
   return findProcurementReference(connection,data.external_ref);
 }
+export async function pushMasterReferences(connection,data) {
+  const season=await one(connection,'SELECT id,code,start_date,end_date FROM seasons WHERE code=? AND active=1',[data.season_code],false);
+  const facility=data.facility_code?await one(connection,"SELECT id,district_id FROM facilities WHERE code=? AND kind IN ('PACS','LAMPS') AND active=1 FOR UPDATE",[data.facility_code],false):null;
+  const farmer=data.farmer_code?await one(connection,'SELECT id FROM farmers WHERE code=? AND active=1',[data.farmer_code],false):null;
+  const miller=data.miller_code?await one(connection,"SELECT id FROM facilities WHERE code=? AND kind='MILLER' AND active=1 FOR UPDATE",[data.miller_code],false):null;
+  const destination=data.destination_code?await one(connection,"SELECT id,district_id FROM facilities WHERE code=? AND kind IN ('SFC_GODOWN','FCI') AND active=1",[data.destination_code],false):null;
+  return {season,facility,farmer,miller,destination};
+}
 export const requireProcurementMiller=(connection,millerId)=>one(connection,
   "SELECT id FROM facilities WHERE id=? AND kind='MILLER' AND active=1",[millerId],true,
   {code:'MILLER_NOT_FOUND',message:`miller_id=${millerId}: active MILLER facility not found.`});
@@ -13,9 +21,9 @@ export const conflictingProcurementMiller=(connection,procurementId,millerId)=>o
   "SELECT s.id FROM shipment_lots l JOIN shipments s ON s.id=l.shipment_id WHERE l.procurement_id=? AND s.status<>'CANCELLED' AND s.miller_id<>? LIMIT 1",
   [procurementId,millerId],false);
 function findProcurementReference(connection,externalRef,lock=false) {
-  return one(connection,`SELECT p.id,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.district_id,p.procured_at,p.quantity_kg,p.available_kg,p.reserved_kg,p.moisture_percent,p.created_at,p.scheme_code,p.commodity_code,se.code season_code,
-    f.code facility_code,farmer.code farmer_code FROM procurement p JOIN seasons se ON se.id=p.season_id
-    JOIN facilities f ON f.id=p.facility_id LEFT JOIN farmers farmer ON farmer.id=p.farmer_id
+  return one(connection,`SELECT p.id,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.district_id,p.procured_at,p.quantity_kg,p.available_kg,p.reserved_kg,p.moisture_percent,p.created_at,p.scheme_code,p.commodity_code,COALESCE(p.season_code,se.code) season_code,
+    COALESCE(p.facility_code,f.code) facility_code,COALESCE(p.farmer_code,farmer.code) farmer_code FROM procurement p LEFT JOIN seasons se ON se.id=p.season_id
+    LEFT JOIN facilities f ON f.id=p.facility_id LEFT JOIN farmers farmer ON farmer.id=p.farmer_id
     LEFT JOIN procurement_corrections correction ON correction.procurement_id=p.id
       AND (correction.old_external_ref=? OR correction.new_external_ref=?)
     WHERE p.external_ref=? OR correction.id IS NOT NULL LIMIT 1${lock?' FOR UPDATE':''}`,[externalRef,externalRef,externalRef],false);
@@ -49,14 +57,15 @@ export async function pushProcurementInsertProcurement(connection, data, digest,
     payload_hash: digest,
     scheme_code: masters.scheme_code,
     commodity_code: masters.commodity_code,
-    season_id: season.id,
+    season_id: season?.id??null,
     farmer_id: farmer?.id ?? null,
-    facility_id: f.id,
-    district_id: f.district_id ?? null,
+    facility_id: f?.id??null,
+    district_id: data.district_id??f?.district_id??null,
     procured_at: data.procured_at,
     quantity_kg: amount,
     available_kg: amount,
-    moisture_percent: data.moisture_percent
+    moisture_percent: data.moisture_percent,
+    season_code:data.season_code,facility_code:data.facility_code,farmer_code:data.farmer_code??null
   });
 }
 export async function pushOrderFindCmrOrders(connection, data) {
@@ -74,16 +83,16 @@ export async function pushOrderFindFacilities2(connection, data) {
 export async function pushOrderFindMillerStoreAssignments(connection, season, miller, dest) {
   return one(connection, 'SELECT id FROM miller_store_assignments WHERE season_id=? AND miller_id=? AND store_id=? AND active=1', [season.id, miller.id, dest.id],true,{code:'CMR_MAPPING_NOT_FOUND',message:`Miller ${miller.id} is not assigned to godown/FCI ${dest.id} for season ${season.id}. Create or activate this assignment first.`});
 }
-export async function pushOrderInsertCmrOrders(connection, data, digest, season, miller, dest, amount) {
+export async function pushOrderInsertCmrOrders(connection, data, digest, amount) {
   return insert(connection, 'cmr_orders', {
     external_ref: data.external_ref,
     payload_hash: digest,
     scheme_code: data.scheme_code,
     commodity: data.commodity_code,
-    season_id: season.id,
-    miller_id: miller.id,
-    destination_id: dest.id,
-    district_id: dest.district_id ?? null,
+    season_id: data.season_id,
+    miller_id: data.miller_id,
+    destination_id: data.destination_id,
+    district_id: data.district_id??null,
     lot_count: data.lot_count ?? null,
     stenciling_code: data.stenciling_code ?? null,
     order_no: data.order_no,
@@ -96,13 +105,13 @@ export async function listProcurementsCountProcurement(filter, args) {
   return one(pool, `SELECT COUNT(p.id) AS total FROM procurement p WHERE 1=1${filter}`, args);
 }
 export async function listProcurementsListProcurement(filter, limit, offset, args) {
-  return rows(pool, `SELECT p.id,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.district_id,p.procured_at,p.quantity_kg,p.available_kg,p.reserved_kg,p.available_kg-p.reserved_kg unreserved_kg,p.moisture_percent,p.created_at,p.scheme_code,p.commodity_code,p.commodity_code commodity,f.name farmer_name,c.name facility_name FROM procurement p LEFT JOIN farmers f ON f.id=p.farmer_id JOIN facilities c ON c.id=p.facility_id WHERE 1=1${filter} ORDER BY p.procured_at DESC,p.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT p.id,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.payload_hash,p.season_id,p.farmer_id,p.facility_id,p.district_id,p.procured_at,p.quantity_kg,p.available_kg,p.reserved_kg,p.available_kg-p.reserved_kg unreserved_kg,p.moisture_percent,p.created_at,p.scheme_code,p.commodity_code,p.commodity_code commodity,p.season_code,p.facility_code,p.farmer_code,f.name farmer_name,c.name facility_name FROM procurement p LEFT JOIN farmers f ON f.id=p.farmer_id LEFT JOIN facilities c ON c.id=p.facility_id WHERE 1=1${filter} ORDER BY p.procured_at DESC,p.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function listCmrOrdersCountCmrOrders(filter, args) {
   return one(pool, `SELECT COUNT(o.id) AS total FROM cmr_orders o WHERE 1=1${filter}`, args);
 }
 export async function listCmrOrdersListCmrOrders(filter, limit, offset, args) {
-  return rows(pool, `SELECT o.id,o.external_ref,o.payload_hash,o.season_id,o.miller_id,o.destination_id,o.order_no,o.district_id,o.lot_count,o.stenciling_code,o.ordered_at,o.due_date,o.rice_quantity_kg,o.committed_kg,o.delivered_kg,o.status,o.scheme_code,o.commodity,f.name destination_name,f.kind destination_kind,(o.rice_quantity_kg-o.committed_kg-o.delivered_kg) unallocated_kg FROM cmr_orders o JOIN facilities f ON f.id=o.destination_id WHERE 1=1${filter} ORDER BY o.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT o.id,o.external_ref,o.payload_hash,o.season_id,o.miller_id,o.destination_id,o.order_no,o.district_id,o.lot_count,o.stenciling_code,o.ordered_at,o.due_date,o.rice_quantity_kg,o.committed_kg,o.delivered_kg,o.status,o.scheme_code,o.commodity,f.name destination_name,f.kind destination_kind,(o.rice_quantity_kg-o.committed_kg-o.delivered_kg) unallocated_kg FROM cmr_orders o LEFT JOIN facilities f ON f.id=o.destination_id WHERE 1=1${filter} ORDER BY o.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function updateCmrOrderFindCmrOrders(connection, context) {
   return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [context.params.id]);
