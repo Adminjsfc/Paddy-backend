@@ -6,10 +6,19 @@ import { createShipment } from "./shipments.service.js";
 import * as S from "../validators/schemas.js";
 import { readStores, readSelectedStore, storeMatchesFacility } from "./store-locations.service.js";
 export async function submitCMR(connection, data, context) {
+  const order = await repository.selectedSubmissionOrder(connection,data,context);
+  data = {...data, scheme_type: order.scheme_code,
+    lot_count: data.lot_count ?? order.lot_count,
+    stenciling_code: data.stenciling_code ?? order.stenciling_code,
+    submitted_on: data.submitted_on ?? new Date(Date.now()+19800000).toISOString().slice(0,10)};
   await repository.requireActiveCmrMasters(connection, data);
   const destination = await repository.submitCMRFindFacilities(connection, data);
   ensure(destination.district_id === data.district_id, 'Depot does not belong to the selected district', 'INVALID_DESTINATION', 400);
-  const store = await readSelectedStore(data.store_location_id, data.district_id, data.scheme_type);
+  const stores = data.store_location_id || destination.core_store_id ? [] : await readStores(data.district_id,data.scheme_type);
+  const matching = stores.filter(candidate=>storeMatchesFacility(candidate,destination));
+  const storeId = data.store_location_id ?? destination.core_store_id ?? (matching.length===1?matching[0].id:null);
+  ensure(storeId,'Order destination is not linked to an active store','STORE_NOT_LINKED',400);
+  const store = await readSelectedStore(storeId, data.district_id, data.scheme_type);
   ensure(storeMatchesFacility(store, destination), 'Selected store is not mapped to the order destination facility', 'STORE_NOT_LINKED', 400);
   if (destination.core_store_id == null) {
     const candidates = await readStores(data.district_id, data.scheme_type);
@@ -59,7 +68,7 @@ export async function getSubmissionOptions(context) {
   const [schemes, commodities] = ['all','base'].includes(only)?await Promise.all([repository.listCmrSchemes(), repository.listCmrCommodities()]):[[],[]];
   const seasonId = context.query.season_id ? id.parse(Number(context.query.season_id)) : null;
   const districts = seasonId&&['all','districts','stores'].includes(only) ? await repository.getSubmissionOptionsListTblDistrictMaster(context, seasonId) : [];
-  const scheme = z.enum(['SCMR', 'CCMR']).parse(context.query.scheme_type || 'SCMR');
+  const scheme = only==='orders'?null:z.enum(['SCMR', 'CCMR']).parse(context.query.scheme_type || 'SCMR');
   let stores = [];
   if (context.query.district_id&&['all','stores'].includes(only)) {
     const districtId = id.parse(Number(context.query.district_id));

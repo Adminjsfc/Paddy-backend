@@ -107,7 +107,7 @@ export async function resolveDMDepot(connection, data, context, legacyField) {
     return existing;
   }
   const { districts } = await repository.depotLocationMasters(connection);
-  const normalized = storeFacilityData(store, { districts, code: 'CORE-STORE-' + store.id, capacityUnit: 'MT', radiusUnit: 'KM' });
+  const normalized = storeFacilityData(store, { districts, code: 'CORE-STORE-' + store.id, capacityUnit: 'MT', radiusUnit: 'KM', allowMissingCapacity: true });
   ensure(!normalized.problems.length, 'Store requires valid facility details: ' + normalized.problems.join('; '), 'INVALID_STORE_DETAILS', 400);
   const facility = { ...normalized.data, created_by_core_user_id: context.user.core_user_id ?? null, created_by_user_type: context.user.core_user_type ?? null };
   return { ...facility, id: await repository.insertDepotFacility(connection, facility) };

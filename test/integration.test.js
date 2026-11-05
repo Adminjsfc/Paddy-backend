@@ -147,7 +147,12 @@ test('Create masters, users and scoped transport registrations', async () => {
     source_id,
     destination_id
   });
-  for (const store_id of [ids.godown,ids.fci]) await request('POST','/miller-store-assignments',{season_id:ids.season,miller_id:ids.miller,store_id});
+  for (const [facilityId,store_type] of [[ids.godown,2],[ids.fci,1]]) {
+    const store_id=await insert(pool,'tbl_store_location_master',{store_type,store_id:code('STORE'),store_name:'Assignment test store',district_id:ids.district,status:1});
+    await request('PATCH',`/facilities/${facilityId}`,{core_store_id:store_id});
+    const assigned=await request('POST','/miller-store-assignments',{season_id:ids.season,miller_id:ids.miller,store_id});
+    assert.equal(Number(assigned.data.store_id),Number(store_id));
+  }
   await request('POST', '/route-tags', {
     season_id: ids.season,
     source_id: ids.pacs,

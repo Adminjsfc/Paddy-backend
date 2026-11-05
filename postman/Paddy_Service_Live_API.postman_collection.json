@@ -6073,8 +6073,8 @@
                     "value": "Bearer {{miller_token}}"
                   }
                 ],
-                "url": "{{base_url}}/cmr/orders?season_id={{season_id}}&scheme_type={{scheme_code}}&district_id={{district_id}}&destination_id={{destination_id}}",
-                "description": "data.orders: display order_no and save order_id=id. Only eligible orders for the selected depot are returned."
+                "url": "{{base_url}}/cmr/orders?season_id={{season_id}}&district_id={{district_id}}&destination_id={{destination_id}}",
+                "description": "data.orders: display order_no and save order_id=id. Eligible orders across all schemes for this season/district/depot. No scheme filter."
               },
               "event": [
                 {
@@ -6340,7 +6340,7 @@
             "description": "Creates a planned shipment; dispatch it using the shipment dispatch request.\n\nTrip fields are managed by GPS: trip_status 0 before departure, 1 after leaving the source, 2 on destination arrival. trip_started_at and trip_completed_at are actual times. Optional expected_completion_at accepts an ISO datetime with timezone (e.g. 2026-10-22T18:30:00+05:30). Supply your expected arrival time, or null if unknown.\n\nSet expected_completion_at in the active environment to an ISO datetime with timezone. Blank saves NULL at creation and preserves the existing estimate at dispatch. Set the variable to the literal null to clear the estimate at dispatch. The estimate cannot precede dispatched_at. Actual trip_status, trip_started_at and trip_completed_at are response fields managed by GPS; do not add them to the request body.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"season_id\": \"{{season_id}}\",\n  \"order_id\": \"{{order_id}}\",\n  \"destination_id\": \"{{sfc_id}}\",\n  \"district_id\": \"{{district_id}}\",\n  \"store_location_id\": \"{{store_location_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": 6800,\n    \"unit\": \"KG\"\n  },\n  \"submitted_on\": \"{{submitted_on}}\",\n  \"scheme_type\": \"SCMR\",\n  \"commodity_type\": \"RICE\",\n  \"lot_count\": 1,\n  \"stenciling_code\": \"STENCIL-{{run_id}}\",\n  \"gunny_bag_year\": 2026,\n  \"gunny_bag_type\": \"NEW\",\n  \"total_bags\": 136,\n  \"driver_name\": \"Demonstration driver\",\n  \"driver_phone\": \"9999999999\",\n  \"remarks\": \"Submitted via Postman\"\n}",
+              "raw": "{\n  \"season_id\": \"{{season_id}}\",\n  \"order_id\": \"{{order_id}}\",\n  \"destination_id\": \"{{sfc_id}}\",\n  \"district_id\": \"{{district_id}}\",\n  \"vehicle_id\": \"{{vehicle_id}}\",\n  \"quantity\": {\n    \"value\": 6800,\n    \"unit\": \"KG\"\n  },\n  \"total_bags\": 136,\n  \"driver_name\": \"Demonstration driver\",\n  \"driver_phone\": \"9999999999\",\n  \"remarks\": \"Submitted via Postman\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

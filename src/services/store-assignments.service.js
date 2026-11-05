@@ -1,13 +1,18 @@
 import * as repository from "../repositories/store-assignments.repository.js";
+import * as depotRepository from '../repositories/dm-setup.repository.js';
+import { resolveDMDepot } from './dm-setup.service.js';
 import { ensure, id, pageParams } from "../utils/core.js";
 export async function createMillerStoreAssignments(connection, data, context) {
   if(context.user.role==='INTEGRATION')return repository.pushMillerStoreAssignment(connection,data);
   await repository.createMillerStoreAssignmentsFindSeasons(connection, data);
   await repository.createMillerStoreAssignmentsFindFacilities(connection, data);
-  await repository.createMillerStoreAssignmentsFindFacilities2(connection, data);
+  const store = await depotRepository.lockSelectedDepot(connection, data.store_id);
+  const depot = await resolveDMDepot(connection, {store_location_id: store.id}, {user: {...context.user, district_ids: [Number(store.district_id)]}}, 'store_id');
+  const masterStoreId = data.store_id;
+  data = {...data, store_id: depot.id};
   await repository.createMillerStoreAssignmentsExecuteMillerStoreAssignments(connection, data, context);
   const assignment = await repository.createMillerStoreAssignmentsFindMillerStoreAssignments(connection, data);
-  return assignment;
+  return {...assignment, store_id: masterStoreId};
 }
 export async function listMillerStoreAssignments(context) {
   const effects = {
@@ -29,7 +34,7 @@ export async function listMillerStoreAssignments(context) {
     args.push(String(id.parse(Number(context.query.miller_id))));
   }
   if (context.query.store_id) {
-    where.push('a.store_id=?');
+    where.push('s.core_store_id=?');
     args.push(String(id.parse(Number(context.query.store_id))));
   }
   if (context.query.district_id) {

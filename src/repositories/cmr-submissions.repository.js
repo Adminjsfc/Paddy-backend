@@ -40,10 +40,14 @@ export async function getSubmissionOptionsListCmrOrders(context, seasonId, schem
       f.name destination_name,f.kind,d.district_name
       FROM cmr_orders o JOIN facilities f ON f.id=o.destination_id JOIN tbl_district_master d ON d.id=f.district_id
       JOIN miller_store_assignments a ON a.season_id=o.season_id AND a.miller_id=o.miller_id AND a.store_id=o.destination_id AND a.active=1
-      WHERE o.miller_id=? AND o.season_id=? AND o.scheme_code=? AND o.commodity='RICE' AND o.status='OPEN' AND f.active=1 AND d.status=1
-      AND o.rice_quantity_kg>o.committed_kg+o.delivered_kg ORDER BY d.district_name,f.name,o.id`, [context.user.miller_id, seasonId, scheme]);
+      WHERE o.miller_id=? AND o.season_id=? ${scheme?'AND o.scheme_code=?':''} AND o.commodity='RICE' AND o.status='OPEN' AND f.active=1 AND d.status=1
+      AND o.rice_quantity_kg>o.committed_kg+o.delivered_kg ORDER BY d.district_name,f.name,o.id`, scheme?[context.user.miller_id, seasonId, scheme]:[context.user.miller_id, seasonId]);
 }
 export async function getSubmissionOptionsFindStocks(context, seasonId, scheme) {
+  if(scheme==null)return one(pool,`SELECT COALESCE(SUM(s.on_hand_kg),0) on_hand_kg,
+    COALESCE(SUM(s.reserved_kg),0) reserved_kg,
+    COALESCE(SUM(CASE WHEN s.status=1 THEN s.on_hand_kg-s.reserved_kg ELSE 0 END),0) available_kg
+    FROM stocks s WHERE s.facility_id=? AND s.season_id=? AND s.commodity_code='RICE'`,[context.user.miller_id,seasonId]);
   return one(pool, "SELECT s.id,s.scheme_code,s.commodity_code,s.status,s.on_hand_kg,s.reserved_kg,CASE WHEN s.status=1 THEN s.on_hand_kg-s.reserved_kg ELSE 0 END available_kg FROM stocks s WHERE s.facility_id=? AND s.season_id=? AND s.commodity_code='RICE' AND s.scheme_code=?", [context.user.miller_id, seasonId, scheme], false);
 }
 export async function listEligibleVehiclesListVehicles(context) {
@@ -60,4 +64,8 @@ export async function getVehicleFindGpsDevices(registration, context) {
     EXISTS(SELECT 1 FROM shipments s WHERE s.vehicle_id=v.id AND s.status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED')) busy
     FROM vehicles v JOIN vehicle_types vt ON vt.id=v.vehicle_type_id
     WHERE v.registration_no=? AND v.active=1`, [registration]);
+}
+
+export function selectedSubmissionOrder(connection,data,context){
+  return one(connection,"SELECT scheme_code,lot_count,stenciling_code FROM cmr_orders WHERE id=? AND season_id=? AND miller_id=? AND destination_id=? AND commodity='RICE' AND status='OPEN'",[data.order_id,data.season_id,context.user.miller_id,data.destination_id]);
 }

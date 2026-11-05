@@ -3,7 +3,8 @@ export function storeFacilityData(store, {
   districts,
   code,
   capacityUnit,
-  radiusUnit
+  radiusUnit,
+  allowMissingCapacity = false
 }) {
   const problems = [],
     warnings = [];
@@ -17,7 +18,7 @@ export function storeFacilityData(store, {
   if (coordinates.some(value => value == null || String(value).trim() === '') || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 || latitude === 0 && longitude === 0) problems.push('Coordinates missing or invalid');
   let capacity;
   try {
-    capacity = capacityFields({
+    capacity = allowMissingCapacity && (store.capacity == null || String(store.capacity).trim() === '' || Number(store.capacity) === 0) ? capacityFields(null) : capacityFields({
       value: String(store.capacity ?? '').trim(),
       unit: capacityUnit
     });

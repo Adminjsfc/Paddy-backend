@@ -37,6 +37,16 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
       const old=event.script.exec.join('\n').replaceAll('pm.collectionVariables.set(','saveOnce(');
       event.script.exec=["function saveOnce(key,value){if(!String(pm.variables.get(key)??'').trim()){pm.collectionVariables.set(key,value);if(pm.environment.has(key))pm.environment.set(key,value);}}",...old.split('\n')];
     }
+    if(item.request?.method==='POST' && /\/miller-store-assignments$/.test(item.request?.url?.raw||'') && !(item.request.url.raw||'').includes('integrations')) {
+      // Preserve the user's existing Postman variable names.
+      item.request.description='store_id must be tbl_store_location_master.id from the store dropdown, not facilities.id.';
+    }
+    if(item.request?.method==='POST' && /\/cmr\/submissions$/.test(typeof item.request?.url==='string'?item.request.url:item.request?.url?.raw||'')) {
+      const body=JSON.parse(item.request.body.raw);
+      for(const key of ['scheme_type','scheme_code','commodity_type','store_location_id','submitted_on','lot_count','stenciling_code','gunny_bag_year','gunny_bag_type'])delete body[key];
+      item.request.body.raw=JSON.stringify(body,null,2);
+      item.request.header=(item.request.header||[]).filter(h=>!['scheme_code','scheme_type','scheme-code'].includes(h.key.toLowerCase()));
+    }
     const raw=item.request?.body?.raw;
     if(raw){try{
       const safe=raw.replace(/(:\s*)(\{\{[^}]+\}\})/g,(_,prefix,t)=>prefix+JSON.stringify('__BARE__'+t));
@@ -175,7 +185,7 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
       make('01 Season Dropdown',root+'/seasons','data.seasons: select season_id=id.'),
       make('02 District Dropdown',root+'/districts','All active districts. No season, scheme or Miller-depot mapping filter. Select district_id=id.'),
       make('03 Destination Depot Dropdown',root+'/stores?'+season+'&district_id={{district_id}}','data.stores: choose store_location_id=row.id (core store ID); destination_id=row.facility_id is saved with it.'),
-      make('04 CMR Order Number Dropdown',root+'/orders?'+season+'&district_id={{district_id}}&destination_id={{destination_id}}','data.orders: display order_no and save order_id=id. Only eligible orders for the selected depot are returned.'),
+      make('04 CMR Order Number Dropdown',root+'/orders?season_id={{season_id}}&district_id={{district_id}}&destination_id={{destination_id}}','data.orders: display order_no and save order_id=id. Eligible orders across all schemes for this season/district/depot. No scheme filter.'),
       make('05 Vehicle Dropdown',root+'/vehicles','Select vehicle_id=id. A single free vehicle is saved automatically.'),
       make('06 Selected Vehicle Details (optional)','{{base_url}}/cmr/vehicle?registration_no={{vehicle_no}}','Checks GPS mapping/busy state for the selected registration.')];
     for(const child of cmr.item||[])for(const item of child.item||[])if(item.request?.method==='POST'&&item.request.body?.raw){
