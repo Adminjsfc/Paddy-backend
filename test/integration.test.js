@@ -45,9 +45,9 @@ async function request(method, path, body, {
   status
 } = {}) {
   const headers = {
-    'Content-Type': 'application/json',
-    'Idempotency-Key': idem
+    'Content-Type': 'application/json'
   };
+  if(idem)headers['Idempotency-Key']=idem;
   if (auth) headers.Authorization = `Bearer ${auth}`;
   if (apiKey) headers['X-API-Key'] = apiKey;
   if (pushMode) headers['X-Push-Mode'] = pushMode;
@@ -408,7 +408,7 @@ test('Accept paddy and freeze 68% rice obligation despite later configuration ch
   const delivered = await request('POST', `/shipments/${ids.paddy}/deliver`, {
     received_bags: 10, ...qty(10000)
   }, {
-    auth: millerToken
+    auth: millerToken,idem:null
   });
   assert.equal(delivered.data.expected_rice_kg, 6800);
   assert.equal(delivered.data.trip_status,2);assert.equal(delivered.data.trip_completed_at,ids.paddyTripCompleted);

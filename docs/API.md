@@ -1,5 +1,7 @@
 # API reference
 
+POST /api/v1/shipments/:id/deliver no longer requires the client to send Idempotency-Key. It still requires a valid authenticated session and the normal ARRIVED/receiving checks. Server-side transaction locking prevents double delivery. If an existing client sends a valid Idempotency-Key, identical retries retain the previous replay behavior. Other mutation endpoints still require their keys. Both Postman collections omit the header from delivery requests.
+
 GET /api/v1/shipments includes explicit `lifted_quantity_kg` (dispatched quantity, null before dispatch) and `received_quantity_kg` (actual accepted quantity, null before delivery/receipt) on each list item. Both are numeric KG values when available, and a received quantity of zero remains 0. Existing quantity_kg and accepted_kg fields remain available for existing clients.
 
 Driver mobile reports (Paddy DRIVER login, no integration key/Idempotency-Key):

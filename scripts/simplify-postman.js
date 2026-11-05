@@ -184,6 +184,10 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
   }
   function simplifyReceiving(value){
     if(!value||typeof value!=='object')return;
+    if(value.request?.method==='POST'){
+      const url=typeof value.request.url==='string'?value.request.url:value.request.url?.raw||'';
+      if(/\/shipments\/[^/?]+\/deliver$/.test(url))value.request.header=(value.request.header||[]).filter(header=>header.key.toLowerCase()!=='idempotency-key');
+    }
     if(value.body?.raw){try{
       const raw=value.body.raw.replace(/(:\s*)(\{\{[^}]+\}\})/g,(_,prefix,t)=>prefix+JSON.stringify('__BARE__'+t));
       const body=JSON.parse(raw);
@@ -195,7 +199,7 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
         const quantity=body.accepted_quantity??{value:body.value,unit:body.unit??'KG'};
         value.body.raw=JSON.stringify({...quantity,received_bags:body.received_bags??10},null,2)
           .replace(/"__BARE__(\{\{[^}]+\}\})"/g,'$1');
-        value.description='Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Reuse the same Idempotency-Key and body for a retry.';
+        value.description='Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Idempotency-Key is not required. Authorization with a valid Miller/operator token is still required.';
       }
     }catch{}}
     for(const child of Object.values(value))if(child&&typeof child==='object')Array.isArray(child)?child.forEach(simplifyReceiving):simplifyReceiving(child);

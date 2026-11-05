@@ -2,10 +2,11 @@ import { ensure, hash, actor } from "../utils/core.js";
 import * as repository from '../repositories/request-keys.repository.js';
 import { transaction } from "../utils/transaction.js";
 import { kilogramResponse } from '../utils/quantity-response.js';
-export function mutation(schema, fn) {
+import {randomUUID} from 'node:crypto';
+export function mutation(schema, fn, options = {}) {
   return async (req, res) => {
     const data = schema.parse(req.body);
-    const key = req.get('Idempotency-Key');
+    const key = req.get('Idempotency-Key') || (options.requireIdempotencyKey===false?randomUUID():undefined);
     ensure(key && /^[A-Za-z0-9_.:-]{8,120}$/.test(key), 'Provide an 8–120 character Idempotency-Key', 'IDEMPOTENCY_KEY_REQUIRED', 400);
     const route = req.baseUrl + req.path,
       who = actor(req.user),

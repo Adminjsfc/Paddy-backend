@@ -5284,10 +5284,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "Idempotency-Key",
-                "value": "{{operation_key}}-miller-receive"
               }
             ],
             "body": {
@@ -5299,7 +5295,7 @@
                 }
               }
             },
-            "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Reuse the same Idempotency-Key and body for a retry."
+            "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Idempotency-Key is not required. Authorization with a valid Miller/operator token is still required."
           },
           "event": [
             {
@@ -5342,7 +5338,7 @@
                   }
                 ],
                 "url": "{{paddy_api_url}}/shipments/{{paddy_shipment_id}}/deliver",
-                "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Reuse the same Idempotency-Key and body for a retry.",
+                "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Idempotency-Key is not required. Authorization with a valid Miller/operator token is still required.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"value\": 10000,\n  \"unit\": \"KG\",\n  \"received_bags\": 10\n}",
@@ -5379,7 +5375,7 @@
                   }
                 ],
                 "url": "{{paddy_api_url}}/shipments/{{paddy_shipment_id}}/deliver",
-                "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Reuse the same Idempotency-Key and body for a retry.",
+                "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Idempotency-Key is not required. Authorization with a valid Miller/operator token is still required.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"value\": 10000,\n  \"unit\": \"KG\",\n  \"received_bags\": 10\n}",
@@ -5415,7 +5411,7 @@
                   }
                 ],
                 "url": "{{paddy_api_url}}/shipments/{{rice_shipment_id}}/deliver",
-                "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Reuse the same Idempotency-Key and body for a retry.",
+                "description": "Send flat value, unit (KG) and received_bags. Backend sets delivered_at and calculates shortage. Shipment must be ARRIVED before receiving. Idempotency-Key is not required. Authorization with a valid Miller/operator token is still required.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"value\": 6800,\n  \"unit\": \"KG\",\n  \"received_bags\": 10\n}",
