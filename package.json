@@ -23,7 +23,8 @@
     "check": "node scripts/check.js",
     "test:quantity-migration": "node --env-file-if-exists=.env scripts/validate-quantity-kg.js",
     "test:kg-integration": "node --env-file-if-exists=.env scripts/validate-kg-integration.js",
-    "postman:simplify": "node scripts/simplify-postman.js"
+    "postman:simplify": "node scripts/simplify-postman.js",
+    "stock:reconcile": "node --env-file-if-exists=.env scripts/reconcile-document-stock.js"
   },
   "dependencies": {
     "@googlemaps/google-maps-services-js": "^3.4.2",

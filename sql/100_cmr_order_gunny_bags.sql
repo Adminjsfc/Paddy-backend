@@ -1,0 +1,3 @@
+ALTER TABLE cmr_orders
+  ADD COLUMN gunny_bag_year SMALLINT UNSIGNED NULL,
+  ADD COLUMN gunny_bag_type VARCHAR(80) NULL;

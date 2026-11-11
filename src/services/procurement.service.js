@@ -1,3 +1,4 @@
+import {syncOrderStock,allocatedOrderKg} from './order-stock.service.js';
 import {addKg} from '../utils/core.js';
 import {capacityKg} from '../utils/core.js';
 import {requireStockMasters} from '../repositories/stock-masters.repository.js';
@@ -104,11 +105,12 @@ export async function updateProcurement(connection,data,context) {
   await repository.saveProcurementCorrection(connection,procurementId,externalRef,amount,available,millerId??null);
   return {id:procurementId,external_ref:externalRef,miller_id:millerId,quantity_kg:amount,available_kg:available,reserved_kg:current.reserved_kg,correction_id:correctionId,updated:true};
 }
-export async function pushOrder(connection, data) {
+export async function pushOrder(connection, data, context = {}) {
   const digest = hash(data),
     existing = await repository.pushOrderFindCmrOrders(connection, data);
   if (existing) {
     ensure(existing.payload_hash === digest, 'CMR reference already exists with different data', 'EXTERNAL_REF_CONFLICT');
+    await syncOrderStock(connection,existing.id,context.user);
     return {
       id: existing.id,
       duplicate: true
@@ -117,6 +119,7 @@ export async function pushOrder(connection, data) {
   const raced = await repository.pushOrderFindCmrOrders2(connection, data);
   if (raced) {
     ensure(raced.payload_hash === digest, 'CMR reference already exists with different data', 'EXTERNAL_REF_CONFLICT');
+    await syncOrderStock(connection,raced.id,context.user);
     return {
       id: raced.id,
       duplicate: true
@@ -125,6 +128,7 @@ export async function pushOrder(connection, data) {
   ensure(data.due_date >= new Date(data.ordered_at.getTime() + 19800000).toISOString().slice(0, 10), 'Due date precedes order date', 'VALIDATION', 400);
   const amount = kilograms(data.rice_quantity);
   const id = await repository.pushOrderInsertCmrOrders(connection, data, digest, amount);
+  const stockResult=await syncOrderStock(connection,id,context.user);
   return {
     id,
     rice_quantity_kg: amount,
@@ -138,9 +142,9 @@ export async function importProcurements(connection, data, context = {}) {
     records: out
   };
 }
-export async function importCmrOrders(connection, data) {
+export async function importCmrOrders(connection, data, context = {}) {
   const out = [];
-  for (const r of data.records) out.push(await pushOrder(connection,r));
+  for (const r of data.records) out.push(await pushOrder(connection,r,context));
   return {
     records: out
   };
@@ -246,8 +250,10 @@ export async function updateCmrOrder(connection, data, context) {
   const o = await repository.updateCmrOrderFindCmrOrders(connection, context);
   ensure(o.status !== 'CANCELLED', 'Cancelled order cannot be changed');
   const qty = data.rice_quantity ? kilograms(data.rice_quantity) : o.rice_quantity_kg;
-  ensure(qty >= addKg(o.committed_kg,o.delivered_kg), 'Quantity cannot be below committed plus accepted rice');
+  const allocated=await allocatedOrderKg(connection,o.id);
+  ensure(qty >= allocated, `Order quantity cannot be below ${allocated} KG already reserved or dispatched.`, 'ORDER_QUANTITY_IN_USE',409);
   await repository.updateCmrOrderUpdateCmrOrders(connection, qty, data, o);
+  await syncOrderStock(connection,o.id,context.user);
   return {
     id: o.id,
     rice_quantity_kg: qty,
@@ -256,8 +262,9 @@ export async function updateCmrOrder(connection, data, context) {
 }
 export async function cancelCmrOrder(connection, data, context) {
   const o = await repository.cancelCmrOrderFindCmrOrders(connection, context);
-  ensure(o.committed_kg === 0 && o.delivered_kg === 0, 'Order already has committed or delivered rice');
+  ensure(await allocatedOrderKg(connection,o.id) === 0, 'Cancel or resolve the linked shipments before cancelling this CMR order.', 'ORDER_IN_USE',409);
   await repository.cancelCmrOrderUpdateCmrOrders(connection, o);
+  await syncOrderStock(connection,o.id,context.user);
   return {
     id: o.id,
     status: 'CANCELLED',
@@ -285,8 +292,7 @@ export async function recordMillingBatch(connection, data, context) {
     ensure(addKg(total.amount,paddy) <= capacityKg(miller, true), 'Daily paddy milling capacity exceeded', 'MILLING_CAPACITY_EXCEEDED');
   }
   const id = await repository.recordMillingBatchInsertMillingBatches(connection, data, miller, season, paddy, rice, expected, recovery);
-  await stock(connection, miller.id, season.id, 'PADDY', -paddy, 0, 'MILLING', id, data.scheme_code, context.user);
-  await stock(connection, miller.id, season.id, 'RICE', rice, 0, 'MILLING', id, data.scheme_code, context.user);
+  // Milling is informational in the procurement/order inventory model.
   return {
     id,
     paddy_consumed_kg: paddy,

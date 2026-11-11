@@ -15,4 +15,4 @@ export const listEligibleVehicles = async (req, res) => {
 export const getVehicle = async (req, res) => {
   return respond(res, await service.getVehicle(requestContext(req)));
 };
-export const submit = mutation(cmrSubmissionSchema, (connection, data, req) => service.submitCMR(connection, data, requestContext(req)));
+export const submit = mutation(cmrSubmissionSchema, (connection, data, req) => service.submitCMR(connection, data, requestContext(req)), {requireIdempotencyKey:false});

@@ -95,6 +95,8 @@ export async function pushOrderInsertCmrOrders(connection, data, digest, amount)
     district_id: data.district_id??null,
     lot_count: data.lot_count ?? null,
     stenciling_code: data.stenciling_code ?? null,
+    gunny_bag_year: data.gunny_bag_year ?? null,
+    gunny_bag_type: data.gunny_bag_type ?? null,
     order_no: data.order_no,
     ordered_at: data.ordered_at,
     due_date: data.due_date,
@@ -111,16 +113,16 @@ export async function listCmrOrdersCountCmrOrders(filter, args) {
   return one(pool, `SELECT COUNT(o.id) AS total FROM cmr_orders o WHERE 1=1${filter}`, args);
 }
 export async function listCmrOrdersListCmrOrders(filter, limit, offset, args) {
-  return rows(pool, `SELECT o.id,o.external_ref,o.payload_hash,o.season_id,o.miller_id,o.destination_id,o.order_no,o.district_id,o.lot_count,o.stenciling_code,o.ordered_at,o.due_date,o.rice_quantity_kg,o.committed_kg,o.delivered_kg,o.status,o.scheme_code,o.commodity,f.name destination_name,f.kind destination_kind,(o.rice_quantity_kg-o.committed_kg-o.delivered_kg) unallocated_kg FROM cmr_orders o LEFT JOIN facilities f ON f.id=o.destination_id WHERE 1=1${filter} ORDER BY o.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT o.id,o.external_ref,o.payload_hash,o.stock_credited_kg,o.season_id,o.miller_id,o.destination_id,o.order_no,o.district_id,o.lot_count,o.stenciling_code,o.gunny_bag_year,o.gunny_bag_type,o.ordered_at,o.due_date,o.rice_quantity_kg,o.committed_kg,o.delivered_kg,o.status,o.scheme_code,o.commodity,f.name destination_name,f.kind destination_kind,(o.rice_quantity_kg-(SELECT COALESCE(SUM(used.quantity_kg),0) FROM shipments used WHERE used.order_id=o.id AND used.status<>'CANCELLED')) unallocated_kg FROM cmr_orders o LEFT JOIN facilities f ON f.id=o.destination_id WHERE 1=1${filter} ORDER BY o.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function updateCmrOrderFindCmrOrders(connection, context) {
-  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [context.params.id]);
+  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,gunny_bag_year,gunny_bag_type,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [context.params.id]);
 }
 export async function updateCmrOrderUpdateCmrOrders(connection, qty, data, o) {
-  return rows(connection, 'UPDATE cmr_orders SET rice_quantity_kg=?,due_date=?,status=?,lot_count=?,stenciling_code=? WHERE id=?', [qty, data.due_date || o.due_date, qty === o.delivered_kg ? 'FULFILLED' : 'OPEN', data.lot_count??o.lot_count??null, data.stenciling_code??o.stenciling_code??null, o.id]);
+  return rows(connection, 'UPDATE cmr_orders SET rice_quantity_kg=?,due_date=?,status=?,lot_count=?,stenciling_code=?,gunny_bag_year=?,gunny_bag_type=? WHERE id=?', [qty, data.due_date || o.due_date, qty === o.delivered_kg ? 'FULFILLED' : 'OPEN', data.lot_count??o.lot_count??null, data.stenciling_code??o.stenciling_code??null, data.gunny_bag_year===undefined?o.gunny_bag_year??null:data.gunny_bag_year, data.gunny_bag_type===undefined?o.gunny_bag_type??null:data.gunny_bag_type, o.id]);
 }
 export async function cancelCmrOrderFindCmrOrders(connection, context) {
-  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [context.params.id]);
+  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,gunny_bag_year,gunny_bag_type,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [context.params.id]);
 }
 export async function cancelCmrOrderUpdateCmrOrders(connection, o) {
   return rows(connection, "UPDATE cmr_orders SET status='CANCELLED' WHERE id=?", [o.id]);

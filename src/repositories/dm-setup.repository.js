@@ -80,6 +80,8 @@ export async function createCmrOrderInsertCmrOrders(connection, context, data) {
     miller_id: data.miller_id,
     destination_id: data.destination_id,
     order_no: data.order_no,
+    gunny_bag_year: data.gunny_bag_year ?? null,
+    gunny_bag_type: data.gunny_bag_type ?? null,
     ordered_at: new Date(),
     due_date: data.due_date,
     rice_quantity_kg: kilograms(data.rice_quantity)

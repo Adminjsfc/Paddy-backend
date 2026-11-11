@@ -10,6 +10,8 @@ export async function submitCMR(connection, data, context) {
   data = {...data, scheme_type: order.scheme_code,
     lot_count: data.lot_count ?? order.lot_count,
     stenciling_code: data.stenciling_code ?? order.stenciling_code,
+    gunny_bag_year: order.gunny_bag_year ?? null,
+    gunny_bag_type: order.gunny_bag_type ?? null,
     submitted_on: data.submitted_on ?? new Date(Date.now()+19800000).toISOString().slice(0,10)};
   await repository.requireActiveCmrMasters(connection, data);
   const destination = await repository.submitCMRFindFacilities(connection, data);
@@ -42,10 +44,10 @@ export async function submitCMR(connection, data, context) {
     submitted_on: data.submitted_on,
     agency: destination.kind === 'FCI' ? 'FCI' : 'SFC',
     core_store_location_id: store.id,
-    cmr_lot_count: data.lot_count,
-    stenciling_code: data.stenciling_code,
-    gunny_bag_year: data.gunny_bag_year,
-    gunny_bag_type: data.gunny_bag_type,
+    cmr_lot_count: data.lot_count ?? null,
+    stenciling_code: data.stenciling_code ?? null,
+    gunny_bag_year: data.gunny_bag_year ?? null,
+    gunny_bag_type: data.gunny_bag_type ?? null,
     total_bags: data.total_bags,
     driver_name: data.driver_name,
     driver_phone: data.driver_phone

@@ -35,7 +35,7 @@ export async function createShipmentFindShipments(connection, v) {
   return one(connection, "SELECT id FROM shipments WHERE vehicle_id=? AND status IN ('PLANNED','DISPATCHED','IN_TRANSIT','ARRIVED') FOR UPDATE", [v.id], false);
 }
 export async function createShipmentFindCmrOrders(connection, data) {
-  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [data.order_id],true,{code:'CMR_ORDER_NOT_FOUND',message:`order_id=${data.order_id} does not match a CMR order.`});
+  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,gunny_bag_year,gunny_bag_type,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [data.order_id],true,{code:'CMR_ORDER_NOT_FOUND',message:`order_id=${data.order_id} does not match a CMR order.`});
 }
 export async function createShipmentInsertShipments(connection, data, flowType, source, dest, v, qty, recovery, submission, masters, routeId) {
   return insert(connection, 'shipments', {
@@ -87,7 +87,7 @@ export async function deliverShipmentFindCmrReceipts(connection, s) {
   return one(connection, "SELECT id FROM cmr_receipts WHERE shipment_id=? AND decision='REJECTED'", [s.id], false);
 }
 export async function deliverShipmentFindCmrOrders(connection, s) {
-  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [s.order_id]);
+  return one(connection, 'SELECT id,external_ref,payload_hash,season_id,miller_id,destination_id,order_no,district_id,lot_count,stenciling_code,gunny_bag_year,gunny_bag_type,ordered_at,due_date,rice_quantity_kg,committed_kg,delivered_kg,status,scheme_code,commodity FROM cmr_orders WHERE id=? FOR UPDATE', [s.order_id]);
 }
 export async function deliverShipmentUpdateCmrOrders(connection, delivered, committed, o) {
   return rows(connection, 'UPDATE cmr_orders SET delivered_kg=?,committed_kg=?,status=? WHERE id=?', [delivered, committed, delivered === o.rice_quantity_kg ? 'FULFILLED' : 'OPEN', o.id]);

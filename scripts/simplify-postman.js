@@ -47,6 +47,9 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
       item.request.body.raw=JSON.stringify(body,null,2);
       item.request.header=(item.request.header||[]).filter(h=>!['scheme_code','scheme_type','scheme-code'].includes(h.key.toLowerCase()));
     }
+    const inventoryUrl=typeof item.request?.url==='string'?item.request.url:item.request?.url?.raw||'';
+    if(inventoryUrl.includes('/reports/stocks'))item.request.description='Stock by facility, season, scheme and commodity (PADDY/RICE). Procurement posts Paddy IN; CMR order posts Rice IN. Shipment creation reserves, dispatch posts OUT, pre-dispatch cancellation releases. Returns total_in_kg, total_out_kg, on_hand_kg, reserved_kg and available_kg. Receipt and milling do not post extra stock.';
+    if(inventoryUrl.includes('/reports/ledger'))item.request.description='Append-only inventory ledger in KG. Filter commodity=PADDY or RICE, facility_id, season_id and scheme_code. Each row includes movement (IN/OUT/RESERVE/RELEASE), in_quantity_kg, out_quantity_kg, balance_kg, reserved_balance_kg and reference_no. Corrections post only the difference; cancellations append reversals.';
     const raw=item.request?.body?.raw;
     if(raw){try{
       const safe=raw.replace(/(:\s*)(\{\{[^}]+\}\})/g,(_,prefix,t)=>prefix+JSON.stringify('__BARE__'+t));
@@ -97,7 +100,7 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
       season_code:'PUSH-SEASON',facility_code:'PUSH-PACS',miller_id:999001,district_id:999002,
       scheme_code:'SCMR',commodity_code:'PADDY',procured_at:'2026-11-01T10:00:00Z',quantity:{value:1000,unit:'KG'}}))},
     {records:Array.from({length:10},(_,i)=>({external_ref:`PUSH-CMR-${i+1}`,order_no:`PUSH-ORDER-${i+1}`,
-      season_id:1,miller_id:3,destination_id:4,scheme_code:'SCMR',commodity_code:'RICE',
+      season_id:1,miller_id:3,destination_id:4,scheme_code:'SCMR',commodity_code:'RICE',gunny_bag_year:2026,gunny_bag_type:'NEW',
       ordered_at:'2026-11-01T10:00:00Z',due_date:'2026-12-31',rice_quantity:{value:1000,unit:'KG'}}))},
     {code:'PUSH-SEASON',name:'Push sample season',start_date:'2026-01-01',end_date:'2026-12-31',recovery_percent:68},
     {season_id:999001,source_id:999002,destination_id:999003},
@@ -196,7 +199,7 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
     if(!value||typeof value!=='object')return;
     if(value.request?.method==='POST'){
       const url=typeof value.request.url==='string'?value.request.url:value.request.url?.raw||'';
-      if(/\/shipments\/[^/?]+\/deliver$/.test(url))value.request.header=(value.request.header||[]).filter(header=>header.key.toLowerCase()!=='idempotency-key');
+      if(/\/shipments\/[^/?]+\/deliver$/.test(url)||/\/cmr\/submissions$/.test(url)||/\/core\/dm\/test-rice$/.test(url))value.request.header=(value.request.header||[]).filter(header=>header.key.toLowerCase()!=='idempotency-key');
     }
     if(value.body?.raw){try{
       const raw=value.body.raw.replace(/(:\s*)(\{\{[^}]+\}\})/g,(_,prefix,t)=>prefix+JSON.stringify('__BARE__'+t));

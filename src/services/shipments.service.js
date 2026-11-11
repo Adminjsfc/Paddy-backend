@@ -1,3 +1,4 @@
+import {syncOrderStock,allocatedOrderKg} from './order-stock.service.js';
 import {addKg} from '../utils/core.js';
 import {capacityKg} from '../utils/core.js';
 import {requireStockMasters} from '../repositories/stock-masters.repository.js';
@@ -58,6 +59,7 @@ export async function createShipment(connection, data, context, submission = {})
   ensure(miller.kind === 'MILLER' && miller.id === data.miller_id, `miller_id=${data.miller_id} must match the active MILLER facility at ${data.leg==='PADDY'?'destination_id':'source_id'}=${miller.id}.`, 'INVALID_ROUTE', 400);
   ensure(data.leg === 'PADDY' ? ['PACS', 'LAMPS'].includes(source.kind) : ['SFC_GODOWN', 'FCI'].includes(dest.kind), data.leg==='PADDY'?`source_id=${source.id} must be a PACS/LAMPS facility for PADDY lifting.`:`destination_id=${dest.id} must be a godown/FCI facility for CMR lifting.`, 'INVALID_ROUTE', 400);
   if (data.leg === 'PADDY') await repository.createShipmentFindRouteTags(connection, data, source, dest);else await repository.createShipmentFindMillerStoreAssignments(connection, data, dest);
+  if(data.leg==='CMR')await syncOrderStock(connection,data.order_id,context.user);
   const v = await transport(connection, data.vehicle_id, context.user);
   const activeVehicle = await repository.createShipmentFindShipments(connection, v);
   ensure(!activeVehicle, 'Vehicle already has an active shipment', 'VEHICLE_BUSY', 409);
@@ -69,7 +71,7 @@ export async function createShipment(connection, data, context, submission = {})
     order = await repository.createShipmentFindCmrOrders(connection, data);
     ensure(order.scheme_code===data.scheme_code && order.commodity==='RICE',`order_id=${data.order_id} requires scheme_code="${order.scheme_code}" and commodity=RICE; shipment scheme_code="${data.scheme_code}" does not match.`,'SCHEME_MISMATCH',400);
     ensure(order.status === 'OPEN' && order.miller_id === data.miller_id && order.destination_id === data.destination_id && order.season_id === data.season_id, 'CMR order does not match shipment or is closed');
-    ensure(addKg(order.delivered_kg,order.committed_kg,qty) <= order.rice_quantity_kg, 'CMR order quantity exceeded', 'ORDER_OVERALLOCATION');
+    ensure(addKg(await allocatedOrderKg(connection,order.id),qty) <= order.rice_quantity_kg, 'CMR order quantity exceeded', 'ORDER_OVERALLOCATION');
   } else ensure(data.order_id === null, 'Paddy shipment cannot reference a CMR order', 'VALIDATION', 400);
   const recovery = data.leg === 'PADDY' ? miller.recovery_percent ?? season.recovery_percent : null;
   const flowType = data.leg === 'PADDY' ? 'PACS_LAMPS_TO_MILLER' : 'MILLER_TO_GODOWN';
@@ -157,7 +159,7 @@ export async function deliverShipment(connection, data, context, s) {
   const shortage = addKg(s.quantity_kg,-accepted);
   ensure(data.delivered_at >= new Date(s.trip_completed_at || s.trip_started_at || s.dispatched_at), 'Delivery timestamp precedes transport events');
   await lockFacilities(connection, [s.destination_id]);
-  await stock(connection, s.destination_id, s.season_id, s.leg === 'PADDY' ? 'PADDY' : 'RICE', accepted, 0, 'DELIVERY', s.id, s.scheme_code, context.user);
+  // Receipt records actual accepted quantity/shortage; source documents already posted IN.
   const obligation = s.leg === 'PADDY' ? recoveryKg(accepted, s.recovery_percent) : null;
   if (s.order_id) {
     const o = await repository.deliverShipmentFindCmrOrders(connection, s);

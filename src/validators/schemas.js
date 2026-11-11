@@ -80,6 +80,8 @@ export const cmrOrder = z.object({
   district_id: id.optional(),
   lot_count: z.number().int().positive().max(10000).optional(),
   stenciling_code: z.string().trim().min(1).max(100).optional(),
+  gunny_bag_year: z.number().int().min(1900).max(2100).nullable().optional(),
+  gunny_bag_type: z.string().trim().min(1).max(80).nullable().optional(),
   scheme_code: code,
   commodity_code: z.literal('RICE'),
   external_ref: z.string().min(1).max(120),
@@ -208,6 +210,8 @@ export const seasonPatch = z.object({
 export const orderPatch = z.object({
   lot_count: z.number().int().positive().max(10000).optional(),
   stenciling_code: z.string().trim().min(1).max(100).optional(),
+  gunny_bag_year: z.number().int().min(1900).max(2100).nullable().optional(),
+  gunny_bag_type: z.string().trim().min(1).max(80).nullable().optional(),
   rice_quantity: quantity.optional(),
   due_date: dateOnly.optional(),
   reason: z.string().min(10).max(500)

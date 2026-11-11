@@ -1,3 +1,4 @@
+import {syncOrderStock} from './order-stock.service.js';
 import { storeFacilityData } from '../utils/store-facility.js';
 import {requireStockMasters} from '../repositories/stock-masters.repository.js';
 import * as repository from "../repositories/dm-setup.repository.js";
@@ -131,6 +132,7 @@ export async function createCmrOrder(connection, data, context) {
   await repository.createCmrOrderFindMillerStoreAssignments(connection, data);
   ensure(data.due_date >= new Date(Date.now() + 19800000).toISOString().slice(0, 10), 'Due date is in the past', 'VALIDATION', 400);
   const id = await repository.createCmrOrderInsertCmrOrders(connection, context, data);
+  await syncOrderStock(connection,id,context.user);
   return {
     id
   };

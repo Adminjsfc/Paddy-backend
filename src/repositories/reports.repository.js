@@ -37,13 +37,25 @@ export async function listStocksCountRecords(base, args) {
   return one(pool, `SELECT COUNT(s.id) total ${base}`, args);
 }
 export async function listStocksListRecords(base, limit, offset, args) {
-  return rows(pool, `SELECT s.id,s.facility_id,s.season_id,s.on_hand_kg,s.reserved_kg,s.scheme_code,s.commodity_code,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,s.commodity_code commodity,f.name,f.kind,CASE WHEN s.status=1 THEN s.on_hand_kg-s.reserved_kg ELSE 0 END available_kg ${base} ORDER BY s.facility_id,s.season_id,s.scheme_code,s.commodity_code LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT s.id,s.facility_id,s.season_id,s.on_hand_kg,s.reserved_kg,s.scheme_code,s.commodity_code,s.created_at,s.created_by,s.updated_at,s.updated_by,s.created_by_actor,s.updated_by_actor,s.status,s.commodity_code commodity,f.name,f.kind,
+    (SELECT COALESCE(SUM(GREATEST(l.on_hand_delta_kg,0)),0) FROM stock_ledger l WHERE l.stock_id=s.id) total_in_kg,
+    (SELECT COALESCE(SUM(GREATEST(-l.on_hand_delta_kg,0)),0) FROM stock_ledger l WHERE l.stock_id=s.id) total_out_kg,
+    CASE WHEN s.status=1 THEN s.on_hand_kg-s.reserved_kg ELSE 0 END available_kg ${base} ORDER BY s.facility_id,s.season_id,s.scheme_code,s.commodity_code LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function listLedgerCountStockLedger(filter, args) {
   return one(pool, `SELECT COUNT(l.id) total FROM stock_ledger l WHERE 1=1${filter}`, args);
 }
 export async function listLedgerListStockLedger(filter, limit, offset, args) {
-  return rows(pool, `SELECT l.id,l.facility_id,l.season_id,l.on_hand_delta_kg,l.reserved_delta_kg,l.reference_type,l.reference_id,l.created_at,l.scheme_code,l.commodity_code,l.created_by,l.updated_at,l.updated_by,l.created_by_actor,l.updated_by_actor,l.status,l.commodity_code commodity FROM stock_ledger l WHERE 1=1${filter} ORDER BY l.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
+  return rows(pool, `SELECT l.id,l.stock_id,l.facility_id,l.season_id,l.on_hand_delta_kg,l.reserved_delta_kg,l.reference_type,l.reference_id,l.created_at,l.scheme_code,l.commodity_code,l.created_by,l.updated_at,l.updated_by,l.created_by_actor,l.updated_by_actor,l.status,l.commodity_code commodity,
+    CASE WHEN l.on_hand_delta_kg>0 THEN 'IN' WHEN l.on_hand_delta_kg<0 THEN 'OUT' WHEN l.reserved_delta_kg>0 THEN 'RESERVE' ELSE 'RELEASE' END movement,
+    GREATEST(l.on_hand_delta_kg,0) in_quantity_kg,GREATEST(-l.on_hand_delta_kg,0) out_quantity_kg,
+    (SELECT COALESCE(SUM(b.on_hand_delta_kg),0) FROM stock_ledger b WHERE b.stock_id=l.stock_id AND b.id<=l.id) balance_kg,
+    (SELECT COALESCE(SUM(b.reserved_delta_kg),0) FROM stock_ledger b WHERE b.stock_id=l.stock_id AND b.id<=l.id) reserved_balance_kg,
+    CASE WHEN l.reference_type IN ('CMR_ORDER','CMR_ORDER_ADJUSTMENT','CMR_ORDER_CANCEL') THEN (SELECT order_no FROM cmr_orders WHERE id=l.reference_id)
+      WHEN l.reference_type='PROCUREMENT' THEN (SELECT ro_no FROM procurement WHERE id=l.reference_id)
+      WHEN l.reference_type='PROCUREMENT_CORRECTION' THEN (SELECT p.ro_no FROM procurement_corrections c JOIN procurement p ON p.id=c.procurement_id WHERE c.id=l.reference_id)
+      WHEN l.reference_type IN ('RESERVE','DISPATCH','CANCEL') THEN (SELECT shipment_no FROM shipments WHERE id=l.reference_id) END reference_no
+    FROM stock_ledger l WHERE 1=1${filter} ORDER BY l.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function getMillerReconciliationFindFacilities(millerId) {
   return one(pool, "SELECT id,code,name,recovery_percent FROM facilities WHERE id=? AND kind='MILLER'", [millerId]);

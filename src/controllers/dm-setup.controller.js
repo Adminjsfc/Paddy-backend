@@ -24,6 +24,8 @@ export const createCmrOrder = mutation(z.object({
   destination_id: id.optional(),
   store_location_id: id.optional(),
   order_no: z.string().trim().min(1).max(100),
+  gunny_bag_year: S.cmrOrder.shape.gunny_bag_year,
+  gunny_bag_type: S.cmrOrder.shape.gunny_bag_type,
   rice_quantity: quantity,
   due_date: dateOnly
 }).strict(), (connection, data, req) => service.createCmrOrder(connection, data, requestContext(req)));
@@ -32,7 +34,7 @@ export const addTestRice = mutation(z.object({
   ...millerSeason,
   reference: z.string().trim().min(1).max(110),
   quantity
-}).strict(), (connection, data, req) => service.addTestRice(connection, data, requestContext(req)));
+}).strict(), (connection, data, req) => service.addTestRice(connection, data, requestContext(req)), {requireIdempotencyKey:false});
 export const registerVehicleWithGps = mutation(z.union([
   z.object({vehicle_id:id,imei_id:id}).strict(),
   S.vehicle.extend({imei_id:id})

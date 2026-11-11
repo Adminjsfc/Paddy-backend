@@ -3,7 +3,9 @@ import { rows, one, insert } from './database.js';
 export async function balanceMasters(connection,commodity,schemeCode) {
   return requireStockMasters(connection,schemeCode,commodity);
 }
-export function ensureBalance(connection, facilityId, seasonId, masters, audit) {
+export async function ensureBalance(connection, facilityId, seasonId, masters, audit) {
+  const existing=await one(connection,'SELECT id FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code=? AND commodity_code=?',[facilityId,seasonId,masters.scheme_code,masters.commodity_code],false);
+  if(existing)return;
   return rows(connection, 'INSERT INTO stocks(facility_id,season_id,scheme_code,commodity_code,created_by,created_by_actor) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)', [facilityId, seasonId, masters.scheme_code,masters.commodity_code,audit.userId,audit.actor]);
 }
 export function lockBalance(connection, facilityId, seasonId, masters) {

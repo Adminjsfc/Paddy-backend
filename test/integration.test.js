@@ -426,7 +426,7 @@ test('Accept paddy and freeze 68% rice obligation despite later configuration ch
     status: 409
   });
 });
-test('Milling consumes available paddy, produces 6800 kg rice, and cannot double consume', async () => {
+test('Milling remains informational and cannot duplicate a batch or post extra stock', async () => {
   ids.batch = (await request('POST', '/milling-batches', {
     miller_id: ids.miller,
     season_id: ids.season,
@@ -437,12 +437,12 @@ test('Milling consumes available paddy, produces 6800 kg rice, and cannot double
   }, {
     auth: millerToken
   })).data.id;
-  const s = await one(pool, "SELECT on_hand_kg FROM stocks WHERE facility_id=? AND season_id=? AND commodity_code='RICE'", [ids.miller, ids.season]);
-  assert.equal(s.on_hand_kg, 6800);
+  const s = await one(pool, "SELECT COUNT(*) entries FROM stock_ledger WHERE reference_type='MILLING'");
+  assert.equal(s.entries, 0);
   await request('POST', '/milling-batches', {
     miller_id: ids.miller,
     season_id: ids.season,
-    batch_no: code('EXCESS'),
+    batch_no: code('BATCH'),
     scheme_code: 'SCMR',
     paddy_quantity: qty(1),
     milled_at: at(-34)
@@ -468,6 +468,7 @@ test('Import CMR orders for both SFC and FCI, reserve rice and release on cancel
         district_id:ids.district,
         lot_count:2,
         stenciling_code:code('STENCIL-'+label),
+        gunny_bag_year:2026,gunny_bag_type:'NEW',
         ordered_at: at(-34),
         due_date: '2099-12-31',
         scheme_code: 'SCMR',
@@ -481,6 +482,7 @@ test('Import CMR orders for both SFC and FCI, reserve rice and release on cancel
     const listed=await request('GET','/cmr-orders?order_no='+encodeURIComponent(code(label)));
     assert.equal(listed.data[0].district_id,ids.district);
     assert.equal(listed.data[0].lot_count,2);
+    assert.equal(listed.data[0].gunny_bag_year,2026);assert.equal(listed.data[0].gunny_bag_type,'NEW');
     assert.equal(listed.data[0].stenciling_code,code('STENCIL-'+label));
     const dropdown=await request('GET',`/cmr/submission-options?only=orders&season_id=${ids.season}&scheme_type=SCMR&destination_id=${label==='SFC'?ids.godown:ids.fci}`,undefined,{auth:millerToken});
     assert(dropdown.data.orders.some(o=>o.id===ids[label+'order']));
@@ -709,7 +711,7 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
       order_no:code('CCMR-ORDER'),ordered_at:at(-34),due_date:'2099-12-31',scheme_code:'CCMR',commodity_code:'RICE',rice_quantity:qty(300)}]
   },{apiKey:process.env.EUPARJAN_API_KEY})).data.records[0].id;
   const riceBody={shipment_no:code('CCMR-RICE-OVER'),leg:'CMR',season_id:ids.season,scheme_code:'CCMR',miller_id:ids.miller,
-    source_id:ids.miller,destination_id:ids.godown,vehicle_id:ids.vehicle1,order_id:order,quantity:qty(137)};
+    source_id:ids.miller,destination_id:ids.godown,vehicle_id:ids.vehicle1,order_id:order,quantity:qty(301)};
   await request('POST','/shipments',riceBody,{auth:millerToken,status:409});
   await request('POST','/shipments',{...riceBody,scheme_code:'SCMR'},{auth:millerToken,status:400});
   const riceTrip=(await request('POST','/shipments',{
@@ -720,8 +722,10 @@ test('Scheme and commodity stay isolated from procurement through Miller milling
   });
   await arriveForReceipt(riceTrip);
   await request('POST',`/shipments/${riceTrip}/deliver`,{received_bags:10,...qty(136)});
-  const godown=await one(pool,"SELECT on_hand_kg FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code='CCMR' AND commodity_code='RICE'",[ids.godown,ids.season]);
-  assert.equal(godown.on_hand_kg,136);
+  const godown=await one(pool,"SELECT COUNT(*) entries FROM stock_ledger WHERE facility_id=? AND season_id=? AND scheme_code='CCMR' AND reference_type='DELIVERY'",[ids.godown,ids.season]);
+  assert.equal(godown.entries,0);
+  const riceBalance=await one(pool,"SELECT on_hand_kg,reserved_kg FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code='CCMR' AND commodity_code='RICE'",[ids.miller,ids.season]);
+  assert.equal(riceBalance.on_hand_kg,164);assert.equal(riceBalance.reserved_kg,0);
   const ledger=await rows(pool,'SELECT DISTINCT l.scheme_code FROM stock_ledger l WHERE reference_type IN (\'RESERVE\',\'DISPATCH\',\'DELIVERY\') AND reference_id=?',[riceTrip]);
   assert.deepEqual(ledger.map(row=>row.scheme_code),['CCMR']);
   const invalid=await request('POST','/integrations/euparjan/procurements',{
@@ -851,20 +855,22 @@ test('RO allotment isolates Miller lifting, blocks reassignment in use and allow
 });
 
 test('CMR submission stores master IDs and preserves date, lots, driver and vehicle history through receiving',async()=>{
+  const previousOrder=await one(pool,'SELECT rice_quantity_kg FROM cmr_orders WHERE id=?',[ids.SFCorder]);
+  await request('PATCH',`/cmr-orders/${ids.SFCorder}`,{rice_quantity:qty(previousOrder.rice_quantity_kg+1),reason:'Add one KG for next shipment; shortage must not release dispatched stock'});
   const storeId=await insert(pool,'tbl_store_location_master',{store_type:2,store_id:code('GODOWN'),store_name:'Test submission store',district_id:ids.district,status:1});
   await request('PATCH',`/facilities/${ids.godown}`,{core_store_id:storeId});
   const submittedOn=new Date().toISOString().slice(0,10);
   const response=await request('POST','/cmr/submissions',{
     season_id:ids.season,order_id:ids.SFCorder,destination_id:ids.godown,district_id:ids.district,
-    store_location_id:storeId,scheme_type:'SCMR',commodity_type:'RICE',vehicle_id:ids.vehicle1,
-    quantity:qty(1),submitted_on:submittedOn,lot_count:2,stenciling_code:code('STENCIL'),
-    gunny_bag_year:2026,gunny_bag_type:'New jute',total_bags:2,driver_name:'CMR Test Driver',driver_phone:'9999999999'
-  },{auth:millerToken});
+    vehicle_id:ids.vehicle1,quantity:qty(1),total_bags:2,driver_name:'CMR Test Driver',driver_phone:'9999999999'
+  },{auth:millerToken,idem:null});
   const shipmentId=response.data.id;
   const shipment=(await request('GET',`/shipments/${shipmentId}`,undefined,{auth:millerToken})).data;
   assert.equal(shipment.scheme_code,'SCMR');assert.equal(shipment.commodity_code,'RICE');
   assert.equal(shipment.scheme_code,response.data.scheme_code);assert.equal(shipment.commodity_code,response.data.commodity_code);
-  assert.equal(shipment.cmr_lot_count,2);assert.equal(shipment.submitted_on.slice(0,10),submittedOn);
+  const selectedOrder=await one(pool,'SELECT lot_count FROM cmr_orders WHERE id=?',[ids.SFCorder]);
+  assert.equal(shipment.cmr_lot_count,selectedOrder.lot_count);assert.equal(shipment.submitted_on.slice(0,10),new Date(Date.now()+19800000).toISOString().slice(0,10));
+  assert.equal(shipment.gunny_bag_year,2026);assert.equal(shipment.gunny_bag_type,'NEW');
   assert.equal(shipment.driver_name,'CMR Test Driver');assert.equal(shipment.vehicle_type_id,ids.vehicleType);
   assert.equal(shipment.expected_completion_at,null);assert.equal(shipment.trip_status,0);
   const newType=(await request('POST','/vehicle-types',{code:code('NEW-TYPE'),name:'Later vehicle type'})).data.id;
@@ -1094,4 +1100,31 @@ test('Driver profile, active trip, history and persistent alerts enforce the Pad
     await request('POST',endpoint,{}, {auth:null,status:401});
     await request('POST',endpoint,{}, {status:403});
   }
+});
+
+test('CMR order stock posts IN once, applies only correction differences and reverses cancellation in the ledger',async()=>{
+  const scheme=code('ORDER-STOCK');
+  const body={records:[{external_ref:code('ORDER-STOCK'),order_no:code('ORDER-STOCK'),season_id:ids.season,miller_id:ids.miller,destination_id:ids.godown,
+    scheme_code:scheme,commodity_code:'RICE',ordered_at:at(-5),due_date:'2099-12-31',rice_quantity:qty(50)}]};
+  const first=await request('POST','/integrations/euparjan/cmr-orders',body,{apiKey:process.env.EUPARJAN_API_KEY});
+  const order=first.data.records[0].id;
+  const balance=()=>one(pool,'SELECT on_hand_kg,reserved_kg FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code=? AND commodity_code=?',[ids.miller,ids.season,scheme,'RICE']);
+  assert.equal((await balance()).on_hand_kg,50);
+  const duplicate=await request('POST','/integrations/euparjan/cmr-orders',body,{apiKey:process.env.EUPARJAN_API_KEY});
+  assert.equal(duplicate.data.records[0].duplicate,true);assert.equal((await balance()).on_hand_kg,50);
+  await request('PATCH','/cmr-orders/'+order,{rice_quantity:qty(60),reason:'Increase source order quantity by ten KG'});
+  await request('PATCH','/cmr-orders/'+order,{rice_quantity:qty(60),reason:'Retry same corrected source order quantity'});
+  assert.equal((await balance()).on_hand_kg,60);
+  await request('PATCH','/cmr-orders/'+order,{rice_quantity:qty(40),reason:'Reduce source order quantity by twenty KG'});
+  assert.equal((await balance()).on_hand_kg,40);
+  await request('POST','/cmr-orders/'+order+'/cancel',{reason:'Cancel unused source order and reverse its credit'});
+  await request('POST','/cmr-orders/'+order+'/cancel',{reason:'Repeat cancellation without a second stock reversal'});
+  assert.equal((await balance()).on_hand_kg,0);
+  const ledger=await request('GET','/reports/ledger?scheme_code='+encodeURIComponent(scheme),undefined,{auth:millerToken});
+  assert.equal(ledger.data.length,4);
+  assert.deepEqual(ledger.data.map(r=>r.on_hand_delta_kg),[-40,-20,10,50]);
+  assert.deepEqual(ledger.data.map(r=>r.balance_kg),[0,40,60,50]);
+  assert(ledger.data.every(r=>r.reference_no===code('ORDER-STOCK')));
+  const report=await request('GET','/reports/stocks?scheme_code='+encodeURIComponent(scheme),undefined,{auth:millerToken});
+  assert.equal(report.data[0].total_in_kg,60);assert.equal(report.data[0].total_out_kg,60);
 });

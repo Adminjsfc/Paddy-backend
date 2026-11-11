@@ -24,6 +24,9 @@ export async function moduleGuard(context, res, next) {
   const key = moduleForRequest(context);
   if (!key) return next();
   const permission = await repository.moduleGuardFindModulePermissions(key);
-  ensure(allowedModule(permission, context.method), 'Module action is not assigned to your role', 'MODULE_FORBIDDEN', 403);
+  const message = key==='cmr'
+    ? (context.method==='POST' ? 'CMR submission permission is not enabled for your Miller role. Please contact your administrator to enable CMR View and Add permissions.' : 'CMR access is not enabled for your Miller role. Please contact your administrator to enable CMR View permission.')
+    : 'You do not have permission to perform this action. Please contact your administrator.';
+  ensure(allowedModule(permission, context.method), message, 'MODULE_FORBIDDEN', 403);
   next();
 }

@@ -15,10 +15,12 @@ export async function stock(connection, facilityId, seasonId, commodity, dh, dr,
   if (dh > 0) {
     const f = await repository.findCapacity(connection, facilityId);
     const total = await repository.totalOnHand(connection, facilityId);
-    ensure(addKg(total.amount,dh) <= capacityKg(f), 'Facility storage capacity exceeded', 'CAPACITY_EXCEEDED');
+    const capacity=capacityKg(f);
+    ensure(capacity==null || addKg(total.amount,dh) <= capacity, 'Facility storage capacity exceeded', 'CAPACITY_EXCEEDED');
   }
   await repository.updateBalance(connection, s.id, dh, dr, audit);
   await repository.insertLedger(connection, {
+    stock_id: s.id,
     facility_id: facilityId,
     season_id: seasonId,
     ...masters,

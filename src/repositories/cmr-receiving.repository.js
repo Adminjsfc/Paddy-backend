@@ -43,7 +43,7 @@ export async function listShipmentsCountRecords(base, args) {
   return one(pool, `SELECT COUNT(s.id) total ${base}`, args);
 }
 export async function listShipmentsListRecords(base, limit, offset, args) {
-  return rows(pool, `SELECT s.id,s.shipment_no,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.quantity_kg,s.accepted_kg,s.shortage_kg,s.stenciling_code,s.total_bags,s.received_bags,s.dispatched_at,s.submitted_on,
+  return rows(pool, `SELECT s.id,s.shipment_no,s.status,s.trip_status,s.trip_started_at,s.trip_completed_at,s.expected_completion_at,s.quantity_kg,s.accepted_kg,s.shortage_kg,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,s.total_bags,s.received_bags,s.dispatched_at,s.submitted_on,
     s.scheme_code,s.commodity_code,s.scheme_code scheme_type,se.name season_name,f.name destination_name,m.name miller_name,m.address source_address,v.registration_no,r.id receipt_id,r.decision,r.net_kg,r.received_at ${base}
     ORDER BY s.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
@@ -51,7 +51,7 @@ export async function listStockCountRecords(base, scope) {
   return one(pool, `SELECT COUNT(st.id) total,COALESCE(SUM(st.quantity_kg),0) received_kg ${base}`, scope.args);
 }
 export async function listStockListRecords(base, limit, offset, scope) {
-  return rows(pool, `SELECT st.id,st.receipt_id,st.stack_no,st.quantity_kg,st.bags,r.receipt_no,r.received_at,s.shipment_no,s.scheme_code,s.commodity_code,s.stenciling_code,m.name miller_name,f.name destination_name,se.name season_name ${base}
+  return rows(pool, `SELECT st.id,st.receipt_id,st.stack_no,st.quantity_kg,st.bags,r.receipt_no,r.received_at,s.shipment_no,s.scheme_code,s.commodity_code,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,m.name miller_name,f.name destination_name,se.name season_name ${base}
     ORDER BY r.received_at DESC,st.id DESC LIMIT ${limit} OFFSET ${offset}`, scope.args);
 }
 export async function listStockListStocks(scope) {

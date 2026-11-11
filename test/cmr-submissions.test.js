@@ -143,3 +143,14 @@ test('CMR submission accepts the minimal order-based payload',()=>{
   const {season_id,order_id,destination_id,district_id,vehicle_id,quantity,total_bags,driver_name,driver_phone}=submission;
   assert.equal(cmrSubmissionSchema.parse({season_id,order_id,destination_id,district_id,vehicle_id,quantity,total_bags,driver_name,driver_phone}).order_id,1);
 });
+
+ test('CMR order validation identifies season and destination mismatches',async()=>{
+  const {selectedSubmissionOrder}=await import('../src/repositories/cmr-submissions.repository.js');
+  const order={season_id:1,destination_id:7,commodity:'RICE',status:'OPEN',scheme_code:'SCMR'};
+  const connection={execute:async()=>[[order]]};
+  const context={user:{miller_id:3}};
+  for(const [data,code] of [[{season_id:2,destination_id:7},'CMR_SEASON_MISMATCH'],[{season_id:1,destination_id:4},'CMR_DESTINATION_MISMATCH']]){
+    await assert.rejects(selectedSubmissionOrder(connection,{order_id:1,...data},context),error=>error.code===code);
+  }
+  await assert.rejects(selectedSubmissionOrder({execute:async()=>[[]]},{order_id:1},context),error=>error.code==='CMR_ORDER_NOT_FOUND');
+ });

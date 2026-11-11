@@ -1,4 +1,5 @@
 import {requireStockMasters} from './stock-masters.repository.js';
+import {ensure} from '../utils/core.js';
 import { pool } from "../config/database.js";
 export async function requireActiveCmrMasters(connection, data) {
   return requireStockMasters(connection,data.scheme_type,data.commodity_type || 'RICE');
@@ -36,12 +37,12 @@ export async function getSubmissionOptionsListFacilities(districtId, context, se
         WHERE a.store_id=f.id AND a.miller_id=? AND a.season_id=? AND a.active=1)`, [districtId, context.user.miller_id, seasonId]);
 }
 export async function getSubmissionOptionsListCmrOrders(context, seasonId, scheme) {
-  return rows(pool, `SELECT o.id,o.order_no,o.district_id,o.lot_count,o.stenciling_code,o.destination_id,o.scheme_code,o.commodity,o.rice_quantity_kg-o.committed_kg-o.delivered_kg available_kg,
+  return rows(pool, `SELECT o.id,o.order_no,o.district_id,o.lot_count,o.stenciling_code,o.gunny_bag_year,o.gunny_bag_type,o.destination_id,o.scheme_code,o.commodity,o.rice_quantity_kg-(SELECT COALESCE(SUM(used.quantity_kg),0) FROM shipments used WHERE used.order_id=o.id AND used.status<>'CANCELLED') available_kg,
       f.name destination_name,f.kind,d.district_name
       FROM cmr_orders o JOIN facilities f ON f.id=o.destination_id JOIN tbl_district_master d ON d.id=f.district_id
       JOIN miller_store_assignments a ON a.season_id=o.season_id AND a.miller_id=o.miller_id AND a.store_id=o.destination_id AND a.active=1
       WHERE o.miller_id=? AND o.season_id=? ${scheme?'AND o.scheme_code=?':''} AND o.commodity='RICE' AND o.status='OPEN' AND f.active=1 AND d.status=1
-      AND o.rice_quantity_kg>o.committed_kg+o.delivered_kg ORDER BY d.district_name,f.name,o.id`, scheme?[context.user.miller_id, seasonId, scheme]:[context.user.miller_id, seasonId]);
+      AND o.rice_quantity_kg>(SELECT COALESCE(SUM(used.quantity_kg),0) FROM shipments used WHERE used.order_id=o.id AND used.status<>'CANCELLED') ORDER BY d.district_name,f.name,o.id`, scheme?[context.user.miller_id, seasonId, scheme]:[context.user.miller_id, seasonId]);
 }
 export async function getSubmissionOptionsFindStocks(context, seasonId, scheme) {
   if(scheme==null)return one(pool,`SELECT COALESCE(SUM(s.on_hand_kg),0) on_hand_kg,
@@ -66,6 +67,12 @@ export async function getVehicleFindGpsDevices(registration, context) {
     WHERE v.registration_no=? AND v.active=1`, [registration]);
 }
 
-export function selectedSubmissionOrder(connection,data,context){
-  return one(connection,"SELECT scheme_code,lot_count,stenciling_code FROM cmr_orders WHERE id=? AND season_id=? AND miller_id=? AND destination_id=? AND commodity='RICE' AND status='OPEN'",[data.order_id,data.season_id,context.user.miller_id,data.destination_id]);
+export async function selectedSubmissionOrder(connection,data,context){
+  const order=await one(connection,'SELECT season_id,destination_id,commodity,status,scheme_code,lot_count,stenciling_code,gunny_bag_year,gunny_bag_type FROM cmr_orders WHERE id=? AND miller_id=?',[data.order_id,context.user.miller_id],false);
+  ensure(order,'Selected CMR order was not found for your Miller account. Please select an order from the CMR order dropdown.','CMR_ORDER_NOT_FOUND',404);
+  ensure(Number(order.season_id)===Number(data.season_id),'Selected season does not match this CMR order. Please select the correct season and choose the order again.','CMR_SEASON_MISMATCH',400);
+  ensure(Number(order.destination_id)===Number(data.destination_id),'Selected destination does not match this CMR order. Please choose the destination assigned to this order.','CMR_DESTINATION_MISMATCH',400);
+  ensure(order.commodity==='RICE','Selected order is not a rice order. Please select a CMR rice order.','INVALID_CMR_ORDER',400);
+  ensure(order.status==='OPEN','This CMR order is no longer open for submission. Please select an open order.','CMR_ORDER_NOT_OPEN',409);
+  return order;
 }
