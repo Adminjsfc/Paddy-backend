@@ -46,7 +46,11 @@ export async function listStocks(context) {
     args.push(String(context.query[f]));
   }
   for(const [key,column] of [['scheme_code','s.scheme_code'],['commodity','s.commodity_code']])if(context.query[key]){filter+=` AND ${column}=?`;args.push(String(context.query[key]));}
-  const base = `FROM stocks s JOIN facilities f ON f.id=s.facility_id WHERE 1=1${filter}`;
+  const base = `FROM stocks s JOIN facilities f ON f.id=s.facility_id
+    LEFT JOIN seasons se ON se.id=s.season_id
+    LEFT JOIN users creator ON creator.id=s.created_by
+    LEFT JOIN users updater ON updater.id=s.updated_by
+    WHERE 1=1${filter}`;
   const count = await repository.listStocksCountRecords(base, args);
   const data = await repository.listStocksListRecords(base, limit, offset, args);
   return {
