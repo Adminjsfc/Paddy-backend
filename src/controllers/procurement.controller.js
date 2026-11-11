@@ -2,7 +2,7 @@ import { mutation } from "../middlewares/mutation.js";
 import * as S from "../validators/schemas.js";
 import { requestContext, respond } from '../utils/http.js';
 import * as service from "../services/procurement.service.js";
-export const importProcurements = mutation(S.procurementBatch, (connection, data, req) => service.importProcurements(connection, data, requestContext(req)));
+export const importProcurements = mutation(S.procurementBatch, (connection, data, req) => service.importProcurements(connection, data, requestContext(req)), {requireIdempotencyKey:false});
 export const updateProcurement = mutation(S.procurementPatch, (connection, data, req) => service.updateProcurement(connection,data,requestContext(req)));
 export const importCmrOrders = mutation(S.orderBatch, (connection, data, req) => service.importCmrOrders(connection, data, requestContext(req)));
 export const listProcurements = async (req, res) => {

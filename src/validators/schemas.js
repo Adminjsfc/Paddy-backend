@@ -69,13 +69,19 @@ export const procurement = z.object({
   ro_date: dateOnly.nullable().optional(),
   miller_id: id,
   district_id: id.optional(),
-  season_code: code,
-  farmer_code: code.optional(),
-  facility_code: code,
+  season_code: code.optional(),
+  season_id: id.optional(),
+  farmer_code: code.nullish().transform(value => value ?? undefined),
+  facility_code: code.optional(),
+  facility_id: id.optional(),
   procured_at: pastTimestamp,
   quantity,
   moisture_percent: nullable(z.number().min(0).max(100))
-}).strict();
+}).strict().refine(value => Boolean(value.facility_id) !== Boolean(value.facility_code), {
+  message: 'Provide either facility_id or facility_code.', path: ['facility_id']
+}).refine(value => Boolean(value.season_id) !== Boolean(value.season_code), {
+  message: 'Provide either season_id or season_code.', path: ['season_id']
+});
 export const cmrOrder = z.object({
   district_id: id.optional(),
   lot_count: z.number().int().positive().max(10000).optional(),

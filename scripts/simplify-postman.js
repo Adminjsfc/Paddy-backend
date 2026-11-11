@@ -97,7 +97,7 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
   );
   const pushExamples=[
     {records:Array.from({length:10},(_,i)=>({external_ref:`PUSH-PROC-${i+1}`,ro_no:`PUSH-RO-${i+1}`,ro_date:'2026-11-01',
-      season_code:'PUSH-SEASON',facility_code:'PUSH-PACS',miller_id:999001,district_id:999002,
+      season_id:1,facility_id:1,miller_id:9,district_id:360,moisture_percent:14,
       scheme_code:'SCMR',commodity_code:'PADDY',procured_at:'2026-11-01T10:00:00Z',quantity:{value:1000,unit:'KG'}}))},
     {records:Array.from({length:10},(_,i)=>({external_ref:`PUSH-CMR-${i+1}`,order_no:`PUSH-ORDER-${i+1}`,
       season_id:1,miller_id:3,destination_id:4,scheme_code:'SCMR',commodity_code:'RICE',gunny_bag_year:2026,gunny_bag_type:'NEW',
@@ -110,7 +110,7 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
     item.request.body.raw=JSON.stringify(pushExamples[index],null,2);item.event=[];
     item.request.description='Inserts directly into the original table. Related masters and mappings need not exist. Keep valid JSON, field types and quantity/date formats. For a new record change external_ref and RO/order number, season code or mapping IDs. Idempotent retries reuse the same key and body.';
   });
-  collection.item.push({name:'Push APIs',description:'X-API-Key and Idempotency-Key required. Direct original-table inserts without required master links. Procurement/CMR samples contain 10 records. No separate testing table or mode. Master IDs remain numeric. Duplicate references and mapping combinations are protected.',item:pushItems});
+  collection.item.push({name:'Push APIs',description:'X-API-Key required. Procurement POST does not require Idempotency-Key; other push mutations retain their key requirements. Direct original-table inserts without required master links. Procurement/CMR samples contain 10 records. No separate testing table or mode. Master IDs remain numeric. Duplicate references and mapping combinations are protected.',item:pushItems});
   collection.item=collection.item.filter(item=>item.name!=='Driver');
   const driverRequest=(name,method,path,description,body)=>({name,request:{method,
     header:[{key:'Authorization',value:'Bearer {{driver_token}}'},...(body?[{key:'Content-Type',value:'application/json'}]:[])],
@@ -199,7 +199,7 @@ for(const file of ['postman/SFC_CMR.postman_collection.json','postman/Paddy_Serv
     if(!value||typeof value!=='object')return;
     if(value.request?.method==='POST'){
       const url=typeof value.request.url==='string'?value.request.url:value.request.url?.raw||'';
-      if(/\/shipments\/[^/?]+\/deliver$/.test(url)||/\/cmr\/submissions$/.test(url)||/\/core\/dm\/test-rice$/.test(url))value.request.header=(value.request.header||[]).filter(header=>header.key.toLowerCase()!=='idempotency-key');
+      if(/\/shipments\/[^/?]+\/deliver$/.test(url)||/\/cmr\/submissions$/.test(url)||/\/core\/dm\/test-rice$/.test(url)||/\/integrations\/euparjan\/procurements$/.test(url))value.request.header=(value.request.header||[]).filter(header=>header.key.toLowerCase()!=='idempotency-key');
     }
     if(value.body?.raw){try{
       const raw=value.body.raw.replace(/(:\s*)(\{\{[^}]+\}\})/g,(_,prefix,t)=>prefix+JSON.stringify('__BARE__'+t));

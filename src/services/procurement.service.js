@@ -24,7 +24,8 @@ function requireSameProcurement(existing,data,digest) {
   const matchesCurrent=existing.facility_code!==undefined
     && Number(existing.quantity_kg)===received
     && existing.scheme_code===data.scheme_code&&existing.commodity_code===data.commodity_code
-    && existing.season_code===data.season_code&&existing.facility_code===data.facility_code
+    && (data.season_id!==undefined?Number(existing.season_id)===data.season_id:existing.season_code===data.season_code)
+    && (data.facility_id!==undefined?Number(existing.facility_id)===data.facility_id:existing.facility_code===data.facility_code)
     && Number(existing.miller_id)===data.miller_id
     && (data.district_id===undefined||Number(existing.district_id)===data.district_id)
     && (existing.farmer_code??undefined)===data.farmer_code

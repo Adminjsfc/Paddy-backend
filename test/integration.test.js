@@ -1133,3 +1133,18 @@ test('CMR order stock posts IN once, applies only correction differences and rev
   const report=await request('GET','/reports/stocks?scheme_code='+encodeURIComponent(scheme),undefined,{auth:millerToken});
   assert.equal(report.data[0].total_in_kg,60);assert.equal(report.data[0].total_out_kg,60);
 });
+
+test('procurement push resolves direct facility_id and retains null farmer on retries',async()=>{
+ const {facility_code,season_code,...record}=procure('DIRECT-FACILITY',10);
+ const body={records:[{...record,facility_id:ids.pacs,season_id:ids.season,moisture_percent:14,farmer_code:null}]};
+ const first=await request('POST','/integrations/euparjan/procurements',body,{apiKey:process.env.EUPARJAN_API_KEY,idem:null});
+ const id=first.data.records[0].id;
+ const stored=await one(pool,'SELECT season_id,season_code,facility_id,facility_code,farmer_id,farmer_code,moisture_percent FROM procurement WHERE id=?',[id]);
+ assert.equal(stored.season_id,ids.season);assert.equal(stored.season_code,season_code);assert.equal(stored.moisture_percent,14);
+ assert.equal(stored.facility_id,ids.pacs);assert.equal(stored.facility_code,facility_code);
+ assert.equal(stored.farmer_id,null);assert.equal(stored.farmer_code,null);
+ const retry=await request('POST','/integrations/euparjan/procurements',body,{apiKey:process.env.EUPARJAN_API_KEY,idem:null});
+ assert.equal(retry.data.records[0].duplicate,true);
+ const posted=await one(pool,"SELECT COUNT(*) entries,SUM(on_hand_delta_kg) kg FROM stock_ledger WHERE reference_type='PROCUREMENT' AND reference_id=?",[id]);
+ assert.equal(posted.entries,1);assert.equal(posted.kg,10);
+});

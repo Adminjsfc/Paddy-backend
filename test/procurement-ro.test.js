@@ -7,6 +7,12 @@ const body={external_ref:'TX-RO-1',scheme_code:'SCMR',commodity_code:'PADDY',sea
   miller_id:3,facility_code:'PACS',procured_at:'2026-02-27T10:00:00Z',quantity:{value:'426.47'},
   ro_no:'DHN/KRP/34/KMS 2025-26/206',ro_date:'2026-02-26'};
 
+test('null farmer code behaves like an omitted farmer code',()=>{
+  const absent=procurement.parse(body),explicitNull=procurement.parse({...body,farmer_code:null});
+  assert.equal(explicitNull.farmer_code,undefined);
+  assert.equal(JSON.stringify(absent),JSON.stringify(explicitNull));
+});
+
 test('procurement accepts separate RO number and date without requiring them on older imports',()=>{
   const parsed=procurement.parse(body);
   assert.equal(parsed.ro_no,body.ro_no);assert.equal(parsed.ro_date,'2026-02-26');
@@ -36,4 +42,19 @@ test('new RO imports require a positive local allotted miller ID',()=>{
   const {miller_id,...missing}=body;
   assert.equal(procurement.safeParse(missing).success,false);
   for(const invalid of [0,-1,null,'20020'])assert.equal(procurement.safeParse({...body,miller_id:invalid}).success,false);
+});
+
+test('procurement supports a direct facility ID instead of a facility code',()=>{
+ const {facility_code,...input}=body;
+ assert.equal(procurement.parse({...input,facility_id:12,farmer_code:null}).facility_id,12);
+ assert.equal(procurement.safeParse(input).success,false);
+ assert.equal(procurement.safeParse({...body,facility_id:12}).success,false);
+});
+
+test('procurement accepts direct season ID and moisture 14',()=>{
+ const {season_code,facility_code,...input}=body;
+ const result=procurement.parse({...input,season_id:1,facility_id:2,moisture_percent:14});
+ assert.equal(result.season_id,1);assert.equal(result.moisture_percent,14);
+ assert.equal(procurement.safeParse({...body,season_id:1}).success,false);
+ assert.equal(procurement.safeParse({...input,facility_id:2}).success,false);
 });

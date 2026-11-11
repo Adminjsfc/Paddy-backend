@@ -96,3 +96,12 @@ test('CMR store selection saves core store ID and local destination separately; 
   s.pm.response.json=()=>({ok:true,data:{orders:[]}});s.run(saveCmrDropdownReferences);
   assert.equal(s.c.has('order_id'),false);assert.equal(s.c.has('cmr_order_id'),false);
 });
+
+test('fresh Miller login replaces stale environment token as well as collection token',()=>{
+ const s=sandbox({miller_token:'old-collection',miller_id:3},{miller_token:'old-environment',token:'old-environment'});
+ s.pm.request.method='POST';s.pm.request.url.toString=()=>'/api/v1/auth/login';
+ s.pm.response.json=()=>({ok:true,data:{token:'fresh-token',user:{role:'MILLER',miller_id:3}}});
+ s.run(saveResponseReferences);
+ assert.equal(s.c.get('miller_token'),'fresh-token');assert.equal(s.e.get('miller_token'),'fresh-token');
+ assert.equal(s.pm.variables.get('token'),'fresh-token');
+});

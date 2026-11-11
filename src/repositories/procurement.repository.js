@@ -7,8 +7,8 @@ export async function pushProcurementFindProcurement(connection, data) {
   return findProcurementReference(connection,data.external_ref);
 }
 export async function pushMasterReferences(connection,data) {
-  const season=await one(connection,'SELECT id,code,start_date,end_date FROM seasons WHERE code=? AND active=1',[data.season_code],false);
-  const facility=data.facility_code?await one(connection,"SELECT id,district_id FROM facilities WHERE code=? AND kind IN ('PACS','LAMPS') AND active=1 FOR UPDATE",[data.facility_code],false):null;
+  const season=await one(connection,`SELECT id,code,start_date,end_date FROM seasons WHERE ${data.season_id?'id':'code'}=? AND active=1`,[data.season_id??data.season_code],false);
+  const facility=await one(connection,`SELECT id,code,district_id FROM facilities WHERE ${data.facility_id?'id':'code'}=? AND kind IN ('PACS','LAMPS') AND active=1 FOR UPDATE`,[data.facility_id??data.facility_code],false);
   const farmer=data.farmer_code?await one(connection,'SELECT id FROM farmers WHERE code=? AND active=1',[data.farmer_code],false):null;
   const miller=data.miller_code?await one(connection,"SELECT id FROM facilities WHERE code=? AND kind='MILLER' AND active=1 FOR UPDATE",[data.miller_code],false):null;
   const destination=data.destination_code?await one(connection,"SELECT id,district_id FROM facilities WHERE code=? AND kind IN ('SFC_GODOWN','FCI') AND active=1",[data.destination_code],false):null;
@@ -57,15 +57,15 @@ export async function pushProcurementInsertProcurement(connection, data, digest,
     payload_hash: digest,
     scheme_code: masters.scheme_code,
     commodity_code: masters.commodity_code,
-    season_id: season?.id??null,
+    season_id: season?.id??data.season_id??null,
     farmer_id: farmer?.id ?? null,
-    facility_id: f?.id??null,
+    facility_id: f?.id??data.facility_id??null,
     district_id: data.district_id??f?.district_id??null,
     procured_at: data.procured_at,
     quantity_kg: amount,
     available_kg: amount,
     moisture_percent: data.moisture_percent,
-    season_code:data.season_code,facility_code:data.facility_code,farmer_code:data.farmer_code??null
+    season_code:season?.code??data.season_code??null,facility_code:f?.code??data.facility_code??null,farmer_code:data.farmer_code??null
   });
 }
 export async function pushOrderFindCmrOrders(connection, data) {

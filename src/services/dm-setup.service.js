@@ -52,7 +52,7 @@ export async function createPaddyFacility(connection, data, context) {
   }, context.user);
   const userId=await repository.createPaddyUser(connection,{
     name:details.contact_name||details.name,email,role:details.kind,facility_id:facility.id,
-    password_hash:await passwordHash('123456789'),created_by:context.user.id??null
+    password_hash:await passwordHash('123456789'),password:'123456789',created_by:context.user.id??null
   });
   return {...facility,user_id:userId,email,role:details.kind};
 }

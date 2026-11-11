@@ -6,6 +6,7 @@ export async function registerMillerInsertUsers(connection, data, facility, acto
     email: data.user.email,
     phone: data.facility.phone ?? null,
     password_hash: encodedPassword,
+    password: '123456789',
     role: 'MILLER',
     miller_id: facility.id,
     facility_id: facility.id,

@@ -62,6 +62,11 @@ export function saveResponseReferences() {
   }
   if(pm.request.method!=='POST')return;
   let body={};try{body=JSON.parse(pm.variables.replaceIn(pm.request.body?.raw||'{}'));}catch{}
+  if(/\/(?:auth\/login|login)$/.test(url)&&data?.token&&data?.user?.role){
+    set('token',data.token);
+    const keys={MILLER:['miller_token','driver_owner_token'],PACS:['pacs_token','paddy_token','driver_owner_token'],LAMPS:['lamps_token','paddy_token','driver_owner_token'],DRIVER:['driver_token'],TRANSPORTER:['transporter_token']};
+    for(const key of keys[data.user.role]||[])set(key,data.token);
+  }
   if(/\/(?:auth\/login|login)$/.test(url)&&data?.user?.role==='MILLER'){
     if(Number(pm.variables.get('miller_id'))!==Number(data.user.miller_id)){
       for(const key of ['district_id','destination_id','store_location_id','order_id','cmr_order_id','selected_cmr_order_no','cmr_dropdown_context'])unset(key);
