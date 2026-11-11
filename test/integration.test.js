@@ -1125,6 +1125,11 @@ test('CMR order stock posts IN once, applies only correction differences and rev
   assert.deepEqual(ledger.data.map(r=>r.on_hand_delta_kg),[-40,-20,10,50]);
   assert.deepEqual(ledger.data.map(r=>r.balance_kg),[0,40,60,50]);
   assert(ledger.data.every(r=>r.reference_no===code('ORDER-STOCK')));
+  const stockRow=await one(pool,'SELECT id FROM stocks WHERE facility_id=? AND season_id=? AND scheme_code=? AND commodity_code=?',[ids.miller,ids.season,scheme,'RICE']);
+  assert(ledger.data.every(r=>Number(r.stock_id)===Number(stockRow.id)));
+  const unused=await one(pool,'SELECT COALESCE(MAX(id),0)+1 id FROM stocks');
+  await assert.rejects(transaction(c=>rows(c,'INSERT INTO stock_ledger(stock_id,facility_id,season_id,scheme_code,commodity_code,on_hand_delta_kg,reserved_delta_kg,reference_type,reference_id) VALUES (?,?,?,?,?,0,0,?,?)',[unused.id,ids.miller,ids.season,scheme,'RICE','INVALID_LINK_TEST',order])),error=>error.code==='ER_NO_REFERENCED_ROW_2');
+
   const report=await request('GET','/reports/stocks?scheme_code='+encodeURIComponent(scheme),undefined,{auth:millerToken});
   assert.equal(report.data[0].total_in_kg,60);assert.equal(report.data[0].total_out_kg,60);
 });
