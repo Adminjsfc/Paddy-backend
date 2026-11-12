@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {withDriverContact} from './driver-contact.js';
-import { id, code, name, phone, percent, quantity, dateOnly, pastTimestamp, timestamp } from "../utils/core.js";
+import { id, code, name, phone, percent, quantity, dateOnly, pastTimestamp, timestamp, addKg, kilograms } from "../utils/core.js";
 const nullable = v => v.nullable().default(null);
 export const empty = z.object({}).strict();
 export const season = z.object({
@@ -121,9 +121,14 @@ export const milling = z.object({
   milled_at: pastTimestamp,
   remarks: nullable(z.string().max(500))
 }).strict();
+const shipmentLot = z.union([
+  z.object({procurement_id:id,quantity:quantity.shape.value,unit:quantity.shape.unit}).strict()
+    .transform(lot=>({procurement_id:lot.procurement_id,quantity:{value:lot.quantity,unit:lot.unit}})),
+  z.object({procurement_id:id,quantity}).strict()
+]);
 export const shipment = withDriverContact(z.object({
   scheme_code: code,
-  shipment_no: z.string().min(1).max(100),
+  shipment_no: z.string().min(1).max(100).optional(),
   leg: z.enum(['PADDY', 'CMR']),
   season_id: id,
   miller_id: id,
@@ -133,14 +138,19 @@ export const shipment = withDriverContact(z.object({
   order_id: nullable(id),
   driver_name: nullable(name),
   driver_phone: nullable(phone),
-  quantity,
-  lots: z.array(z.object({
-    procurement_id: id,
-    quantity
-  }).strict()).max(100).default([]),
+  quantity: quantity.optional(),
+  lots: z.array(shipmentLot).max(100).default([]),
   remarks: nullable(z.string().max(500))
 }).strict().refine(value=>(value.driver_name===null)===(value.driver_phone===null),{
   message:'driver_name and driver_phone must be supplied together',path:['driver_phone']
+}).transform((value,context)=>{
+  if(value.quantity)return value;
+  if(value.leg==='PADDY'&&value.lots.length){
+    try{return {...value,quantity:{value:addKg(...value.lots.map(lot=>kilograms(lot.quantity))),unit:'KG'}};}
+    catch{context.addIssue({code:'custom',path:['lots'],message:'Each lot must contain a positive quantity with at most 3 decimal places in KG.'});return z.NEVER;}
+  }
+  context.addIssue({code:'custom',path:['quantity'],message:'Provide shipment quantity or, for Paddy, at least one procurement lot.'});
+  return z.NEVER;
 }));
 export const dispatch = withDriverContact(z.object({
   dispatched_at: pastTimestamp,

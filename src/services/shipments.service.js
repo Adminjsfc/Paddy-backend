@@ -1,4 +1,5 @@
 import {syncOrderStock,allocatedOrderKg} from './order-stock.service.js';
+import {randomUUID} from 'node:crypto';
 import {addKg} from '../utils/core.js';
 import {capacityKg} from '../utils/core.js';
 import {requireStockMasters} from '../repositories/stock-masters.repository.js';
@@ -40,6 +41,7 @@ export async function transport(connection, vehicleId, user) {
   return v;
 }
 export async function createShipment(connection, data, context, submission = {}) {
+  data={...data,shipment_no:data.shipment_no??`${data.leg}-${randomUUID()}`};
   ensure(data.leg === 'PADDY' ? ['PACS','LAMPS'].includes(context.user.role) : context.user.role === 'MILLER',
     data.leg === 'PADDY' ? 'Only PACS/LAMPS can create Paddy shipments.' : 'Only Miller can create CMR shipments.', 'FORBIDDEN', 403);
   const driverOwnerId = ['PACS','LAMPS'].includes(context.user.role) ? context.user.facility_id : data.miller_id;
