@@ -51,10 +51,12 @@ export async function listLedgerListStockLedger(filter, limit, offset, args) {
     GREATEST(l.on_hand_delta_kg,0) in_quantity_kg,GREATEST(-l.on_hand_delta_kg,0) out_quantity_kg,
     (SELECT COALESCE(SUM(b.on_hand_delta_kg),0) FROM stock_ledger b WHERE b.stock_id=l.stock_id AND b.id<=l.id) balance_kg,
     (SELECT COALESCE(SUM(b.reserved_delta_kg),0) FROM stock_ledger b WHERE b.stock_id=l.stock_id AND b.id<=l.id) reserved_balance_kg,
-    CASE WHEN l.reference_type IN ('CMR_ORDER','CMR_ORDER_ADJUSTMENT','CMR_ORDER_CANCEL') THEN (SELECT order_no FROM cmr_orders WHERE id=l.reference_id)
+    CASE WHEN l.reference_type IN ('STOCK_ADD','STOCK_UPDATE') THEN CONCAT('STOCK-',l.stock_id)
+      WHEN l.reference_type IN ('CMR_ORDER','CMR_ORDER_ADJUSTMENT','CMR_ORDER_CANCEL') THEN (SELECT order_no FROM cmr_orders WHERE id=l.reference_id)
       WHEN l.reference_type='PROCUREMENT' THEN (SELECT ro_no FROM procurement WHERE id=l.reference_id)
       WHEN l.reference_type='PROCUREMENT_CORRECTION' THEN (SELECT p.ro_no FROM procurement_corrections c JOIN procurement p ON p.id=c.procurement_id WHERE c.id=l.reference_id)
-      WHEN l.reference_type IN ('RESERVE','DISPATCH','CANCEL') THEN (SELECT shipment_no FROM shipments WHERE id=l.reference_id) END reference_no
+      WHEN l.reference_type IN ('RESERVE','DISPATCH','CANCEL') THEN (SELECT shipment_no FROM shipments WHERE id=l.reference_id) END reference_no,
+    l.remarks
     FROM stock_ledger l LEFT JOIN facilities f ON f.id=l.facility_id LEFT JOIN seasons se ON se.id=l.season_id WHERE 1=1${filter} ORDER BY l.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function getMillerReconciliationFindFacilities(millerId) {

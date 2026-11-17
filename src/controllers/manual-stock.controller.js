@@ -1,0 +1,10 @@
+import {z} from 'zod';
+import {id,code,quantity} from '../utils/core.js';
+import {mutation} from '../middlewares/mutation.js';
+import {requestContext} from '../utils/http.js';
+import * as service from '../services/manual-stock.service.js';
+const common={quantity,remarks:z.string().trim().min(3).max(500)};
+const addSchema=z.object({facility_id:id,season_id:id,scheme_code:code,commodity_code:z.enum(['PADDY','RICE']),...common}).strict();
+const updateSchema=z.object(common).strict();
+export const add=mutation(addSchema,(c,data,req)=>service.add(c,data,requestContext(req)),{requireIdempotencyKey:false});
+export const update=mutation(updateSchema,(c,data,req)=>service.update(c,data,requestContext(req)),{requireIdempotencyKey:false});
