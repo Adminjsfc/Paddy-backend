@@ -16,11 +16,12 @@ import {paddyOrderRoutes} from './paddy-orders.routes.js';
 import {postmanSetupRoutes} from './postman-setup.routes.js';
 import {driverRoutes} from './drivers.routes.js';
 import {manualStockRoutes} from './manual-stock.routes.js';
+import {vehicleMapRoutes} from './vehicle-map.routes.js';
 export function registerApiRoutes(app) {
   authRoutes(app);
   app.use('/api/v1/core/receiving', cmrReceivingRoutes);
   app.use('/api/v1/core', coreMillerRoutes);
   app.use('/api/v1/integrations/euparjan', apiKey('EUPARJAN_API_KEY', 'INTEGRATION'), pushApiRoutes);
   app.use('/api/v1/gps', apiKey('GPS_API_KEY', 'GPS'), gpsPush);
-  app.use('/api/v1', auth, moduleGuard, driverRoutes, postmanSetupRoutes, moduleRoutes, paddyOrderRoutes, cmrSubmissionRoutes, millerRoutes, masters, storeAssignments, procurementRoutes, shipmentRoutes, manualStockRoutes, gpsRead, reportRoutes);
+  app.use('/api/v1', auth, moduleGuard, driverRoutes, postmanSetupRoutes, moduleRoutes, paddyOrderRoutes, cmrSubmissionRoutes, millerRoutes, masters, storeAssignments, procurementRoutes, shipmentRoutes, manualStockRoutes, vehicleMapRoutes, gpsRead, reportRoutes);
 }
