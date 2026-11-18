@@ -3,38 +3,41 @@ import {one,rows} from './database.js';
 
 // Procurement is the report source; route tags only enrich each receipt with Miller mappings.
 export async function sourceProcurementReport(sourceId,seasonId,{limit,offset},schemeCode=null) {
-  const args=[sourceId,...(seasonId?[seasonId]:[]),...(schemeCode?[schemeCode]:[])];
-  const filter=`WHERE p.facility_id=? AND p.commodity_code='PADDY'${seasonId?' AND p.season_id=?':''}${schemeCode?' AND p.scheme_code=?':''}`;
+  const args=[...(sourceId===null?[]:[sourceId]),...(seasonId?[seasonId]:[]),...(schemeCode?[schemeCode]:[])];
+  const filter=`WHERE ${sourceId===null?'':'p.facility_id=? AND '}p.commodity_code='PADDY'${seasonId?' AND p.season_id=?':''}${schemeCode?' AND p.scheme_code=?':''}`;
   const totals=await one(pool,`SELECT COUNT(p.id) procurement_count,
     COALESCE(SUM(p.quantity_kg),0) quantity_kg,COALESCE(SUM(p.available_kg),0) available_kg,
-    COALESCE(SUM(p.reserved_kg),0) reserved_kg,COALESCE(SUM(p.available_kg-p.reserved_kg),0) unreserved_kg
+    COALESCE(SUM(p.reserved_kg),0) reserved_kg,COALESCE(SUM(p.available_kg-p.reserved_kg),0) unreserved_kg,
+    COALESCE(SUM(p.quantity_kg-p.available_kg),0) lifted_kg
     FROM procurement p ${filter}`,args);
   const data=await rows(pool,`SELECT p.id,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.facility_id,p.district_id,p.facility_id source_id,
     src.name source_name,src.code source_code,p.season_id,se.name season_name,p.scheme_code,p.commodity_code,
     p.farmer_id,p.procured_at,p.quantity_kg,p.available_kg,p.reserved_kg,p.available_kg-p.reserved_kg unreserved_kg,
-    p.moisture_percent,p.created_at
-    FROM procurement p JOIN facilities src ON src.id=p.facility_id JOIN seasons se ON se.id=p.season_id
+    p.quantity_kg-p.available_kg lifted_kg,p.moisture_percent,p.created_at
+    FROM procurement p ${sourceId===null?'LEFT JOIN':'JOIN'} facilities src ON src.id=p.facility_id
+    ${sourceId===null?'LEFT JOIN':'JOIN'} seasons se ON se.id=p.season_id
     ${filter} ORDER BY p.procured_at DESC,p.id DESC LIMIT ${limit} OFFSET ${offset}`,args);
-  const bySeason=new Map();
-  if(data.length) {
-    const seasons=[...new Set(data.map(row=>Number(row.season_id)))];
-    const mappings=await rows(pool,`SELECT r.id route_tag_id,r.season_id,m.id miller_id,m.name miller_name,m.address miller_address
+  const bySourceSeason=new Map();
+  const sources=[...new Set(data.filter(row=>row.facility_id!=null).map(row=>Number(row.facility_id)))];
+  const seasons=[...new Set(data.filter(row=>row.season_id!=null).map(row=>Number(row.season_id)))];
+  if(sources.length&&seasons.length) {
+    const mappings=await rows(pool,`SELECT r.id route_tag_id,r.source_id,r.season_id,m.id miller_id,m.name miller_name,m.address miller_address
       FROM route_tags r JOIN facilities m ON m.id=r.destination_id AND m.kind='MILLER' AND m.active=1
-      WHERE r.source_id=? AND r.active=1 AND r.season_id IN (${seasons.map(()=>'?').join(',')})
-      ORDER BY m.name,m.id,r.id`,[sourceId,...seasons]);
+      WHERE r.source_id IN (${sources.map(()=>'?').join(',')}) AND r.active=1 AND r.season_id IN (${seasons.map(()=>'?').join(',')})
+      ORDER BY m.name,m.id,r.id`,[...sources,...seasons]);
     for(const mapping of mappings) {
-      const season=Number(mapping.season_id);
-      if(!bySeason.has(season))bySeason.set(season,new Map());
-      const group=bySeason.get(season);
+      const sourceSeason=`${mapping.source_id??sourceId}:${mapping.season_id}`;
+      if(!bySourceSeason.has(sourceSeason))bySourceSeason.set(sourceSeason,new Map());
+      const group=bySourceSeason.get(sourceSeason);
       if(!group.has(Number(mapping.miller_id))) {
-        const {season_id,...details}=mapping;
+        const {source_id,season_id,...details}=mapping;
         group.set(Number(mapping.miller_id),details);
       }
     }
   }
   for(const row of data) {
     row.procurement_ids=[Number(row.id)];
-    row.mapped_millers=[...(bySeason.get(Number(row.season_id))?.values()||[])].filter(mapping=>Number(mapping.miller_id)===Number(row.miller_id)).map(mapping=>({...mapping}));
+    row.mapped_millers=[...(bySourceSeason.get(`${row.facility_id}:${row.season_id}`)?.values()||[])].filter(mapping=>Number(mapping.miller_id)===Number(row.miller_id)).map(mapping=>({...mapping}));
     row.has_route_tag=row.mapped_millers.length>0;
   }
   return {data,totals,total:Number(totals.procurement_count)};

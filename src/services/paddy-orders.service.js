@@ -18,10 +18,16 @@ function liftingSource(user) {
   return user.facility_id;
 }
 export async function sourceLiftingSummary(context) {
-  const sourceId=liftingSource(context.user);
-  const seasonId=context.query.season_id?id.parse(Number(context.query.season_id)):null;
+  const admin=context.user.role==='ADMIN';
+  const sourceId=admin?null:liftingSource(context.user);
+  const facilityId=context.query.facility_id;
+  if(!admin&&facilityId!==undefined) {
+    ensure(id.parse(Number(facilityId))===Number(sourceId),
+      'Cannot view another facility procurement','FORBIDDEN',403);
+  }
+  const seasonId=!admin&&context.query.season_id?id.parse(Number(context.query.season_id)):null;
   const pagination=pageParams(context.query);
-  const scheme=context.query.scheme_code?code.parse(context.query.scheme_code):null;
+  const scheme=!admin&&context.query.scheme_code?code.parse(context.query.scheme_code):null;
   const result=await repository.sourceProcurementReport(sourceId,seasonId,pagination,scheme);
   return {body:{ok:true,data:result.data,totals:result.totals,quantity_scope:'SOURCE_PROCUREMENT',
     pagination:{page:pagination.page,limit:pagination.limit,total:result.total}}};

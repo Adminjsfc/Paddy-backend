@@ -4,6 +4,7 @@ import {liftingMillers,listMappedSources,liftingVehicles,sourceLiftingSummary} f
 import {listMappings,listSourceMappings} from '../controllers/miller-mappings.controller.js';
 
 export const paddyOrderRoutes=Router();
+paddyOrderRoutes.get('/paddy/ro-report',roles('ADMIN','PACS','LAMPS'),sourceLiftingSummary);
 paddyOrderRoutes.get('/paddy/lifting-summary',roles('PACS','LAMPS'),sourceLiftingSummary);
 paddyOrderRoutes.get('/miller-mappings',roles('MILLER'),listMappings);
 paddyOrderRoutes.get('/pacs-mappings',roles('PACS','LAMPS'),listSourceMappings);
