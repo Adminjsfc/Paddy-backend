@@ -5,7 +5,6 @@ import {listMappings,listSourceMappings} from '../controllers/miller-mappings.co
 
 export const paddyOrderRoutes=Router();
 paddyOrderRoutes.get('/paddy/ro-report',roles('ADMIN','PACS','LAMPS'),sourceLiftingSummary);
-paddyOrderRoutes.get('/paddy/lifting-summary',roles('PACS','LAMPS'),sourceLiftingSummary);
 paddyOrderRoutes.get('/miller-mappings',roles('MILLER'),listMappings);
 paddyOrderRoutes.get('/pacs-mappings',roles('PACS','LAMPS'),listSourceMappings);
 paddyOrderRoutes.get('/paddy/mapped-sources',roles('MILLER'),listMappedSources);

@@ -4,7 +4,7 @@ export function moduleForRequest(context) {
   const path = context.path;
   if (path.startsWith('/cmr/')) return 'cmr';
   if (path === '/cmr-orders' || path === '/shipments' && (context.query?.leg === 'CMR' || context.body?.leg === 'CMR')) return 'cmr';
-  if (path === '/reports/dashboard' || path === '/reports/dashboard/vehicles') return 'dashboard';
+  if (path === '/reports/dashboard' || path === '/reports/dashboard/vehicles' || path.startsWith('/dashboards/paddy/')) return 'dashboard';
   if (path === '/reports/stocks') return 'stocks';
   if (path === '/reports/ledger' || path === '/reports/lifting-summary') return 'ledger';
   if (/^\/reports\/millers\/\d+\/reconciliation$/.test(path)) return 'reconciliation';

@@ -7,12 +7,11 @@ export async function sourceProcurementReport(sourceId,seasonId,{limit,offset},s
   const filter=`WHERE ${sourceId===null?'':'p.facility_id=? AND '}p.commodity_code='PADDY'${seasonId?' AND p.season_id=?':''}${schemeCode?' AND p.scheme_code=?':''}`;
   const totals=await one(pool,`SELECT COUNT(p.id) procurement_count,
     COALESCE(SUM(p.quantity_kg),0) quantity_kg,COALESCE(SUM(p.available_kg),0) available_kg,
-    COALESCE(SUM(p.reserved_kg),0) reserved_kg,COALESCE(SUM(p.available_kg-p.reserved_kg),0) unreserved_kg,
     COALESCE(SUM(p.quantity_kg-p.available_kg),0) lifted_kg
     FROM procurement p ${filter}`,args);
   const data=await rows(pool,`SELECT p.id,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.facility_id,p.district_id,p.facility_id source_id,
     src.name source_name,src.code source_code,p.season_id,se.name season_name,p.scheme_code,p.commodity_code,
-    p.farmer_id,p.procured_at,p.quantity_kg,p.available_kg,p.reserved_kg,p.available_kg-p.reserved_kg unreserved_kg,
+    p.farmer_id,p.procured_at,p.quantity_kg,p.available_kg,
     p.quantity_kg-p.available_kg lifted_kg,p.moisture_percent,p.created_at
     FROM procurement p ${sourceId===null?'LEFT JOIN':'JOIN'} facilities src ON src.id=p.facility_id
     ${sourceId===null?'LEFT JOIN':'JOIN'} seasons se ON se.id=p.season_id

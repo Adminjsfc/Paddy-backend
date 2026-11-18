@@ -1,7 +1,12 @@
 import * as controller from "../controllers/reports.controller.js";
 import { Router } from 'express';
 import { roles } from "../middlewares/auth.js";
+import {getProcurementDashboard} from '../services/procurement-dashboard.service.js';
+import {requestContext} from '../utils/http.js';
 export const reportRoutes = Router();
+reportRoutes.get('/dashboards/paddy/:view',roles('ADMIN','PACS','LAMPS','MILLER'),async(req,res)=>{
+  res.json({ok:true,data:await getProcurementDashboard(requestContext(req),req.params.view)});
+});
 reportRoutes.get('/reports/dashboard/vehicles',roles('MILLER'),controller.dashboardVehicles);
 reportRoutes.get('/reports/lifting-summary',roles('MILLER'),controller.liftingSummary);
 reportRoutes.get('/reports/stocks', roles('ADMIN', 'OPERATOR', 'MILLER', 'PACS', 'LAMPS'), controller.listStocks);
