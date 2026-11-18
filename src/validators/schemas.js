@@ -121,10 +121,11 @@ export const milling = z.object({
   milled_at: pastTimestamp,
   remarks: nullable(z.string().max(500))
 }).strict();
+const shipmentBagCount = z.number().int().positive().max(10000000).optional();
 const shipmentLot = z.union([
-  z.object({procurement_id:id,quantity:quantity.shape.value,unit:quantity.shape.unit}).strict()
-    .transform(lot=>({procurement_id:lot.procurement_id,quantity:{value:lot.quantity,unit:lot.unit}})),
-  z.object({procurement_id:id,quantity}).strict()
+  z.object({procurement_id:id,quantity:quantity.shape.value,unit:quantity.shape.unit,no_of_bags:shipmentBagCount}).strict()
+    .transform(({quantity,unit,...lot})=>({...lot,quantity:{value:quantity,unit}})),
+  z.object({procurement_id:id,quantity,no_of_bags:shipmentBagCount}).strict()
 ]);
 export const shipment = withDriverContact(z.object({
   scheme_code: code,
@@ -139,6 +140,7 @@ export const shipment = withDriverContact(z.object({
   driver_name: nullable(name),
   driver_phone: nullable(phone),
   quantity: quantity.optional(),
+  no_of_bags: shipmentBagCount,
   lots: z.array(shipmentLot).max(100).default([]),
   remarks: nullable(z.string().max(500))
 }).strict().refine(value=>(value.driver_name===null)===(value.driver_phone===null),{
@@ -155,6 +157,7 @@ export const shipment = withDriverContact(z.object({
 export const dispatch = withDriverContact(z.object({
   dispatched_at: pastTimestamp,
   receipt_no: z.string().min(1).max(100),
+  no_of_bags: shipmentBagCount,
   driver_name: name.optional(),
   driver_phone: phone.optional()
 }).strict());

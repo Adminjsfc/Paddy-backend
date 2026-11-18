@@ -108,7 +108,7 @@ export async function dispatchShipmentUpdateProcurement(connection, l) {
   return rows(connection, 'UPDATE procurement SET available_kg=available_kg-?,reserved_kg=reserved_kg-? WHERE id=?', [l.quantity_kg, l.quantity_kg, l.procurement_id]);
 }
 export async function dispatchShipmentUpdateShipments(connection, data, s) {
-  return rows(connection, "UPDATE shipments SET status='DISPATCHED',dispatched_at=?,dispatch_receipt=?,driver_name=?,driver_phone=?,expected_completion_at=NULL,driver_user_id=? WHERE id=?", [data.dispatched_at, data.receipt_no, data.driver_name, data.driver_phone, data.driver_user_id, s.id]);
+  return rows(connection, "UPDATE shipments SET status='DISPATCHED',dispatched_at=?,dispatch_receipt=?,total_bags=?,driver_name=?,driver_phone=?,expected_completion_at=NULL,driver_user_id=? WHERE id=?", [data.dispatched_at, data.receipt_no, data.no_of_bags, data.driver_name, data.driver_phone, data.driver_user_id, s.id]);
 }
 export async function cancelShipmentListShipmentLots(connection, s) {
   return rows(connection, 'SELECT shipment_id,procurement_id,quantity_kg FROM shipment_lots WHERE shipment_id=? ORDER BY procurement_id', [s.id]);
@@ -137,6 +137,6 @@ export async function getShipmentListShipmentEvents(s) {
   return rows(pool, 'SELECT id,shipment_id,event_type,occurred_at,detail,created_at FROM shipment_events WHERE shipment_id=? ORDER BY occurred_at,id', [s.id]);
 }
 export async function getShipmentListShipmentLots(s) {
-  return rows(pool, `SELECT l.shipment_id,l.procurement_id,l.quantity_kg,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.farmer_id FROM shipment_lots l JOIN procurement p ON p.id=l.procurement_id WHERE shipment_id=?`, [s.id]);
+  return rows(pool, `SELECT l.shipment_id,l.procurement_id,l.quantity_kg,l.no_of_bags,p.external_ref,p.miller_id,p.ro_no,CAST(p.ro_date AS CHAR) ro_date,p.farmer_id FROM shipment_lots l JOIN procurement p ON p.id=l.procurement_id WHERE shipment_id=?`, [s.id]);
 }
 

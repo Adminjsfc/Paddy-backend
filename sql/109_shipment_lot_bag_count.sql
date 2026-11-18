@@ -1,0 +1,1 @@
+ALTER TABLE shipment_lots ADD COLUMN no_of_bags INT UNSIGNED NULL;

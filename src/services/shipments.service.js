@@ -44,6 +44,15 @@ export async function createShipment(connection, data, context, submission = {})
   data={...data,shipment_no:data.shipment_no??`${data.leg}-${randomUUID()}`};
   ensure(data.leg === 'PADDY' ? ['PACS','LAMPS'].includes(context.user.role) : context.user.role === 'MILLER',
     data.leg === 'PADDY' ? 'Only PACS/LAMPS can create Paddy shipments.' : 'Only Miller can create CMR shipments.', 'FORBIDDEN', 403);
+  const lotsWithBagCounts=(data.lots??[]).filter(lot=>lot.no_of_bags!==undefined);
+  let lotBagTotal;
+  if(lotsWithBagCounts.length){
+    ensure(lotsWithBagCounts.length===data.lots.length,'Provide no_of_bags for every lot','VALIDATION',400);
+    lotBagTotal=lotsWithBagCounts.reduce((sum,lot)=>sum+lot.no_of_bags,0);
+    ensure(lotBagTotal<=10000000,'Total lot bags must be at most 10,000,000','VALIDATION',400);
+    ensure(data.no_of_bags===undefined||data.no_of_bags===lotBagTotal,
+      'Shipment no_of_bags must equal the sum of lot bag counts','VALIDATION',400);
+  }
   const driverOwnerId = ['PACS','LAMPS'].includes(context.user.role) ? context.user.facility_id : data.miller_id;
   if (['PACS','LAMPS'].includes(context.user.role)) {
     ensure(data.leg==='PADDY','leg must be PADDY for PACS/LAMPS.','FORBIDDEN',403);
@@ -80,7 +89,7 @@ export async function createShipment(connection, data, context, submission = {})
   const driverName = submission.driver_name ?? data.driver_name;
   const driverPhone = submission.driver_phone ?? data.driver_phone;
   const driver = driverName && driverPhone ? await ensureDriver(connection, {name:driverName,phone:driverPhone}, context, driverOwnerId) : null;
-  submission = {...submission,driver_user_id:driver?.id ?? null};
+  submission = {...submission,total_bags:submission.total_bags??lotBagTotal??data.no_of_bags??null,driver_user_id:driver?.id ?? null};
   const route=await planRoute(connection,source.id,dest.id,context.user.id);
   const id = await repository.createShipmentInsertShipments(connection, data, flowType, source, dest, v, qty, recovery, submission, masters,route.id);
   await stock(connection, source.id, data.season_id, data.leg === 'PADDY' ? 'PADDY' : 'RICE', 0, qty, 'RESERVE', id, data.scheme_code, context.user);
@@ -90,7 +99,8 @@ export async function createShipment(connection, data, context, submission = {})
       ensure(new Set(data.lots.map(l => l.procurement_id)).size === data.lots.length, 'Duplicate procurement lots', 'VALIDATION', 400);
       allocations = data.lots.map(l => ({
         procurement_id: l.procurement_id,
-        quantity_kg: kilograms(l.quantity)
+        quantity_kg: kilograms(l.quantity),
+        no_of_bags: l.no_of_bags??null
       }));
       ensure(allocations.reduce((s, l) => addKg(s,l.quantity_kg), 0) === qty, 'Lot quantities must total shipment quantity');
     } else {
@@ -120,6 +130,7 @@ export async function createShipment(connection, data, context, submission = {})
   } else await repository.createShipmentUpdateCmrOrders(connection, qty, order);
   await event(connection, id, 'PLANNED', new Date(), {
     quantity_kg: qty,
+    no_of_bags: submission.total_bags,
     flow_type: flowType,
     expected_completion_at: null,
     driver_name: submission.driver_name ?? data.driver_name ?? null,
@@ -137,6 +148,7 @@ export async function createShipment(connection, data, context, submission = {})
     ...masters,
     vehicle_type_id: v.vehicle_type_id ?? null,
     status: 'PLANNED',
+    no_of_bags: submission.total_bags,
     trip_status: 0,
     trip_started_at: null,
     trip_completed_at: null,
@@ -197,7 +209,7 @@ export async function deliverShipment(connection, data, context, s) {
 export async function dispatchShipment(connection, data, context) {
   const s = await ownedShipment(connection, context);
   ensure(s.status === 'PLANNED', 'Only a PLANNED shipment can be dispatched');
-  data={...data,driver_name:data.driver_name??s.driver_name,driver_phone:data.driver_phone??s.driver_phone};
+  data={...data,no_of_bags:data.no_of_bags??s.total_bags??null,driver_name:data.driver_name??s.driver_name,driver_phone:data.driver_phone??s.driver_phone};
   ensure(data.driver_name,'driver_name is required.','VALIDATION',400);
   ensure(data.driver_phone,'driver_phone is required.','VALIDATION',400);
   await lockFacilities(connection, [s.source_id]);
@@ -223,6 +235,7 @@ export async function dispatchShipment(connection, data, context) {
   await repository.dispatchShipmentUpdateShipments(connection, data, s);
   await event(connection, s.id, 'DISPATCHED', data.dispatched_at, {
     receipt_no: data.receipt_no,
+    no_of_bags: data.no_of_bags,
     driver_name: data.driver_name,
     driver_phone: data.driver_phone,
     actor_id: context.user.id
@@ -230,6 +243,7 @@ export async function dispatchShipment(connection, data, context) {
   return {
     id: s.id,
     status: 'DISPATCHED',
+    no_of_bags: data.no_of_bags,
     driver_user_id:driver.id,
     driver_account:driver,
     trip_status: s.trip_status,
@@ -291,6 +305,7 @@ export async function listShipments(context) {
   const count = await repository.listShipmentsCountShipments(sql, args);
   const records = await repository.listShipmentsListShipmentEvents(sql, limit, offset, args);
   const data=records.map(row=>({...row,
+    no_of_bags:row.total_bags??null,
     lifted_quantity_kg:row.dispatched_at?Number(row.quantity_kg):null,
     received_quantity_kg:row.delivered_at&&row.accepted_kg!=null?Number(row.accepted_kg):null
   }));
@@ -320,6 +335,7 @@ export async function getShipment(context) {
       ok: true,
       data: {
         ...s,
+        no_of_bags: s.total_bags??null,
         route: await shipmentRoute(pool,s.id),
         events,
         lots
