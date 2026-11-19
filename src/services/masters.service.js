@@ -224,7 +224,21 @@ export async function listMasterRecords(context, type, table) {
     args.push(true);
   }
   const count = await repository.listMasterRecordsCountX(table, sql, args);
-  const data = await repository.listMasterRecordsListX(table, sql, limit, offset, args);
+  let data = await repository.listMasterRecordsListX(table, sql, limit, offset, args);
+  if (type==='vehicles'&&data.length) {
+    const scope=context.user.role==='CORE_DM'
+      ? {sql:` AND s.district_id IN (${context.user.district_ids.map(()=>'?').join(',')})`,params:context.user.district_ids}
+      : scopedWhere(context.user);
+    const liftingByVehicle=await repository.listVehicleLifting(data.map(vehicle=>vehicle.id),scope);
+    data=data.flatMap(vehicle=>{
+      const {id,registration_no}=vehicle;
+      const vehicleFields={...vehicle,vehicle_id:id,vehicle_no:registration_no};
+      const trips=liftingByVehicle.get(String(id))??[];
+      return trips.length
+        ? trips.map(trip=>({...vehicleFields,...trip}))
+        : [{...vehicleFields,trip_id:null,trip_date:null,trip_status:null}];
+    });
+  }
   return {
     body: {
       ok: true,
