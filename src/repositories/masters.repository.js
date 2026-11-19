@@ -67,6 +67,13 @@ export async function listMasterRecordsCountX(table, sql, args) {
   return one(pool, `SELECT COUNT(x.id) AS total FROM ${table} x WHERE 1=1${sql}`, args);
 }
 export async function listMasterRecordsListX(table, sql, limit, offset, args) {
+  if (table === 'vehicles') return rows(pool, `SELECT ${masterColumns(table)}, gps.latitude AS lat, gps.longitude AS \`long\`
+    FROM vehicles x LEFT JOIN gps_devices gps ON gps.id=(
+      SELECT d.id FROM gps_devices d
+      WHERE d.vehicle_id=x.id AND d.active=1 AND d.latitude IS NOT NULL AND d.longitude IS NOT NULL
+      ORDER BY d.last_gps_at DESC,d.id DESC LIMIT 1
+    )
+    WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
   if (table === 'gps_devices') return rows(pool, `SELECT x.id,x.vehicle_id,x.imei_id,x.district_id,x.model,x.sim_no,x.active,x.created_by,x.created_at,x.updated_by,x.updated_at,x.last_gps_at,x.latitude,x.longitude,x.speed_kph,i.imei,i.provider FROM gps_devices x JOIN imeis i ON i.id=x.imei_id WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
   return rows(pool, `SELECT ${masterColumns(table)} FROM ${table} x WHERE 1=1${sql} ORDER BY x.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }

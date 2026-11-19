@@ -2,8 +2,7 @@
 import {rows} from './database.js';
 
 const moved = "s.status IN ('DISPATCHED','IN_TRANSIT','ARRIVED','DELIVERED')";
-const tripSla = 's.trip_completed_at IS NOT NULL AND s.expected_completion_at IS NOT NULL';
-const routeTracked = "s.trip_completed_at IS NOT NULL AND r.encoded_polyline IS NOT NULL AND s.last_gps_at>=s.trip_started_at";
+const onTimeTrip = 's.trip_completed_at<=s.expected_completion_at';
 const escalationCodes = "'OR','LH','DISC','DO'";
 
 function conditions(scope, dimensions, date, period) {
@@ -37,8 +36,7 @@ export function dashboardProcurement(scope, breakdown, period) {
     COUNT(DISTINCT COALESCE(CAST(p.farmer_id AS CHAR),p.farmer_code)) farmer_count,
     COUNT(DISTINCT p.facility_id) centre_count,
     COALESCE(SUM(p.quantity_kg),0) procured_kg, COALESCE(SUM(p.available_kg),0) stock_available_kg,
-    COALESCE(SUM(p.quantity_kg-p.available_kg),0) ro_dispatched_kg,
-    COALESCE(SUM(p.reserved_kg),0) reserved_kg, COALESCE(SUM(p.available_kg-p.reserved_kg),0) unreserved_kg
+    COALESCE(SUM(p.available_kg-p.reserved_kg),0) unreserved_kg
     FROM procurement p LEFT JOIN facilities f ON f.id=p.facility_id
     WHERE p.commodity_code='PADDY'${filter.sql}${grouped(key)}`,filter.args);
 }
@@ -49,43 +47,64 @@ export function dashboardShipments(scope, breakdown, period, receipt = false) {
     facility_id:"CASE WHEN s.leg='PADDY' THEN r.source_id END",
     miller_id:'s.miller_id', district_id:shipmentDistrict, season_id:'s.season_id'
   },receipt?'s.delivered_at':'s.dispatched_at',period);
-  const leg = breakdown==='source' || breakdown==='miller' ? " AND s.leg='PADDY'"
+  const leg = scope.paddyOnly || breakdown==='source' || breakdown==='miller' ? " AND s.leg='PADDY'"
     : breakdown==='godown' ? " AND s.leg='CMR' AND dest.kind='SFC_GODOWN'" : '';
   const source = `FROM shipments s JOIN shipment_routes r ON r.id=s.route_id
     JOIN facilities f ON f.id=r.source_id JOIN facilities dest ON dest.id=r.destination_id`;
   const metrics = receipt ? `
     SUM(CASE WHEN s.leg='PADDY' THEN COALESCE(s.accepted_kg,0) ELSE 0 END) paddy_received_kg,
     SUM(CASE WHEN s.leg='CMR' AND dest.kind='SFC_GODOWN' THEN COALESCE(s.accepted_kg,0) ELSE 0 END) sfc_received_kg,
-    SUM(CASE WHEN s.accepted_kg IS NOT NULL THEN s.quantity_kg ELSE 0 END) receipt_dispatched_kg,
-    SUM(COALESCE(s.shortage_kg,0)) shortage_kg,
     COUNT(DISTINCT CASE WHEN s.leg='PADDY' THEN r.source_id END) received_source_count,
     COUNT(DISTINCT CASE WHEN s.leg='CMR' AND dest.kind='SFC_GODOWN' THEN r.destination_id END) godown_count` : `
     SUM(CASE WHEN s.leg='PADDY' THEN s.quantity_kg ELSE 0 END) paddy_dispatched_kg,
     SUM(CASE WHEN s.leg='CMR' AND dest.kind='SFC_GODOWN' THEN s.quantity_kg ELSE 0 END) sfc_dispatched_kg,
-    COUNT(*) trip_count, COUNT(DISTINCT s.vehicle_id) vehicle_count,
+    COUNT(*) trip_count,
     COUNT(DISTINCT CASE WHEN s.leg='PADDY' THEN s.vehicle_id END) paddy_vehicle_count,
     SUM(s.leg='PADDY') paddy_trip_count, SUM(s.leg='CMR') cmr_trip_count,
     SUM(s.leg='CMR' AND s.status='DELIVERED') closed_cmr_trip_count,
-    SUM(CASE WHEN EXISTS (
-      SELECT 1 FROM tbl_vehicle_alert_event e JOIN gps_alert_master g ON g.id=e.alert_id
-      WHERE e.shipment_id=s.id AND g.alert_short_name IN (${escalationCodes})
-    ) THEN 1 ELSE 0 END) escalated_trip_count,
-    SUM(${tripSla}) trip_sla_eligible,
-    SUM(CASE WHEN ${tripSla} AND s.trip_completed_at<=s.expected_completion_at THEN 1 ELSE 0 END) trip_sla_met,
-    SUM(CASE WHEN ${routeTracked} THEN 1 ELSE 0 END) route_sla_eligible,
-    SUM(CASE WHEN ${routeTracked} AND NOT EXISTS (
-      SELECT 1 FROM tbl_vehicle_alert_event e JOIN gps_alert_master g ON g.id=e.alert_id
-      WHERE e.shipment_id=s.id AND g.alert_short_name='OR'
-    ) THEN 1 ELSE 0 END) route_sla_met`;
+    COUNT(CASE WHEN ${onTimeTrip} THEN 1 END) on_time_trips`;
+  const shipmentStatus = receipt ? "s.status='DELIVERED'"
+    : breakdown==='source' ? "s.status IN ('IN_TRANSIT','ARRIVED','DELIVERED')" : moved;
   return rows(pool,`SELECT ${key??'NULL'} group_id,${metrics} ${source}
-    WHERE ${receipt?"s.status='DELIVERED'":moved}${leg}${filter.sql}${grouped(key)}`,filter.args);
+    WHERE ${shipmentStatus}${leg}${filter.sql}${grouped(key)}`,filter.args);
+}
+
+export async function shipmentCounts(scope, period) {
+  const dimensions={
+    facility_id:"CASE WHEN s.leg='PADDY' THEN r.source_id END",
+    miller_id:'s.miller_id',season_id:'s.season_id',district_id:shipmentDistrict
+  };
+  const tripFilter=conditions(scope,dimensions,'COALESCE(s.dispatched_at,s.created_at)',period);
+  const alertFilter=conditions(scope,dimensions,'e.start_date_time',period);
+  const shipments='FROM shipments s JOIN shipment_routes r ON r.id=s.route_id';
+  const shipmentScope=`WHERE s.status<>'CANCELLED'${scope.paddyOnly?" AND s.leg='PADDY'":''}`;
+  const [[trips],[alerts]]=await Promise.all([
+    rows(pool,`SELECT COUNT(*) total_trips,
+      COUNT(CASE WHEN ${onTimeTrip} THEN 1 END) on_time_trips,
+      COUNT(CASE WHEN s.trip_status=0 AND s.status IN ('PLANNED','DISPATCHED') THEN 1 END) pending_trips,
+      COUNT(CASE WHEN s.trip_status=1 AND s.status='IN_TRANSIT' THEN 1 END) in_transit_trips,
+      COUNT(CASE WHEN s.trip_status=2 AND s.status IN ('ARRIVED','DELIVERED') THEN 1 END) completed_trips
+      ${shipments} LEFT JOIN facilities f ON f.id=r.source_id ${shipmentScope}${tripFilter.sql}`,tripFilter.args),
+    rows(pool,`SELECT COUNT(*) total_alerts ${shipments}
+      LEFT JOIN facilities f ON f.id=r.source_id
+      JOIN tbl_vehicle_alert_event e ON e.shipment_id=s.id
+      ${shipmentScope}${alertFilter.sql}`,alertFilter.args)
+  ]);
+  return {
+    total_trips:Number(trips?.total_trips??0),
+    on_time_trips:Number(trips?.on_time_trips??0),
+    pending_trips:Number(trips?.pending_trips??0),
+    in_transit_trips:Number(trips?.in_transit_trips??0),
+    completed_trips:Number(trips?.completed_trips??0),
+    total_alerts:Number(alerts?.total_alerts??0)
+  };
 }
 
 export function dashboardMilling(scope, breakdown, period) {
-  if (scope.facility_id) return Promise.resolve([]);
+  if (scope.facility_id || scope.paddyOnly) return Promise.resolve([]);
   const key = breakdown==='district'?'f.district_id':null;
   const filter = conditions(scope, {miller_id:'b.miller_id',district_id:'f.district_id',season_id:'b.season_id'},'b.milled_at',period);
-  return rows(pool,`SELECT ${key??'NULL'} group_id, COUNT(DISTINCT b.miller_id) processing_miller_count,
+  return rows(pool,`SELECT ${key??'NULL'} group_id,
     SUM(b.paddy_consumed_kg) processed_kg,SUM(b.rice_produced_kg) cmr_output_kg
     FROM milling_batches b JOIN facilities f ON f.id=b.miller_id WHERE 1=1${filter.sql}${grouped(key)}`,filter.args);
 }
@@ -124,7 +143,7 @@ export function dashboardFleet(scope, staleMinutes) {
     LEFT JOIN shipment_routes r ON r.id=s.route_id
     LEFT JOIN facilities f ON f.id=r.source_id
     LEFT JOIN facilities dst ON dst.id=r.destination_id LEFT JOIN gps_devices d ON d.vehicle_id=v.id AND d.active=1
-    WHERE v.active=1${scoped?' AND s.id IS NOT NULL':''}${filter.sql}
+    WHERE v.active=1${scoped?' AND s.id IS NOT NULL':''}${scope.paddyOnly?" AND s.leg='PADDY'":''}${filter.sql}
     ORDER BY gps_issue+eta_issue DESC,v.id`,[staleMinutes,staleMinutes,...filter.args]);
 }
 
@@ -167,6 +186,6 @@ export function dashboardAlerts(scope, breakdown, period, openOnly = false) {
     JOIN facilities src ON src.id=r.source_id JOIN facilities dest ON dest.id=r.destination_id
     WHERE s.status<>'CANCELLED' AND g.alert_short_name IN (${escalationCodes})
     ${openOnly?'AND e.status=1 AND e.end_date_time IS NULL':''}
-    ${breakdown==='source'||breakdown==='miller'?"AND s.leg='PADDY'":''}${filter.sql}
+    ${scope.paddyOnly||breakdown==='source'||breakdown==='miller'?"AND s.leg='PADDY'":''}${filter.sql}
     ${openOnly?'ORDER BY e.start_date_time,e.id':grouped(key)}`,filter.args);
 }
