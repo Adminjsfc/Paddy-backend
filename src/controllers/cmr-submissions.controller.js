@@ -7,7 +7,11 @@ export const getSubmissionOptions = async (req, res) => {
 };
 export const dropdown=only=>async(req,res)=>{
   const context=requestContext(req);
-  return respond(res,await service.getSubmissionOptions({...context,query:{...context.query,only}}));
+  const result=await service.getSubmissionOptions({...context,query:{...context.query,only}});
+  if (['seasons','districts','stores'].includes(only)) {
+    return respond(res,{...result,body:{...result.body,data:result.body.data[only]}});
+  }
+  return respond(res,result);
 };
 export const listEligibleVehicles = async (req, res) => {
   return respond(res, await service.listEligibleVehicles(requestContext(req)));
