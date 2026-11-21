@@ -11,4 +11,4 @@ export const listStock = async (req, res) => {
 export const getShipment = async (req, res) => {
   return respond(res, await service.getShipment(requestContext(req)));
 };
-export const receive = mutation(receivingSchema, (connection, data, req) => service.receiveCMR(connection, data, requestContext(req)));
+export const receive = mutation(receivingSchema, (connection, data, req) => service.receiveCMR(connection, data, requestContext(req)), {requireIdempotencyKey:false});

@@ -48,11 +48,12 @@ export async function listShipmentsListRecords(base, limit, offset, args) {
     ORDER BY s.id DESC LIMIT ${limit} OFFSET ${offset}`, args);
 }
 export async function listStockCountRecords(base, scope) {
-  return one(pool, `SELECT COUNT(st.id) total,COALESCE(SUM(st.quantity_kg),0) received_kg ${base}`, scope.args);
+  return one(pool, `SELECT COUNT(*) total,COALESCE(SUM(COALESCE(st.quantity_kg,r.net_kg)),0) received_kg ${base}`, scope.args);
 }
 export async function listStockListRecords(base, limit, offset, scope) {
-  return rows(pool, `SELECT st.id,st.receipt_id,st.stack_no,st.quantity_kg,st.bags,r.receipt_no,r.received_at,s.shipment_no,s.scheme_code,s.commodity_code,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,m.name miller_name,f.name destination_name,se.name season_name ${base}
-    ORDER BY r.received_at DESC,st.id DESC LIMIT ${limit} OFFSET ${offset}`, scope.args);
+  return rows(pool, `SELECT st.id,r.id receipt_id,st.stack_no,COALESCE(st.quantity_kg,r.net_kg) quantity_kg,
+    COALESCE(st.bags,r.total_bags) bags,r.receipt_no,r.received_at,s.shipment_no,s.scheme_code,s.commodity_code,s.stenciling_code,s.gunny_bag_year,s.gunny_bag_type,m.name miller_name,f.name destination_name,se.name season_name ${base}
+    ORDER BY r.received_at DESC,r.id DESC,st.id DESC LIMIT ${limit} OFFSET ${offset}`, scope.args);
 }
 export async function listStockListStocks(scope) {
   return rows(pool, `SELECT f.id,f.name,se.name season_name,s.scheme_code,s.commodity_code,s.commodity_code commodity,s.status,s.on_hand_kg,s.reserved_kg,CASE WHEN s.status=1 THEN s.on_hand_kg-s.reserved_kg ELSE 0 END available_kg

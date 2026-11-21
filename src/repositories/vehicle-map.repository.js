@@ -17,7 +17,8 @@ export function trip(vehicleId,requested,user){
     s.source_lat,s.source_lng,s.source_radius_m,s.destination_lat,s.destination_lng,s.destination_radius_m,
     s.scheme_code,s.commodity_code,r.source_id,r.destination_id,r.encoded_polyline,r.geometry,r.distance_km,r.duration_minutes,
     src.name source_name,dst.name destination_name,dst.core_store_id,dst.contact_name destination_contact_name,dst.phone destination_phone,
-    district.district_name,se.name season_name,o.id order_id,o.order_no,o.rice_quantity_kg,o.lot_count,o.gunny_bag_year,o.gunny_bag_type
+    district.district_name,se.name season_name,o.id order_id,o.order_no,o.rice_quantity_kg,
+    COALESCE(s.cmr_lot_count,o.lot_count) lot_count,s.gunny_bag_year,s.gunny_bag_type
     FROM shipments s JOIN shipment_routes r ON r.id=s.route_id
     JOIN facilities src ON src.id=r.source_id JOIN facilities dst ON dst.id=r.destination_id
     LEFT JOIN tbl_district_master district ON district.id=s.district_id

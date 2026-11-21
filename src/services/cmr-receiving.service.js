@@ -1,25 +1,27 @@
-import {addKg} from '../utils/core.js';
+import {randomUUID} from 'node:crypto';
+import {addKg,kilograms} from '../utils/core.js';
 import * as repository from "../repositories/cmr-receiving.repository.js";
 import { z } from 'zod';
 import { event } from "../repositories/events.repository.js";
 import { ensure, pageParams } from "../utils/core.js";
 import { deliverShipment } from "./shipments.service.js";
+import {secondPrecision} from '../utils/datetime.js';
 export function scaled(text, places) {
   const [whole, fraction = ''] = text.split('.');
   return Number(BigInt(whole) * 10n ** BigInt(places) + BigInt(fraction.padEnd(places, '0')));
 }
 export function receivingCalculation(data) {
   ensure(new Set(data.stacks.map(row => row.stack_no.toUpperCase())).size === data.stacks.length, 'Duplicate stack numbers', 'VALIDATION', 400);
-  const stacks = data.stacks.map(row => ({
-    ...row,
-    quantity_kg: scaled(row.received_quantity_kg, 3) / 1000
-  }));
-  const totalBags = stacks.reduce((sum, row) => sum + row.bags, 0),
-    received = stacks.reduce((sum, row) => sum + Math.round(row.quantity_kg * 1000), 0);
+  const totalBags = data.stacks.reduce((sum, row) => sum + row.bags, 0);
   const gross = scaled(data.gross_weight_kg, 3),
     perBag = scaled(data.empty_bag_weight_kg, 3),
     tare = perBag * totalBags,
     net = gross - tare;
+  const stacks = data.stacks.map(row => ({
+    ...row,
+    quantity_kg:(row.received_quantity_kg===undefined?net:scaled(row.received_quantity_kg,3))/1000
+  }));
+  const received=stacks.reduce((sum,row)=>sum+Math.round(row.quantity_kg*1000),0);
   ensure([gross, perBag, tare, net, received].every(Number.isSafeInteger), 'Weights are outside allowed range', 'VALIDATION', 400);
   ensure(stacks.every(row => row.quantity_kg > 0) && perBag > 0 && net > 0, 'Rice and bag weights must be positive', 'VALIDATION', 400);
   ensure(received === net, 'Stack received quantities must equal gross weight minus total empty bag weight', 'WEIGHT_MISMATCH', 400);
@@ -44,13 +46,23 @@ export function receivingScope(user, alias = 'f') {
 export async function receiveCMR(connection, data, context) {
   const scope = receivingScope(context.user);
   const shipment = await repository.receiveCMRFindShipments(connection, scope, context);
+  const simple='received_quantity_kg' in data;
+  if(simple) {
+    data={...data,decision:'ACCEPTED',receipt_no:`CMR-${randomUUID()}`,
+      remarks:'',gps_override_reason:null,red_grains_percent:null,chalky_grains_percent:null,
+      other_standards:'',compliance_confirmed:null};
+  }
   ensure(['DISPATCHED', 'IN_TRANSIT', 'ARRIVED'].includes(shipment.status), 'Only shipped CMR awaiting receipt can be reviewed', 'INVALID_STATUS', 409);
   ensure(!(await repository.receiveCMRFindCmrReceipts(connection, shipment)), 'This shipment has already been reviewed', 'ALREADY_REVIEWED', 409);
   ensure(shipment.status === 'ARRIVED' || data.gps_override_reason, 'GPS arrival is missing; provide an arrival override reason', 'GPS_ARRIVAL_REQUIRED', 409);
+  data={...data,received_at:data.received_at??secondPrecision(new Date())};
   ensure(data.received_at >= new Date(shipment.trip_completed_at || shipment.trip_started_at || shipment.dispatched_at), 'Receipt precedes transport events', 'VALIDATION', 400);
-  const calc = receivingCalculation(data);
+  const calc = simple
+    ? {net_kg:kilograms({value:data.received_quantity_kg,unit:'KG'}),total_bags:data.bags,
+      gross_kg:null,tare_per_bag_kg:null,tare_kg:null,stacks:[]}
+    : receivingCalculation(data);
   ensure(calc.net_kg <= shipment.quantity_kg, 'Net rice weight exceeds dispatched quantity', 'OVER_RECEIPT', 400);
-  ensure(calc.net_kg === shipment.quantity_kg || data.remarks.length > 0, 'Remarks are required for a shortage', 'VALIDATION', 400);
+  ensure(simple||calc.net_kg === shipment.quantity_kg || data.remarks.length > 0, 'Remarks are required for a shortage', 'VALIDATION', 400);
   const receiptId = await repository.receiveCMRInsertCmrReceipts(connection, shipment, data, calc, context);
   for (const stack of calc.stacks) await repository.receiveCMRInsertCmrReceiptStacks(connection, receiptId, stack);
   if (data.decision === 'ACCEPTED') {
@@ -84,6 +96,8 @@ export async function receiveCMR(connection, data, context) {
     id: receiptId,
     shipment_id: shipment.id,
     decision: data.decision,
+    receipt_no:data.receipt_no,
+    received_at:data.received_at,
     net_kg: calc.net_kg,
     shortage_kg: addKg(shipment.quantity_kg,-calc.net_kg)
   };
@@ -133,7 +147,7 @@ export async function listStock(context) {
       limit,
       offset
     } = pageParams(context.query);
-  const base = `FROM cmr_receipt_stacks st JOIN cmr_receipts r ON r.id=st.receipt_id JOIN shipments s ON s.id=r.shipment_id JOIN shipment_routes sr ON sr.id=s.route_id
+  const base = `FROM cmr_receipts r LEFT JOIN cmr_receipt_stacks st ON st.receipt_id=r.id JOIN shipments s ON s.id=r.shipment_id JOIN shipment_routes sr ON sr.id=s.route_id
     JOIN facilities f ON f.id=sr.destination_id JOIN facilities m ON m.id=s.miller_id JOIN seasons se ON se.id=s.season_id
     WHERE r.decision='ACCEPTED' AND ${scope.sql}`;
   const count = await repository.listStockCountRecords(base, scope);
