@@ -3,10 +3,11 @@ import { Router } from 'express';
 import { roles } from "../middlewares/auth.js";
 export const cmrSubmissionRoutes = Router();
 cmrSubmissionRoutes.get(['/cmr/seasons','/cmr/dropdowns/seasons'],controller.dropdown('seasons'));
+cmrSubmissionRoutes.get(['/cmr/districts','/cmr/dropdowns/districts'],controller.dropdown('districts'));
 cmrSubmissionRoutes.use('/cmr', roles('MILLER'));
-for(const name of ['districts','stores','orders'])
+for(const name of ['stores','orders'])
   cmrSubmissionRoutes.get(`/cmr/${name}`,controller.dropdown(name));
-for(const name of ['schemes','commodities','districts','stores','orders'])
+for(const name of ['schemes','commodities','stores','orders'])
   cmrSubmissionRoutes.get(`/cmr/dropdowns/${name}`,controller.dropdown(name));
 cmrSubmissionRoutes.get('/cmr/dropdowns/vehicles',controller.listEligibleVehicles);
 cmrSubmissionRoutes.get('/cmr/submission-options', controller.getSubmissionOptions);

@@ -1,10 +1,13 @@
 import * as repository from "../repositories/modules.repository.js";
 import { ensure } from "../utils/core.js";
-const isSeasonDropdown = ({method,path}) =>
-  ['GET','HEAD'].includes(method) && /^\/cmr\/(?:dropdowns\/)?seasons\/?$/i.test(path);
+const isSharedDropdown = ({method,path}) =>
+  ['GET','HEAD'].includes(method) && /^\/cmr\/(?:dropdowns\/)?(?:seasons|districts)\/?$/i.test(path);
+const isCmrFormLookup = ({method,path}) =>
+  ['GET','HEAD'].includes(method) &&
+  /^\/cmr\/(?:stores|orders|vehicles|vehicle|submission-options|dropdowns\/(?:schemes|commodities|stores|orders|vehicles))\/?$/i.test(path);
 export function moduleForRequest(context) {
   const path = context.path;
-  if (isSeasonDropdown(context)) return;
+  if (isSharedDropdown(context) || isCmrFormLookup(context)) return;
   if (path.startsWith('/cmr/')) return 'cmr';
   if (path === '/cmr-orders' || path === '/shipments' && (context.query?.leg === 'CMR' || context.body?.leg === 'CMR')) return 'cmr';
   if (path === '/reports/dashboard' || path === '/reports/dashboard/vehicles' || path.startsWith('/dashboards/paddy/')) return 'dashboard';
@@ -18,7 +21,7 @@ export function allowedModule(permission, method) {
   return Boolean(permission && Number(permission.can_view) === 1 && Number(permission[action]) === 1);
 }
 export async function moduleGuard(context, res, next) {
-  if (isSeasonDropdown(context)) return next();
+  if (isSharedDropdown(context)) return next();
   if (context.user.role === 'DRIVER') {
     const summary=context.method==='POST'&&['/tripsummary_for_driver','/driver_detailsList','/active_tripList','/getTripDetailsForDriver','/alert_report_for_driver'].includes(context.path);
     ensure(summary||context.method === 'GET' && /^\/shipments(?:\/\d+)?$/.test(context.path), 'Drivers can only view their assigned shipments and trip summary', 'FORBIDDEN', 403);

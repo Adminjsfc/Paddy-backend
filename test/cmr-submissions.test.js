@@ -133,10 +133,14 @@ test('Scheme and core store mapping enforce district, store type and independent
     kind: 'FCI'
   }), true);
 });
-test('CMR form and lookup APIs share the CMR module permission', () => {
-  for (const path of ['/cmr/submissions', '/cmr/submission-options', '/cmr/vehicle']) assert.equal(moduleForRequest({
-    path
-  }), 'cmr');
+test('CMR form lookups bypass module permission while submissions and order reports keep it', () => {
+  for (const path of ['/cmr/stores','/cmr/orders','/cmr/vehicles','/cmr/vehicle','/cmr/submission-options','/cmr/dropdowns/schemes','/cmr/dropdowns/commodities','/cmr/dropdowns/stores','/cmr/dropdowns/orders','/cmr/dropdowns/vehicles']) {
+    assert.equal(moduleForRequest({method:'GET',path}),undefined);
+    assert.equal(moduleForRequest({method:'POST',path}),'cmr');
+  }
+  assert.equal(moduleForRequest({method:'POST',path:'/cmr/submissions'}),'cmr');
+  assert.equal(moduleForRequest({method:'GET',path:'/cmr-orders'}),'cmr');
+  assert.equal(moduleForRequest({method:'GET',path:'/shipments',query:{leg:'CMR'}}),'cmr');
 });
 
 test('CMR submission accepts the minimal order-based payload',()=>{
